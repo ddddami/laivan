@@ -1,0 +1,72 @@
+version: "3"
+
+vars:
+  API_DIR: api
+  WEB_DIR: web
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  api:run:
+    desc: Run the API server
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/api
+
+  api:test:
+    desc: Run API tests
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go test ./...
+
+  api:fmt:
+    desc: Format API Go code
+    dir: "{{.API_DIR}}"
+    cmds:
+      - gofmt -w ./cmd ./internal
+
+  api:tidy:
+    desc: Tidy API Go modules
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go mod tidy
+
+  api:check:
+    desc: Run API formatting, module tidy, and tests
+    cmds:
+      - task: api:fmt
+      - task: api:tidy
+      - task: api:test
+
+  web:install:
+    desc: Install web dependencies
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm install
+
+  web:dev:
+    desc: Run the web dev server
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm dev
+
+  web:test:
+    desc: Run web tests
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm test
+
+  web:build:
+    desc: Build the web app
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm build
+
+  test:
+    desc: Run backend and frontend tests
+    cmds:
+      - task: api:test
+      - task: web:test
