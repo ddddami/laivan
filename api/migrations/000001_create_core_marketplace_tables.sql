@@ -6,7 +6,6 @@ CREATE TABLE properties (
     name text NOT NULL,
     area text NOT NULL,
     landmark text,
-    district text,
     description text,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
