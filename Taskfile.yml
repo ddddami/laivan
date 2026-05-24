@@ -41,6 +41,32 @@ tasks:
       - task: api:tidy
       - task: api:test
 
+  db:status:
+    desc: Show local database migration status
+    cmds:
+      - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" status'
+
+  db:up:
+    desc: Run local database migrations
+    cmds:
+      - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" up'
+
+  db:down:
+    desc: Roll back the latest local database migration
+    cmds:
+      - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" down'
+
+  db:reset:
+    desc: Roll local database all the way down then up
+    cmds:
+      - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" reset'
+
+  sqlc:generate:
+    desc: Generate sqlc database code
+    dir: "{{.API_DIR}}"
+    cmds:
+      - sqlc generate
+
   web:install:
     desc: Install web dependencies
     dir: "{{.WEB_DIR}}"

@@ -1,0 +1,4 @@
+export LAIVAN_ENV=development
+export LAIVAN_PORT=4000
+export LAIVAN_DB_URL=postgres://laivan:pass@localhost:5432/laivan?sslmode=disable
+export LAIVAN_ALLOWED_ORIGINS=http://localhost:3000
