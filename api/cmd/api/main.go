@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/ddddami/laivan/internal/config"
+	"github.com/ddddami/laivan/internal/db"
 	"github.com/ddddami/laivan/internal/server"
 )
 
@@ -24,6 +25,18 @@ func main() {
 	}
 
 	logger := newLogger(cfg)
+
+	if cfg.DatabaseURL != "" {
+		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
+		if err != nil {
+			logger.Error("open database", "error", err)
+			os.Exit(1)
+		}
+		defer pool.Close()
+
+		logger.Info("database connection pool ready")
+	}
+
 	srv := server.New(cfg, logger, version)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
