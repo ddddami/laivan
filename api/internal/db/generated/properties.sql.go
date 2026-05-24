@@ -12,34 +12,34 @@ import (
 )
 
 const createProperty = `-- name: CreateProperty :one
-INSERT INTO properties (name, area, landmark, district, description)
+INSERT INTO properties (campus_id, name, area, landmark, description)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, area, landmark, district, description, created_at, updated_at
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at
 `
 
 type CreatePropertyParams struct {
+	CampusID    pgtype.UUID
 	Name        string
 	Area        string
 	Landmark    pgtype.Text
-	District    pgtype.Text
 	Description pgtype.Text
 }
 
 func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) (Property, error) {
 	row := q.db.QueryRow(ctx, createProperty,
+		arg.CampusID,
 		arg.Name,
 		arg.Area,
 		arg.Landmark,
-		arg.District,
 		arg.Description,
 	)
 	var i Property
 	err := row.Scan(
 		&i.ID,
+		&i.CampusID,
 		&i.Name,
 		&i.Area,
 		&i.Landmark,
-		&i.District,
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -48,7 +48,7 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 }
 
 const getProperty = `-- name: GetProperty :one
-SELECT id, name, area, landmark, district, description, created_at, updated_at
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties
 WHERE id = $1
 `
@@ -58,10 +58,10 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 	var i Property
 	err := row.Scan(
 		&i.ID,
+		&i.CampusID,
 		&i.Name,
 		&i.Area,
 		&i.Landmark,
-		&i.District,
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,

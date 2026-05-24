@@ -1,8 +1,22 @@
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE TABLE campuses (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug text NOT NULL UNIQUE,
+    name text NOT NULL,
+    short_name text NOT NULL,
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO campuses (slug, name, short_name)
+VALUES ('futa', 'Federal University of Technology Akure', 'FUTA');
+
 CREATE TABLE properties (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    campus_id uuid NOT NULL REFERENCES campuses (id) ON DELETE RESTRICT,
     name text NOT NULL,
     area text NOT NULL,
     landmark text,
@@ -69,4 +83,5 @@ DROP TABLE IF EXISTS agent_offers;
 DROP TABLE IF EXISTS agents;
 DROP TABLE IF EXISTS room_types;
 DROP TABLE IF EXISTS properties;
+DROP TABLE IF EXISTS campuses;
 DROP EXTENSION IF EXISTS pgcrypto;

@@ -29,6 +29,16 @@ type AgentOffer struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type Campuse struct {
+	ID        pgtype.UUID
+	Slug      string
+	Name      string
+	ShortName string
+	IsActive  bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Medium struct {
 	ID                pgtype.UUID
 	PropertyID        pgtype.UUID
@@ -43,10 +53,10 @@ type Medium struct {
 
 type Property struct {
 	ID          pgtype.UUID
+	CampusID    pgtype.UUID
 	Name        string
 	Area        string
 	Landmark    pgtype.Text
-	District    pgtype.Text
 	Description pgtype.Text
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
