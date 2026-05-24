@@ -22,6 +22,14 @@ tasks:
     cmds:
       - go test ./...
 
+  api:test:integration:
+    desc: Run API integration tests against local test database
+    deps:
+      - db:test:reset
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go test -tags=integration ./...
+
   api:fmt:
     desc: Format API Go code
     dir: "{{.API_DIR}}"
@@ -40,6 +48,26 @@ tasks:
       - task: api:fmt
       - task: api:tidy
       - task: api:test
+
+  infra:up:
+    desc: Start local infra services
+    cmds:
+      - docker compose up -d
+
+  infra:down:
+    desc: Stop local infra services
+    cmds:
+      - docker compose down
+
+  infra:ps:
+    desc: Show local infra service status
+    cmds:
+      - docker compose ps
+
+  infra:logs:
+    desc: Show local infra logs
+    cmds:
+      - docker compose logs -f
 
   db:status:
     desc: Show local database migration status
@@ -60,6 +88,12 @@ tasks:
     desc: Roll local database all the way down then up
     cmds:
       - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" reset'
+
+  db:test:reset:
+    internal: true
+    desc: Reset local test database migrations
+    cmds:
+      - ': "${LAIVAN_TEST_DB_URL:?LAIVAN_TEST_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_TEST_DB_URL" up && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_TEST_DB_URL" reset && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_TEST_DB_URL" up'
 
   sqlc:generate:
     desc: Generate sqlc database code
