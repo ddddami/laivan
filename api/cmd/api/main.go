@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/server"
@@ -25,9 +28,38 @@ func main() {
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("api server failed", "error", err)
-		os.Exit(1)
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- srv.ListenAndServe()
+	}()
+
+	shutdownSignals := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignals, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(shutdownSignals)
+
+	select {
+	case err := <-serverErrors:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("api server failed", "error", err)
+			os.Exit(1)
+		}
+	case sig := <-shutdownSignals:
+		logger.Info("shutting down api server", "signal", sig.String())
+
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Error("api server shutdown failed", "error", err)
+			os.Exit(1)
+		}
+
+		if err := <-serverErrors; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("api server failed during shutdown", "error", err)
+			os.Exit(1)
+		}
+
+		logger.Info("api server stopped")
 	}
 }
 
