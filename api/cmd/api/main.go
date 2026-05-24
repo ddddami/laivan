@@ -11,6 +11,7 @@ import (
 
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/db"
+	"github.com/ddddami/laivan/internal/repo"
 	"github.com/ddddami/laivan/internal/server"
 )
 
@@ -26,6 +27,7 @@ func main() {
 
 	logger := newLogger(cfg)
 
+	var propertyRepo server.PropertyStore
 	if cfg.DatabaseURL != "" {
 		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
 		if err != nil {
@@ -35,9 +37,10 @@ func main() {
 		defer pool.Close()
 
 		logger.Info("database connection pool ready")
+		propertyRepo = repo.NewPropertyRepository(pool)
 	}
 
-	srv := server.New(cfg, logger, version)
+	srv := server.New(cfg, logger, version, propertyRepo)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 

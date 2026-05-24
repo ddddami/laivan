@@ -11,9 +11,6 @@ CREATE TABLE campuses (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-INSERT INTO campuses (slug, name, short_name)
-VALUES ('futa', 'Federal University of Technology Akure', 'FUTA');
-
 CREATE TABLE properties (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     campus_id uuid NOT NULL REFERENCES campuses (id) ON DELETE RESTRICT,
