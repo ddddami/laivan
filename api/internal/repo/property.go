@@ -27,7 +27,13 @@ func (r *PropertyRepository) Create(ctx context.Context, property domain.Propert
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
+	campusUUID, err := uuidParam(property.CampusID)
+	if err != nil {
+		return domain.Property{}, err
+	}
+
 	row, err := r.queries.CreateProperty(ctx, generateddb.CreatePropertyParams{
+		CampusID:    campusUUID,
 		Name:        property.Name,
 		Area:        property.Location.Area,
 		Landmark:    textParam(property.Location.Landmark),
@@ -63,8 +69,9 @@ func (r *PropertyRepository) Get(ctx context.Context, id domain.ID) (domain.Prop
 
 func propertyFromRow(row generateddb.Property) domain.Property {
 	return domain.Property{
-		ID:   domain.ID(uuidString(row.ID)),
-		Name: row.Name,
+		ID:       domain.ID(uuidString(row.ID)),
+		CampusID: domain.ID(uuidString(row.CampusID)),
+		Name:     row.Name,
 		Location: domain.ApproxLocation{
 			Area:     row.Area,
 			Landmark: textString(row.Landmark),
@@ -92,7 +99,7 @@ func textString(value pgtype.Text) string {
 func uuidParam(id domain.ID) (pgtype.UUID, error) {
 	var uuid pgtype.UUID
 	if err := uuid.Scan(string(id)); err != nil {
-		return pgtype.UUID{}, fmt.Errorf("invalid property id: %w", err)
+		return pgtype.UUID{}, fmt.Errorf("invalid id: %w", err)
 	}
 
 	return uuid, nil

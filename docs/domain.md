@@ -47,6 +47,28 @@ This structure allows the platform to represent the market more realistically.
 
 # Core Entities
 
+## Campus
+
+A campus represents a distinct physical university location.
+
+Examples:
+
+* Federal University of Technology Akure (FUTA)
+* University of Lagos, Akoka Campus
+* University of Lagos, Idi-Araba Campus
+* University of Ibadan
+* Obafemi Awolowo University, Ile-Ife
+
+Campus is the current marketplace boundary. All properties, agents, and workflows are scoped to a campus.
+
+Campus is intentionally the top-level entity for now. There is no University table or hierarchy above Campus. A student at one campus does not see listings from another campus by default.
+
+When a university has multiple campuses (e.g. UNILAG: Akoka and Idi-Araba), each campus is modeled as a separate Campus row. A future University entity can be introduced later if needed for admin, analytics, or partnership workflows. Do not add it now.
+
+Properties belong to a campus. Room types belong to a property. Agent offers belong to room types. This hierarchy prevents cross-campus contamination.
+
+---
+
 ## Property
 
 A property represents the real-world accommodation building or location.

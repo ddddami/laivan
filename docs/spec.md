@@ -284,7 +284,7 @@ The public web application should prioritize discoverability.
 
 Important pages include:
 
-* FUTA accommodation landing page
+* Campus accommodation landing page (initially FUTA)
 * area pages
 * listing pages
 * room category pages
