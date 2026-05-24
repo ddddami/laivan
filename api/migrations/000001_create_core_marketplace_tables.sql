@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE properties (
@@ -62,3 +63,11 @@ CREATE INDEX idx_agent_offers_status ON agent_offers (status);
 CREATE INDEX idx_media_property_id ON media (property_id);
 CREATE INDEX idx_media_room_type_id ON media (room_type_id);
 CREATE INDEX idx_media_agent_offer_id ON media (agent_offer_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS media;
+DROP TABLE IF EXISTS agent_offers;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS room_types;
+DROP TABLE IF EXISTS properties;
+DROP EXTENSION IF EXISTS pgcrypto;
