@@ -1,24 +1,33 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/ddddami/laivan/internal/config"
+	"github.com/ddddami/laivan/internal/domain"
 )
 
 type app struct {
-	cfg     config.Config
-	logger  *slog.Logger
-	version string
+	cfg          config.Config
+	logger       *slog.Logger
+	version      string
+	propertyRepo PropertyStore
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string) *http.Server {
+type PropertyStore interface {
+	Create(ctx context.Context, property domain.Property) (domain.Property, error)
+	Get(ctx context.Context, id domain.ID) (domain.Property, error)
+}
+
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore) *http.Server {
 	app := &app{
-		cfg:     cfg,
-		logger:  logger,
-		version: version,
+		cfg:          cfg,
+		logger:       logger,
+		version:      version,
+		propertyRepo: propertyRepo,
 	}
 
 	return &http.Server{

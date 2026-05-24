@@ -41,3 +41,22 @@ func MaxChars(value string, limit int) bool {
 func Positive(value int) bool {
 	return value > 0
 }
+
+func ValidUUID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for i, c := range value {
+		switch i {
+		case 8, 13, 18, 23:
+			if c != '-' {
+				return false
+			}
+		default:
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
+}
