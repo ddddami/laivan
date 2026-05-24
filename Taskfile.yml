@@ -10,11 +10,11 @@ tasks:
     cmds:
       - task --list
 
-  api:run:
+  api:dev:
     desc: Run the API server
     dir: "{{.API_DIR}}"
     cmds:
-      - go run ./cmd/api
+      - air
 
   api:test:
     desc: Run API tests
