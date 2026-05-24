@@ -11,7 +11,6 @@ type Money struct {
 type ApproxLocation struct {
 	Area     string
 	Landmark string
-	District string
 }
 
 type Timestamps struct {
