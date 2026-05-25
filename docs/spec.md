@@ -304,9 +304,12 @@ The platform should avoid expensive SSR for every request.
 The system should:
 
 * remain mobile-first
+* work well as an installable PWA on iOS and Android
 * load quickly on low-end devices
 * function reasonably on poor connections
 * optimize images aggressively
+
+The initial product should not depend on native mobile distribution. The web experience should be excellent for phone-first users while still feeling intentionally designed on desktop, not merely stretched from the mobile layout.
 
 ---
 
@@ -375,4 +378,3 @@ Possible future expansions:
 
 However,
 these should not distract from marketplace fundamentals.
-

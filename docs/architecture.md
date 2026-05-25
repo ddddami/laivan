@@ -68,9 +68,11 @@ repo/
 
 # Frontend Architecture
 
-**Initial decision:** Start with React + Vite + TanStack Router + TanStack Query + PWA support without introducing SSR infrastructure immediately.
+**Initial decision:** Start with React + Vite + TanStack Router + TanStack Query + installable PWA support without introducing SSR infrastructure immediately.
 
 **Why:** Laivan is primarily interaction-heavy, workflow-heavy, dashboard-heavy, mobile-first, authenticated. Most critical flows are client-side operational flows: inquiries, inspections, reservation intents, uploads, dashboard activity, listing management. Behaves more like an operational platform than a content website.
+
+The first web product should feel like a strong mobile app experience on iOS and Android while still being excellent on desktop web. Most early users are phone-first and many will not have practical desktop access, so mobile is the starting point for prioritization, interaction design, and performance. Desktop must still be deliberately designed, not treated as stretched mobile UI. The PWA path keeps iteration fast and avoids App Store and Play Store review cycles before product validation.
 
 ---
 
@@ -96,7 +98,7 @@ Introducing SSR too early increases deployment complexity, caching complexity, h
 
 **Expected path:**
 
-**Phase 1:** React + Vite + TanStack Router SPA + PWA
+**Phase 1:** React + Vite + TanStack Router SPA + mobile-first installable PWA
 
 **Phase 2:** Migrate to TanStack Start when SEO becomes important, public discovery matters significantly, listing indexing becomes growth-critical
 
@@ -221,9 +223,13 @@ Goal is reduce marketplace chaos, reduce duplicate confusion, preserve operation
 
 # Mobile Strategy
 
-**Decision:** Use React Native later if native mobile becomes necessary.
+**Decision:** Launch with a mobile-first installable PWA. Use React Native later if native mobile becomes necessary after validation.
 
-**Why:** React Native has stronger ecosystem maturity, better long-term support, larger hiring pool, more stable tooling. Rejected NativeScript mainly because ecosystem maturity matters more than theoretical elegance.
+**Why:** The current go-to-market need is fast iteration, low distribution friction, and rapid learning from FUTA students and agents. A PWA can be opened from links, shared through WhatsApp, installed on phones, and improved without waiting on App Store or Play Store review. Native mobile can wait until the core marketplace workflows are validated.
+
+If native mobile becomes necessary, React Native is the preferred direction because it has stronger ecosystem maturity, better long-term support, larger hiring pool, and more stable tooling. Rejected NativeScript mainly because ecosystem maturity matters more than theoretical elegance.
+
+The web app must remain great on desktop, but design, performance, navigation, and interaction decisions should start from the mobile user. Every meaningful screen should be checked at mobile and desktop breakpoints before considering it complete.
 
 ---
 
