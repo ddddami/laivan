@@ -92,7 +92,9 @@ Goal: reduce marketplace confusion, not achieve perfect deduplication.
 
 ## UX direction
 
-Users are busy, distracted, impatient, mobile-first, bandwidth-constrained.
+Users are busy, distracted, impatient, mobile-first, bandwidth-constrained. Most early customers should be assumed to use phones as their primary device, and some may not have practical desktop access.
+
+The initial product should behave like a lightweight installable mobile experience through a PWA. Native apps can come later after the marketplace workflows are validated. Mobile-first does not mean mobile-only; desktop layouts should still be deliberately designed and checked.
 
 Keep it:
 - Fast

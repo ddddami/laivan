@@ -119,6 +119,30 @@ tasks:
     cmds:
       - pnpm test
 
+  web:lint:
+    desc: Lint the web app
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm lint
+
+  web:fmt:
+    desc: Format the web app
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm fmt
+
+  web:typecheck:
+    desc: Typecheck the web app
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm typecheck
+
+  web:check:
+    desc: Run web formatting, linting, tests, and build
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm check
+
   web:build:
     desc: Build the web app
     dir: "{{.WEB_DIR}}"
