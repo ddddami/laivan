@@ -193,11 +193,14 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.Name == "" {
+		input.Name = unitCategoryDisplayName(domain.UnitCategory(input.Category))
+	}
+
 	v := validator.New()
 	v.Check(validator.NotBlank(propertyID), "id", "ID is required")
 	v.Check(validator.ValidUUID(propertyID), "id", "ID must be a valid UUID")
 	v.Check(validUnitCategory(input.Category), "category", "Category must be single_room, self_contained, room_and_parlour, one_bedroom_flat, two_bedroom_flat, three_bedroom_flat, or other")
-	v.Check(validator.NotBlank(input.Name), "name", "Name is required")
 	v.Check(validator.MaxChars(input.Name, 100), "name", "Name must not exceed 100 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
 	v.Check(validator.MaxChars(input.Notes, 2000), "notes", "Notes must not exceed 2000 characters")
@@ -419,11 +422,16 @@ func propertyUnitTypesResponse(unitTypes []domain.PropertyUnitType) []map[string
 }
 
 func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
+	name := ut.Name
+	if name == "" {
+		name = unitCategoryDisplayName(ut.Category)
+	}
+
 	return map[string]any{
 		"id":            string(ut.ID),
 		"property_id":   string(ut.PropertyID),
 		"category":      string(ut.Category),
-		"name":          ut.Name,
+		"name":          name,
 		"description":   ut.Description,
 		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
@@ -484,11 +492,16 @@ func propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) 
 }
 
 func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
+	name := ut.Name
+	if name == "" {
+		name = unitCategoryDisplayName(ut.Category)
+	}
+
 	return map[string]any{
 		"id":            string(ut.ID),
 		"property_id":   string(ut.PropertyID),
 		"category":      string(ut.Category),
-		"name":          ut.Name,
+		"name":          name,
 		"description":   ut.Description,
 		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
@@ -554,6 +567,25 @@ func validUnitCategory(category string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func unitCategoryDisplayName(category domain.UnitCategory) string {
+	switch category {
+	case domain.UnitCategorySingleRoom:
+		return "Single Room"
+	case domain.UnitCategorySelfContained:
+		return "Self-contained"
+	case domain.UnitCategoryRoomAndParlour:
+		return "Room and Parlour"
+	case domain.UnitCategoryOneBedroomFlat:
+		return "One-bedroom Flat"
+	case domain.UnitCategoryTwoBedroomFlat:
+		return "Two-bedroom Flat"
+	case domain.UnitCategoryThreeBedroomFlat:
+		return "Three-bedroom Flat"
+	default:
+		return "Other"
 	}
 }
 
