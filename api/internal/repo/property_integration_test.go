@@ -404,9 +404,9 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
 	repository := NewPropertyRepository(pool)
 
-	// Simulate what handler does: convert 350000 naira to 35000000 kobo
+	// Simulate what handler does: convert 350000 naira to kobo
 	nairaInput := 350000
-	koboStored := nairaInput * 100
+	koboStored := domain.Kobo(nairaInput)
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
 		PropertyUnitTypeID: unitTypeID,
