@@ -5,7 +5,7 @@ import "time"
 type ID string
 
 type Money struct {
-	AmountKobo int32
+	AmountKobo int
 }
 
 type ApproxLocation struct {

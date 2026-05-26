@@ -22,7 +22,7 @@ type CreateAgentOfferParams struct {
 	AgentID     pgtype.UUID
 	Title       string
 	Description pgtype.Text
-	PriceKobo   int32
+	PriceKobo   int
 	Status      string
 }
 
@@ -238,7 +238,8 @@ SELECT
   p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
   COALESCE((SELECT COUNT(*) FROM room_types WHERE property_id = p.id), 0)::integer AS room_type_count,
   COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo
+  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+  COUNT(*) OVER() AS total_count
 FROM properties p
 WHERE p.campus_id = $1
 ORDER BY p.created_at DESC, p.id DESC
@@ -259,9 +260,10 @@ type ListPropertiesWithSummaryRow struct {
 	Description         pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
-	RoomTypeCount       int32
-	AvailableOfferCount int32
-	LowestPriceKobo     int32
+	RoomTypeCount       int
+	AvailableOfferCount int
+	LowestPriceKobo     int
+	TotalCount          int64
 }
 
 func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropertiesWithSummaryParams) ([]ListPropertiesWithSummaryRow, error) {
@@ -285,6 +287,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 			&i.RoomTypeCount,
 			&i.AvailableOfferCount,
 			&i.LowestPriceKobo,
+			&i.TotalCount,
 		); err != nil {
 			return nil, err
 		}

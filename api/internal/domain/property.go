@@ -11,9 +11,9 @@ type Property struct {
 
 type PropertySummary struct {
 	Property
-	RoomTypeCount       int32
-	AvailableOfferCount int32
-	LowestPriceKobo     int32
+	RoomTypeCount       int
+	AvailableOfferCount int
+	LowestPriceKobo     int
 }
 
 type PropertyDetail struct {
