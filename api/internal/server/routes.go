@@ -24,6 +24,8 @@ func (app *app) routes() http.Handler {
 		r.Get("/", app.listProperties)
 		r.Post("/", app.createProperty)
 		r.Get("/{id}", app.getProperty)
+		r.Get("/{id}/room-types", app.listRoomTypes)
+		r.Post("/{id}/room-types", app.createRoomType)
 	})
 
 	return r

@@ -124,6 +124,77 @@ func TestPropertyRepositoryList(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryCreateAndListRoomTypes(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	repository := NewPropertyRepository(pool)
+
+	created, err := repository.CreateRoomType(ctx, domain.RoomType{
+		PropertyID:  propertyID,
+		Name:        "Self-contained",
+		Description: "Private room with bathroom and kitchenette.",
+	})
+	if err != nil {
+		t.Fatalf("create room type: %v", err)
+	}
+
+	if created.ID == "" {
+		t.Fatal("created room type ID is empty")
+	}
+	if created.PropertyID != propertyID {
+		t.Fatalf("property ID = %q, want %q", created.PropertyID, propertyID)
+	}
+	if created.Name != "Self-contained" {
+		t.Fatalf("name = %q, want Self-contained", created.Name)
+	}
+	if created.Description != "Private room with bathroom and kitchenette." {
+		t.Fatalf("description = %q, want Private room with bathroom and kitchenette.", created.Description)
+	}
+	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
+		t.Fatal("created room type timestamps must be set")
+	}
+
+	listed, err := repository.ListRoomTypes(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("list room types: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("room types length = %d, want 1", len(listed))
+	}
+	if listed[0] != created {
+		t.Fatalf("listed room type = %#v, want %#v", listed[0], created)
+	}
+}
+
+func TestPropertyRepositoryRoomTypesPropertyNotFound(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	repository := NewPropertyRepository(pool)
+	missingPropertyID := domain.ID("550e8400-e29b-41d4-a716-446655440000")
+
+	_, err := repository.CreateRoomType(ctx, domain.RoomType{
+		PropertyID: missingPropertyID,
+		Name:       "Self-contained",
+	})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("create error = %v, want %v", err, ErrNotFound)
+	}
+
+	_, err = repository.ListRoomTypes(ctx, missingPropertyID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("list error = %v, want %v", err, ErrNotFound)
+	}
+}
+
 func openIntegrationDB(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 
