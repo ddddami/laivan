@@ -71,13 +71,19 @@ paths:
         - name: category
           in: query
           required: false
-          description: Filter by unit type category.
+          description: |
+            Filter by unit type category. Accepts a single category or comma-separated list.
+            Examples: `self_contained`, `self_contained,single_room`
           schema:
-            $ref: "#/components/schemas/UnitCategory"
+            type: string
+          style: form
+          explode: false
         - name: area
           in: query
           required: false
-          description: Filter by area text (case-insensitive partial match).
+          description: |
+            Filter by area text. Case-insensitive partial match (ILIKE).
+            Example: `area=South` matches "South Gate", "South Campus".
           schema:
             type: string
         - name: bathroom_type

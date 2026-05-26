@@ -649,9 +649,9 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 
 	data.ValidateFilters(v, filters)
 
-	category := readString(qs, "category", "")
-	if category != "" {
-		v.Check(validUnitCategory(category), "category", "Invalid category")
+	categories := readCSV(qs, "category", nil)
+	for _, c := range categories {
+		v.Check(validUnitCategory(c), "category", "Invalid category: "+c)
 	}
 
 	area := readString(qs, "area", "")
@@ -668,7 +668,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 
 	filter := repo.DiscoveryFilter{
 		CampusID:     domain.ID(campusID),
-		Category:     category,
+		Categories:   categories,
 		Area:         area,
 		BathroomType: bathroomType,
 		KitchenType:  kitchenType,
