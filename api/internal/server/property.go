@@ -621,3 +621,121 @@ func validKitchenType(value string) bool {
 		return false
 	}
 }
+
+func (app *app) discover(w http.ResponseWriter, r *http.Request) {
+	if app.propertyRepo == nil {
+		app.serverErrorResponse(w, r, errors.New("database not available"))
+		return
+	}
+
+	qs := r.URL.Query()
+	campusID := readString(qs, "campus_id", "")
+
+	v := validator.New()
+	v.Check(validator.NotBlank(campusID), "campus_id", "Campus ID is required")
+	v.Check(validator.ValidUUID(campusID), "campus_id", "Campus ID must be a valid UUID")
+
+	var filters data.Filters
+	filters.Page = readInt(qs, "page", 1, v)
+	filters.PageSize = readInt(qs, "page_size", defaultPropertyListLimit, v)
+	filters.Sort = readString(qs, "sort", "-created_at")
+	filters.SortSafelist = []string{
+		"created_at", "-created_at",
+		"lowest_price_naira", "-lowest_price_naira",
+	}
+	filters.SortColumnMap = map[string]string{
+		"lowest_price_naira": "lowest_price_kobo",
+	}
+
+	data.ValidateFilters(v, filters)
+
+	category := readString(qs, "category", "")
+	if category != "" {
+		v.Check(validUnitCategory(category), "category", "Invalid category")
+	}
+
+	area := readString(qs, "area", "")
+	bathroomType := readString(qs, "bathroom_type", "")
+	kitchenType := readString(qs, "kitchen_type", "")
+	hasParlour := readBool(qs, "has_parlour", nil, v)
+	minPrice := readInt(qs, "min_price", 0, v)
+	maxPrice := readInt(qs, "max_price", 0, v)
+
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	filter := repo.DiscoveryFilter{
+		CampusID:     domain.ID(campusID),
+		Category:     category,
+		Area:         area,
+		BathroomType: bathroomType,
+		KitchenType:  kitchenType,
+		HasParlour:   hasParlour,
+		Filters:      filters,
+	}
+	if minPrice > 0 {
+		filter.MinPrice = &minPrice
+	}
+	if maxPrice > 0 {
+		filter.MaxPrice = &maxPrice
+	}
+
+	results, totalRecords, err := app.propertyRepo.Discover(r.Context(), filter)
+	if err != nil {
+		app.serverErrorResponse(w, r, fmt.Errorf("discover: %w", err))
+		return
+	}
+
+	data := envelope{
+		"results":  discoveryResultsResponse(results),
+		"metadata": data.CalculateMetadata(totalRecords, filters.Page, filters.PageSize),
+	}
+
+	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
+		app.logger.Error("write discover response", "error", err)
+	}
+}
+
+func discoveryResultsResponse(results []domain.DiscoveryResult) []map[string]any {
+	response := make([]map[string]any, 0, len(results))
+	for _, r := range results {
+		response = append(response, discoveryResultResponse(r))
+	}
+	return response
+}
+
+func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
+	name := r.UnitTypeName
+	if name == "" {
+		name = unitCategoryDisplayName(r.UnitTypeCategory)
+	}
+
+	return map[string]any{
+		"property": map[string]any{
+			"id":       string(r.PropertyID),
+			"name":     r.PropertyName,
+			"area":     r.PropertyArea,
+			"landmark": nullableString(r.PropertyLandmark),
+		},
+		"unit_type": map[string]any{
+			"id":            string(r.UnitTypeID),
+			"category":      string(r.UnitTypeCategory),
+			"name":          name,
+			"description":   nullableString(r.UnitTypeDescription),
+			"notes":         nullableString(r.UnitTypeNotes),
+			"bedroom_count": r.Structure.BedroomCount,
+			"has_parlour":   r.Structure.HasParlour,
+			"bathroom_type": nullableString(r.Structure.BathroomType),
+			"kitchen_type":  nullableString(r.Structure.KitchenType),
+		},
+		"pricing": map[string]any{
+			"lowest_price_naira": r.LowestPriceKobo / 100,
+		},
+		"offer_summary": map[string]any{
+			"available_offer_count": r.AvailableOfferCount,
+		},
+		"created_at": r.CreatedAt.Format(time.RFC3339),
+	}
+}

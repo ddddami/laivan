@@ -23,6 +23,7 @@ type PropertyStore interface {
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error)
+	Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error)
 	CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error)
 	ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error)
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)

@@ -17,6 +17,8 @@ security: []
 tags:
   - name: Health
     description: Service health checks.
+  - name: Discovery
+    description: Searchable rentable opportunities combining property, unit type, and offer layers.
   - name: Properties
     description: Campus-scoped accommodation properties.
   - name: Unit Types
@@ -47,6 +49,135 @@ paths:
           $ref: "#/components/responses/InternalServerError"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+
+  /v1/discovery:
+    get:
+      operationId: discover
+      tags:
+        - Discovery
+      summary: Discover searchable rentable opportunities.
+      description: |
+        Returns flat search results — one row per property+unit type combination.
+        Each result represents a "searchable rentable opportunity" with the best available pricing and offer count.
+        This is the primary search interface for the mobile app.
+      parameters:
+        - name: campus_id
+          in: query
+          required: true
+          description: Campus ID that scopes marketplace discovery.
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          required: false
+          description: Filter by unit type category.
+          schema:
+            $ref: "#/components/schemas/UnitCategory"
+        - name: area
+          in: query
+          required: false
+          description: Filter by area text (case-insensitive partial match).
+          schema:
+            type: string
+        - name: bathroom_type
+          in: query
+          required: false
+          description: Filter by bathroom type.
+          schema:
+            $ref: "#/components/schemas/BathroomType"
+        - name: kitchen_type
+          in: query
+          required: false
+          description: Filter by kitchen type.
+          schema:
+            $ref: "#/components/schemas/KitchenType"
+        - name: has_parlour
+          in: query
+          required: false
+          description: Filter by whether the unit has a parlour/living room.
+          schema:
+            type: boolean
+        - name: min_price
+          in: query
+          required: false
+          description: Minimum price in naira.
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_price
+          in: query
+          required: false
+          description: Maximum price in naira.
+          schema:
+            type: integer
+            minimum: 1
+        - name: page
+          in: query
+          required: false
+          description: Page number. Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: Number of items per page. Defaults to 20. Maximum is 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: Sort order. Prefix with `-` for descending. Defaults to `-created_at`.
+          schema:
+            type: string
+            enum: [created_at, -created_at, lowest_price_naira, -lowest_price_naira]
+            default: -created_at
+      responses:
+        "200":
+          description: Discovery results returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryResponse"
+              examples:
+                discovery:
+                  value:
+                    results:
+                      - property:
+                          id: 550e8400-e29b-41d4-a716-446655440010
+                          name: Alice Lodge
+                          area: Obanla
+                          landmark: Near South Gate
+                        unit_type:
+                          id: 550e8400-e29b-41d4-a716-446655440020
+                          category: self_contained
+                          name: Self-contained
+                          description: Private room with bathroom and kitchenette.
+                          notes: Top floor corner unit with better ventilation.
+                          bedroom_count: 1
+                          has_parlour: false
+                          bathroom_type: private
+                          kitchen_type: private
+                        pricing:
+                          lowest_price_naira: 350000
+                        offer_summary:
+                          available_offer_count: 2
+                        created_at: "2026-05-01T10:00:00Z"
+                    metadata:
+                      current_page: 1
+                      page_size: 20
+                      first_page: 1
+                      last_page: 1
+                      total_records: 1
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /v1/properties:
     get:
@@ -862,6 +993,105 @@ components:
       properties:
         property:
           $ref: "#/components/schemas/PropertyDetail"
+
+    DiscoveryResponse:
+      type: object
+      required:
+        - results
+        - metadata
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryResult"
+        metadata:
+          $ref: "#/components/schemas/Metadata"
+
+    DiscoveryResult:
+      type: object
+      required:
+        - property
+        - unit_type
+        - pricing
+        - offer_summary
+        - created_at
+      properties:
+        property:
+          type: object
+          required:
+            - id
+            - name
+            - area
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            area:
+              type: string
+            landmark:
+              type:
+                - string
+                - "null"
+        unit_type:
+          type: object
+          required:
+            - id
+            - category
+            - name
+          properties:
+            id:
+              type: string
+              format: uuid
+            category:
+              $ref: "#/components/schemas/UnitCategory"
+            name:
+              type: string
+            description:
+              type:
+                - string
+                - "null"
+            notes:
+              type:
+                - string
+                - "null"
+            bedroom_count:
+              type:
+                - integer
+                - "null"
+              minimum: 0
+            has_parlour:
+              type:
+                - boolean
+                - "null"
+            bathroom_type:
+              anyOf:
+                - $ref: "#/components/schemas/BathroomType"
+                - type: "null"
+            kitchen_type:
+              anyOf:
+                - $ref: "#/components/schemas/KitchenType"
+                - type: "null"
+        pricing:
+          type: object
+          required:
+            - lowest_price_naira
+          properties:
+            lowest_price_naira:
+              type: integer
+              minimum: 0
+        offer_summary:
+          type: object
+          required:
+            - available_offer_count
+          properties:
+            available_offer_count:
+              type: integer
+              minimum: 0
+        created_at:
+          type: string
+          format: date-time
 
     PropertiesResponse:
       type: object

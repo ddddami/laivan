@@ -33,5 +33,7 @@ func (app *app) routes() http.Handler {
 		r.Post("/{id}/agent-offers", app.createAgentOffer)
 	})
 
+	r.Get("/v1/discovery", app.discover)
+
 	return r
 }
