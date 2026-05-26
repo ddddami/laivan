@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ddddami/laivan/internal/data"
 	appdb "github.com/ddddami/laivan/internal/db"
 	"github.com/ddddami/laivan/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -159,19 +160,21 @@ func TestPropertyRepositoryList(t *testing.T) {
 
 	repository := NewPropertyRepository(pool)
 
-	// Test plain List still works
-	properties, err := repository.List(ctx, PropertyListFilter{CampusID: campusID, Limit: 10})
-	if err != nil {
-		t.Fatalf("list properties: %v", err)
-	}
-	if len(properties) != 2 {
-		t.Fatalf("properties length = %d, want 2", len(properties))
-	}
-
 	// Test ListWithSummary
-	summaries, err := repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Limit: 10})
+	summaries, totalRecords, err := repository.ListWithSummary(ctx, PropertyListFilter{
+		CampusID: campusID,
+		Filters: data.Filters{
+			Page:         1,
+			PageSize:     10,
+			Sort:         "-created_at",
+			SortSafelist: []string{"created_at", "-created_at"},
+		},
+	})
 	if err != nil {
 		t.Fatalf("list properties with summary: %v", err)
+	}
+	if totalRecords != 2 {
+		t.Fatalf("total_records = %d, want 2", totalRecords)
 	}
 	if len(summaries) != 2 {
 		t.Fatalf("summaries length = %d, want 2", len(summaries))
@@ -350,7 +353,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	repository := NewPropertyRepository(pool)
 
 	// Simulate what handler does: convert 350000 naira to 35000000 kobo
-	nairaInput := int32(350000)
+	nairaInput := 350000
 	koboStored := nairaInput * 100
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
@@ -371,7 +374,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	}
 
 	// Verify raw DB value is kobo
-	var rawPriceKobo int32
+	var rawPriceKobo int
 	queryCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	err = pool.QueryRow(queryCtx, `
@@ -555,7 +558,7 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	return domain.ID(agentID)
 }
 
-func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, roomTypeID domain.ID, agentID domain.ID, title string, priceKobo int32) domain.ID {
+func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, roomTypeID domain.ID, agentID domain.ID, title string, priceKobo int) domain.ID {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)

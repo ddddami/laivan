@@ -83,23 +83,7 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 	}, nil
 }
 
-func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error) {
-	return []domain.Property{
-		{
-			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440010"),
-			CampusID:    filter.CampusID,
-			Name:        "Alice Lodge",
-			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
-			Description: "Gated lodge with multiple room categories near campus.",
-			Timestamps: domain.Timestamps{
-				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
-				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
-			},
-		},
-	}, nil
-}
-
-func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error) {
+func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	return []domain.PropertySummary{
 		{
 			Property: domain.Property{
@@ -117,7 +101,7 @@ func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prop
 			AvailableOfferCount: 5,
 			LowestPriceKobo:     25000000,
 		},
-	}, nil
+	}, 1, nil
 }
 
 func (s *stubPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
@@ -242,7 +226,7 @@ func TestCreatePropertyValidationErrors(t *testing.T) {
 
 func TestListPropertiesValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/properties?limit=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?page_size=0", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -267,14 +251,14 @@ func TestListPropertiesValidationErrors(t *testing.T) {
 	if body.Error.Fields["campus_id"] == "" {
 		t.Fatal("campus_id validation error missing")
 	}
-	if body.Error.Fields["limit"] == "" {
-		t.Fatal("limit validation error missing")
+	if body.Error.Fields["page_size"] == "" {
+		t.Fatal("page_size validation error missing")
 	}
 }
 
-func TestListPropertiesInvalidLimit(t *testing.T) {
+func TestListPropertiesInvalidPageSize(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/properties?campus_id=550e8400-e29b-41d4-a716-446655440002&limit=many", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?campus_id=550e8400-e29b-41d4-a716-446655440002&page_size=many", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -291,8 +275,8 @@ func TestListPropertiesInvalidLimit(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response body: %v", err)
 	}
-	if body.Error.Fields["limit"] != "Limit must be an integer" {
-		t.Fatalf("limit error = %q, want Limit must be an integer", body.Error.Fields["limit"])
+	if body.Error.Fields["page_size"] != "must be an integer value" {
+		t.Fatalf("page_size error = %q, want must be an integer value", body.Error.Fields["page_size"])
 	}
 }
 
@@ -313,9 +297,9 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 			CampusID            string `json:"campus_id"`
 			Name                string `json:"name"`
 			Area                string `json:"area"`
-			RoomTypeCount       int32  `json:"room_type_count"`
-			AvailableOfferCount int32  `json:"available_offer_count"`
-			LowestPriceNaira    int32  `json:"lowest_price_naira"`
+			RoomTypeCount       int    `json:"room_type_count"`
+			AvailableOfferCount int    `json:"available_offer_count"`
+			LowestPriceNaira    int    `json:"lowest_price_naira"`
 		} `json:"properties"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -362,7 +346,7 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 				Name        string `json:"name"`
 				AgentOffers []struct {
 					Title      string `json:"title"`
-					PriceNaira int32  `json:"price_naira"`
+					PriceNaira int    `json:"price_naira"`
 				} `json:"agent_offers"`
 			} `json:"room_types"`
 		} `json:"property"`
@@ -589,7 +573,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 			RoomTypeID string `json:"room_type_id"`
 			AgentID    string `json:"agent_id"`
 			Title      string `json:"title"`
-			PriceNaira int32  `json:"price_naira"`
+			PriceNaira int    `json:"price_naira"`
 			Status     string `json:"status"`
 		} `json:"agent_offer"`
 	}
@@ -645,11 +629,7 @@ func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (dom
 	return s.stub.GetWithDetails(ctx, id)
 }
 
-func (s *spyPropertyRepo) List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error) {
-	return s.stub.List(ctx, filter)
-}
-
-func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error) {
+func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	return s.stub.ListWithSummary(ctx, filter)
 }
 
@@ -696,7 +676,7 @@ func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 		AgentOffers []struct {
 			RoomTypeID string `json:"room_type_id"`
 			Title      string `json:"title"`
-			PriceNaira int32  `json:"price_naira"`
+			PriceNaira int    `json:"price_naira"`
 		} `json:"agent_offers"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {

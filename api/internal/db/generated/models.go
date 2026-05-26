@@ -23,7 +23,7 @@ type AgentOffer struct {
 	AgentID     pgtype.UUID
 	Title       string
 	Description pgtype.Text
-	PriceKobo   int32
+	PriceKobo   int
 	Status      string
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz

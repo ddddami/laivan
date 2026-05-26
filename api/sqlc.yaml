@@ -8,3 +8,8 @@ sql:
         package: "db"
         out: "internal/db/generated"
         sql_package: "pgx/v5"
+        overrides:
+          - db_type: "pg_catalog.int4"
+            go_type: "int"
+          - db_type: "pg_catalog.int8"
+            go_type: "int"

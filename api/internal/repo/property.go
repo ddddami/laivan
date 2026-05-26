@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ddddami/laivan/internal/data"
 	generateddb "github.com/ddddami/laivan/internal/db/generated"
 	"github.com/ddddami/laivan/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -18,15 +19,17 @@ const queryTimeout = 3 * time.Second
 
 type PropertyRepository struct {
 	queries *generateddb.Queries
+	db      generateddb.DBTX
 }
 
 type PropertyListFilter struct {
 	CampusID domain.ID
-	Limit    int32
+	Area     string
+	Filters  data.Filters
 }
 
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
-	return &PropertyRepository{queries: generateddb.New(database)}
+	return &PropertyRepository{queries: generateddb.New(database), db: database}
 }
 
 func (r *PropertyRepository) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
@@ -120,54 +123,74 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 	}, nil
 }
 
-func (r *PropertyRepository) List(ctx context.Context, filter PropertyListFilter) ([]domain.Property, error) {
+// ListWithSummary uses a raw query here, sqlc cannot safely generate dynamic ORDER BY clauses.
+func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
 	campusUUID, err := uuidParam(filter.CampusID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	rows, err := r.queries.ListProperties(ctx, generateddb.ListPropertiesParams{
-		CampusID: campusUUID,
-		Limit:    filter.Limit,
-	})
+	whereClause := "p.campus_id = $1"
+	args := []any{campusUUID}
+	argPos := 2
+
+	if filter.Area != "" {
+		whereClause += fmt.Sprintf(" AND p.area ILIKE $%d", argPos)
+		args = append(args, "%"+filter.Area+"%")
+		argPos++
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+		  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+		  COALESCE((SELECT COUNT(*) FROM room_types WHERE property_id = p.id), 0)::integer AS room_type_count,
+		  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
+		  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+		  COUNT(*) OVER() AS total_count
+		FROM properties p
+		WHERE %s
+		ORDER BY %s %s, p.id ASC
+		LIMIT $%d OFFSET $%d`, whereClause, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
+
+	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list properties: %w", err)
+		return nil, 0, fmt.Errorf("list properties with summary: %w", err)
 	}
+	defer rows.Close()
 
-	properties := make([]domain.Property, 0, len(rows))
-	for _, row := range rows {
-		properties = append(properties, propertyFromRow(row))
-	}
-
-	return properties, nil
-}
-
-func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter PropertyListFilter) ([]domain.PropertySummary, error) {
-	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
-	defer cancel()
-
-	campusUUID, err := uuidParam(filter.CampusID)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := r.queries.ListPropertiesWithSummary(ctx, generateddb.ListPropertiesWithSummaryParams{
-		CampusID: campusUUID,
-		Limit:    filter.Limit,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list properties with summary: %w", err)
-	}
-
-	summaries := make([]domain.PropertySummary, 0, len(rows))
-	for _, row := range rows {
+	var totalCount int64
+	var summaries []domain.PropertySummary
+	for rows.Next() {
+		var row generateddb.ListPropertiesWithSummaryRow
+		if err := rows.Scan(
+			&row.ID,
+			&row.CampusID,
+			&row.Name,
+			&row.Area,
+			&row.Landmark,
+			&row.Description,
+			&row.CreatedAt,
+			&row.UpdatedAt,
+			&row.RoomTypeCount,
+			&row.AvailableOfferCount,
+			&row.LowestPriceKobo,
+			&row.TotalCount,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan property summary: %w", err)
+		}
+		totalCount = row.TotalCount
 		summaries = append(summaries, propertySummaryFromRow(row))
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate property summaries: %w", err)
+	}
 
-	return summaries, nil
+	return summaries, int(totalCount), nil
 }
 
 func (r *PropertyRepository) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {

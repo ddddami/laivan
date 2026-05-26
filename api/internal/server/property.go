@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/ddddami/laivan/internal/data"
 	"github.com/ddddami/laivan/internal/domain"
 	"github.com/ddddami/laivan/internal/repo"
 	"github.com/ddddami/laivan/internal/validator"
@@ -24,35 +24,40 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := r.URL.Query()
-	campusID := query.Get("campus_id")
-	limitValue := query.Get("limit")
-	limit := defaultPropertyListLimit
+	qs := r.URL.Query()
+	campusID := readString(qs, "campus_id", "")
 
 	v := validator.New()
 	v.Check(validator.NotBlank(campusID), "campus_id", "Campus ID is required")
 	v.Check(validator.ValidUUID(campusID), "campus_id", "Campus ID must be a valid UUID")
 
-	if limitValue != "" {
-		parsedLimit, err := strconv.Atoi(limitValue)
-		if err != nil {
-			v.AddFieldError("limit", "Limit must be an integer")
-		} else {
-			limit = parsedLimit
-		}
+	var filters data.Filters
+	filters.Page = readInt(qs, "page", 1, v)
+	filters.PageSize = readInt(qs, "page_size", defaultPropertyListLimit, v)
+	filters.Sort = readString(qs, "sort", "-created_at")
+	filters.SortSafelist = []string{
+		"created_at", "-created_at",
+		"name", "-name",
+		"lowest_price_naira", "-lowest_price_naira",
+		"available_offer_count", "-available_offer_count",
+	}
+	filters.SortColumnMap = map[string]string{
+		"lowest_price_naira": "lowest_price_kobo",
 	}
 
-	v.Check(limit > 0, "limit", "Limit must be greater than 0")
-	v.Check(limit <= maxPropertyListLimit, "limit", "Limit must not exceed 100")
+	data.ValidateFilters(v, filters)
 
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
 		return
 	}
 
-	properties, err := app.propertyRepo.ListWithSummary(r.Context(), repo.PropertyListFilter{
+	area := readString(qs, "area", "")
+
+	properties, totalRecords, err := app.propertyRepo.ListWithSummary(r.Context(), repo.PropertyListFilter{
 		CampusID: domain.ID(campusID),
-		Limit:    int32(limit),
+		Area:     area,
+		Filters:  filters,
 	})
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("list properties: %w", err))
@@ -61,6 +66,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 
 	data := envelope{
 		"properties": propertiesSummaryResponse(properties),
+		"metadata":   data.CalculateMetadata(totalRecords, filters.Page, filters.PageSize),
 	}
 
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
@@ -265,7 +271,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		AgentID     string `json:"agent_id"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
-		PriceNaira  int32  `json:"price_naira"`
+		PriceNaira  int    `json:"price_naira"`
 		Status      string `json:"status"`
 	}
 
