@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/data"
@@ -34,7 +35,7 @@ type PropertyListFilter struct {
 
 type DiscoveryFilter struct {
 	CampusID     domain.ID
-	Category     string
+	Categories   []string
 	Area         string
 	BathroomType string
 	KitchenType  string
@@ -250,10 +251,14 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 	args := []any{campusUUID}
 	argPos := 2
 
-	if filter.Category != "" {
-		whereClause += fmt.Sprintf(" AND put.category = $%d", argPos)
-		args = append(args, filter.Category)
-		argPos++
+	if len(filter.Categories) > 0 {
+		placeholders := make([]string, len(filter.Categories))
+		for i := range filter.Categories {
+			placeholders[i] = fmt.Sprintf("$%d", argPos)
+			args = append(args, filter.Categories[i])
+			argPos++
+		}
+		whereClause += fmt.Sprintf(" AND put.category IN (%s)", strings.Join(placeholders, ", "))
 	}
 	if filter.Area != "" {
 		whereClause += fmt.Sprintf(" AND p.area ILIKE $%d", argPos)
