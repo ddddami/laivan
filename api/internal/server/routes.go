@@ -28,5 +28,10 @@ func (app *app) routes() http.Handler {
 		r.Post("/{id}/room-types", app.createRoomType)
 	})
 
+	r.Route("/v1/room-types", func(r chi.Router) {
+		r.Get("/{id}/agent-offers", app.listAgentOffers)
+		r.Post("/{id}/agent-offers", app.createAgentOffer)
+	})
+
 	return r
 }

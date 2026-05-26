@@ -11,6 +11,45 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createAgentOffer = `-- name: CreateAgentOffer :one
+INSERT INTO agent_offers (room_type_id, agent_id, title, description, price_kobo, status)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, room_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at
+`
+
+type CreateAgentOfferParams struct {
+	RoomTypeID  pgtype.UUID
+	AgentID     pgtype.UUID
+	Title       string
+	Description pgtype.Text
+	PriceKobo   int32
+	Status      string
+}
+
+func (q *Queries) CreateAgentOffer(ctx context.Context, arg CreateAgentOfferParams) (AgentOffer, error) {
+	row := q.db.QueryRow(ctx, createAgentOffer,
+		arg.RoomTypeID,
+		arg.AgentID,
+		arg.Title,
+		arg.Description,
+		arg.PriceKobo,
+		arg.Status,
+	)
+	var i AgentOffer
+	err := row.Scan(
+		&i.ID,
+		&i.RoomTypeID,
+		&i.AgentID,
+		&i.Title,
+		&i.Description,
+		&i.PriceKobo,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createProperty = `-- name: CreateProperty :one
 INSERT INTO properties (campus_id, name, area, landmark, description)
 VALUES ($1, $2, $3, $4, $5)
@@ -93,6 +132,63 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getRoomType = `-- name: GetRoomType :one
+SELECT id, property_id, name, description, created_at, updated_at
+FROM room_types
+WHERE id = $1
+`
+
+func (q *Queries) GetRoomType(ctx context.Context, id pgtype.UUID) (RoomType, error) {
+	row := q.db.QueryRow(ctx, getRoomType, id)
+	var i RoomType
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAgentOffersByRoomType = `-- name: ListAgentOffersByRoomType :many
+SELECT id, room_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at
+FROM agent_offers
+WHERE room_type_id = $1
+ORDER BY created_at DESC, id DESC
+`
+
+func (q *Queries) ListAgentOffersByRoomType(ctx context.Context, roomTypeID pgtype.UUID) ([]AgentOffer, error) {
+	rows, err := q.db.Query(ctx, listAgentOffersByRoomType, roomTypeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AgentOffer
+	for rows.Next() {
+		var i AgentOffer
+		if err := rows.Scan(
+			&i.ID,
+			&i.RoomTypeID,
+			&i.AgentID,
+			&i.Title,
+			&i.Description,
+			&i.PriceKobo,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listProperties = `-- name: ListProperties :many

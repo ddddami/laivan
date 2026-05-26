@@ -24,6 +24,8 @@ type PropertyStore interface {
 	List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error)
 	CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error)
 	ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error)
+	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)
+	ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error)
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore) *http.Server {

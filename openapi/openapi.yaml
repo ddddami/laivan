@@ -21,6 +21,8 @@ tags:
     description: Campus-scoped accommodation properties.
   - name: Room Types
     description: Property-level room categories that agents can later offer.
+  - name: Agent Offers
+    description: Agent-specific availability, pricing, and presentation for room types.
 paths:
   /healthz:
     get:
@@ -89,7 +91,7 @@ paths:
                         name: Alice Lodge
                         area: Obanla
                         landmark: Near South Gate
-                        description: Self-contained rooms close to FUTA.
+                        description: Gated lodge with multiple room categories near campus.
                         created_at: "2026-05-01T10:00:00Z"
                         updated_at: "2026-05-01T10:00:00Z"
         "422":
@@ -115,7 +117,7 @@ paths:
                   name: Alice Lodge
                   area: Obanla
                   landmark: Near South Gate
-                  description: Self-contained rooms close to FUTA.
+                  description: Gated lodge with multiple room categories near campus.
       responses:
         "201":
           description: Property created successfully.
@@ -228,6 +230,91 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoomTypeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/room-types/{id}/agent-offers:
+    get:
+      operationId: listAgentOffers
+      tags:
+        - Agent Offers
+      summary: List agent offers for a room type.
+      description: Returns agent-specific offers for a room type ordered by newest first.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Room type ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent offers returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentOffersResponse"
+              examples:
+                agentOffers:
+                  value:
+                    agent_offers:
+                      - id: 550e8400-e29b-41d4-a716-446655440030
+                        room_type_id: 550e8400-e29b-41d4-a716-446655440020
+                        agent_id: 550e8400-e29b-41d4-a716-446655440040
+                        title: Fresh self-contained room
+                        description: Recently painted room with private bathroom.
+                        price_kobo: 35000000
+                        status: available
+                        created_at: "2026-05-01T10:00:00Z"
+                        updated_at: "2026-05-01T10:00:00Z"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createAgentOffer
+      tags:
+        - Agent Offers
+      summary: Create an agent offer for a room type.
+      description: Creates an agent-specific offer for a room category, including price and current availability status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Room type ID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentOfferRequest"
+            examples:
+              agentOffer:
+                value:
+                  agent_id: 550e8400-e29b-41d4-a716-446655440040
+                  title: Fresh self-contained room
+                  description: Recently painted room with private bathroom.
+                  price_kobo: 35000000
+                  status: available
+      responses:
+        "201":
+          description: Agent offer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentOfferResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
@@ -373,7 +460,7 @@ components:
           description: Approximate landmark. May be empty when unavailable.
         description:
           type: string
-          description: Property description. May be empty when unavailable.
+          description: Building-level notes. May be empty when unavailable.
         created_at:
           type: string
           format: date-time
@@ -423,6 +510,78 @@ components:
           type: string
           format: date-time
 
+    CreateAgentOfferRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_id
+        - title
+        - price_kobo
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        price_kobo:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - available
+            - unavailable
+            - paused
+          default: available
+
+    AgentOffer:
+      type: object
+      required:
+        - id
+        - room_type_id
+        - agent_id
+        - title
+        - description
+        - price_kobo
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        room_type_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          description: Agent-specific offer description. May be empty when unavailable.
+        price_kobo:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - available
+            - unavailable
+            - paused
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     PropertyResponse:
       type: object
       required:
@@ -458,6 +617,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RoomType"
+
+    AgentOfferResponse:
+      type: object
+      required:
+        - agent_offer
+      properties:
+        agent_offer:
+          $ref: "#/components/schemas/AgentOffer"
+
+    AgentOffersResponse:
+      type: object
+      required:
+        - agent_offers
+      properties:
+        agent_offers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentOffer"
 
     Error:
       type: object
