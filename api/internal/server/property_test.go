@@ -340,6 +340,30 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 	}
 }
 
+func TestListPropertiesBadBooleanFilter(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?campus_id=550e8400-e29b-41d4-a716-446655440002&has_offers=yes", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var body struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.Error.Fields["has_offers"] != "must be a boolean value" {
+		t.Fatalf("has_offers error = %q, want must be a boolean value", body.Error.Fields["has_offers"])
+	}
+}
+
 func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", nil)

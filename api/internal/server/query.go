@@ -40,3 +40,22 @@ func readInt(qs url.Values, key string, defaultValue int, v *validator.Validator
 
 	return i
 }
+
+func readBool(qs url.Values, key string, defaultValue *bool, v *validator.Validator) *bool {
+	s := qs.Get(key)
+	if s == "" {
+		return defaultValue
+	}
+
+	switch strings.ToLower(s) {
+	case "true", "1":
+		result := true
+		return &result
+	case "false", "0":
+		result := false
+		return &result
+	default:
+		v.AddFieldError(key, "must be a boolean value")
+		return defaultValue
+	}
+}

@@ -57,3 +57,42 @@ func TestReadInt(t *testing.T) {
 		t.Fatal("validator should be invalid for bad integer")
 	}
 }
+
+func TestReadBool(t *testing.T) {
+	qs := url.Values{}
+	qs.Set("active", "true")
+
+	v := validator.New()
+	if got := readBool(qs, "active", nil, v); got == nil || !*got {
+		t.Fatalf("readBool = %v, want true", got)
+	}
+	if !v.Valid() {
+		t.Fatal("validator should be valid for true")
+	}
+
+	qs.Set("active", "1")
+	v2 := validator.New()
+	if got := readBool(qs, "active", nil, v2); got == nil || !*got {
+		t.Fatalf("readBool numeric = %v, want true", got)
+	}
+
+	qs.Set("active", "false")
+	v3 := validator.New()
+	if got := readBool(qs, "active", nil, v3); got == nil || *got {
+		t.Fatalf("readBool false = %v, want false", got)
+	}
+
+	v4 := validator.New()
+	if got := readBool(qs, "missing", nil, v4); got != nil {
+		t.Fatalf("readBool missing = %v, want nil", got)
+	}
+
+	qs.Set("bad", "yes")
+	v5 := validator.New()
+	if got := readBool(qs, "bad", nil, v5); got != nil {
+		t.Fatalf("readBool bad default = %v, want nil", got)
+	}
+	if v5.Valid() {
+		t.Fatal("validator should be invalid for bad boolean")
+	}
+}

@@ -23,9 +23,13 @@ type PropertyRepository struct {
 }
 
 type PropertyListFilter struct {
-	CampusID domain.ID
-	Area     string
-	Filters  data.Filters
+	CampusID  domain.ID
+	Area      string
+	Name      string
+	HasOffers *bool
+	MinPrice  *int
+	MaxPrice  *int
+	Filters   data.Filters
 }
 
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
@@ -133,27 +137,54 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		return nil, 0, err
 	}
 
-	whereClause := "p.campus_id = $1"
+	propertyWhere := "p.campus_id = $1"
 	args := []any{campusUUID}
 	argPos := 2
 
 	if filter.Area != "" {
-		whereClause += fmt.Sprintf(" AND p.area ILIKE $%d", argPos)
+		propertyWhere += fmt.Sprintf(" AND p.area ILIKE $%d", argPos)
 		args = append(args, "%"+filter.Area+"%")
+		argPos++
+	}
+	if filter.Name != "" {
+		propertyWhere += fmt.Sprintf(" AND p.name ILIKE $%d", argPos)
+		args = append(args, "%"+filter.Name+"%")
+		argPos++
+	}
+
+	havingConditions := ""
+	if filter.HasOffers != nil {
+		if *filter.HasOffers {
+			havingConditions += " AND available_offer_count > 0"
+		} else {
+			havingConditions += " AND available_offer_count = 0"
+		}
+	}
+	if filter.MinPrice != nil {
+		havingConditions += fmt.Sprintf(" AND lowest_price_kobo >= $%d", argPos)
+		args = append(args, *filter.MinPrice*100) // convert naira to kobo for filtering
+		argPos++
+	}
+	if filter.MaxPrice != nil {
+		havingConditions += fmt.Sprintf(" AND lowest_price_kobo <= $%d", argPos)
+		args = append(args, *filter.MaxPrice*100) // convert naira to kobo for filtering
 		argPos++
 	}
 
 	query := fmt.Sprintf(`
-		SELECT
-		  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
-		  COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
-		  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-		  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
-		  COUNT(*) OVER() AS total_count
-		FROM properties p
-		WHERE %s
-		ORDER BY %s %s, p.id ASC
-		LIMIT $%d OFFSET $%d`, whereClause, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
+		SELECT *, COUNT(*) OVER() AS total_count
+		FROM (
+		  SELECT
+		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
+		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
+		    COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo
+		  FROM properties p
+		  WHERE %s
+		) sub
+		WHERE TRUE %s
+		ORDER BY %s %s, id ASC
+		LIMIT $%d OFFSET $%d`, propertyWhere, havingConditions, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
 
 	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
 
