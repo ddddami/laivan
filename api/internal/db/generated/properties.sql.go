@@ -68,3 +68,45 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 	)
 	return i, err
 }
+
+const listProperties = `-- name: ListProperties :many
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
+FROM properties
+WHERE campus_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2
+`
+
+type ListPropertiesParams struct {
+	CampusID pgtype.UUID
+	Limit    int32
+}
+
+func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) ([]Property, error) {
+	rows, err := q.db.Query(ctx, listProperties, arg.CampusID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Property
+	for rows.Next() {
+		var i Property
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampusID,
+			&i.Name,
+			&i.Area,
+			&i.Landmark,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

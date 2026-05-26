@@ -19,6 +19,11 @@ type PropertyRepository struct {
 	queries *generateddb.Queries
 }
 
+type PropertyListFilter struct {
+	CampusID domain.ID
+	Limit    int32
+}
+
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
 	return &PropertyRepository{queries: generateddb.New(database)}
 }
@@ -65,6 +70,31 @@ func (r *PropertyRepository) Get(ctx context.Context, id domain.ID) (domain.Prop
 	}
 
 	return propertyFromRow(row), nil
+}
+
+func (r *PropertyRepository) List(ctx context.Context, filter PropertyListFilter) ([]domain.Property, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	campusUUID, err := uuidParam(filter.CampusID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.queries.ListProperties(ctx, generateddb.ListPropertiesParams{
+		CampusID: campusUUID,
+		Limit:    filter.Limit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list properties: %w", err)
+	}
+
+	properties := make([]domain.Property, 0, len(rows))
+	for _, row := range rows {
+		properties = append(properties, propertyFromRow(row))
+	}
+
+	return properties, nil
 }
 
 func propertyFromRow(row generateddb.Property) domain.Property {

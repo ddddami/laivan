@@ -8,6 +8,7 @@ import (
 
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 )
 
 type app struct {
@@ -20,6 +21,7 @@ type app struct {
 type PropertyStore interface {
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
+	List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error)
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore) *http.Server {

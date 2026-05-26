@@ -18,6 +18,7 @@ func (app *app) routes() http.Handler {
 	r.Get("/healthz", app.healthz)
 
 	r.Route("/v1/properties", func(r chi.Router) {
+		r.Get("/", app.listProperties)
 		r.Post("/", app.createProperty)
 		r.Get("/{id}", app.getProperty)
 	})
