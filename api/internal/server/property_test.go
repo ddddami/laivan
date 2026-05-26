@@ -56,8 +56,15 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 				PropertyUnitType: domain.PropertyUnitType{
 					ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
 					PropertyID:  id,
+					Category:    domain.UnitCategorySelfContained,
 					Name:        "Self-contained",
 					Description: "Private room with bathroom and kitchenette.",
+					Structure: domain.UnitStructure{
+						BedroomCount: intPointer(1),
+						HasParlour:   boolPointer(false),
+						BathroomType: "private",
+						KitchenType:  "private",
+					},
 					Timestamps: domain.Timestamps{
 						CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 						UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -124,8 +131,15 @@ func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID
 		{
 			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
 			PropertyID:  propertyID,
+			Category:    domain.UnitCategorySelfContained,
 			Name:        "Self-contained",
 			Description: "Private room with bathroom and kitchenette.",
+			Structure: domain.UnitStructure{
+				BedroomCount: intPointer(1),
+				HasParlour:   boolPointer(false),
+				BathroomType: "private",
+				KitchenType:  "private",
+			},
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -448,7 +462,7 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 
 func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"name":"Self-contained","description":"Private room with bathroom and kitchenette."}`
+	body := `{"category":"self_contained","name":"Self-contained","description":"Private room with bathroom and kitchenette.","bedroom_count":1,"has_parlour":false,"bathroom_type":"private","kitchen_type":"private"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -460,17 +474,33 @@ func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 
 	var bodyDecoded struct {
 		UnitType struct {
-			ID         string `json:"id"`
-			PropertyID string `json:"property_id"`
-			Name       string `json:"name"`
+			ID           string `json:"id"`
+			PropertyID   string `json:"property_id"`
+			Category     string `json:"category"`
+			Name         string `json:"name"`
+			BedroomCount int    `json:"bedroom_count"`
+			BathroomType string `json:"bathroom_type"`
+			KitchenType  string `json:"kitchen_type"`
 		} `json:"unit_type"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
 		t.Fatalf("decode response body: %v", err)
 	}
 
+	if bodyDecoded.UnitType.Category != "self_contained" {
+		t.Fatalf("category = %q, want self_contained", bodyDecoded.UnitType.Category)
+	}
 	if bodyDecoded.UnitType.Name != "Self-contained" {
 		t.Fatalf("unit type name = %q, want Self-contained", bodyDecoded.UnitType.Name)
+	}
+	if bodyDecoded.UnitType.BedroomCount != 1 {
+		t.Fatalf("bedroom_count = %d, want 1", bodyDecoded.UnitType.BedroomCount)
+	}
+	if bodyDecoded.UnitType.BathroomType != "private" {
+		t.Fatalf("bathroom_type = %q, want private", bodyDecoded.UnitType.BathroomType)
+	}
+	if bodyDecoded.UnitType.KitchenType != "private" {
+		t.Fatalf("kitchen_type = %q, want private", bodyDecoded.UnitType.KitchenType)
 	}
 	if bodyDecoded.UnitType.PropertyID != "550e8400-e29b-41d4-a716-446655440000" {
 		t.Fatalf("property ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.UnitType.PropertyID)
@@ -479,7 +509,7 @@ func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 
 func TestCreatePropertyUnitTypePropertyNotFound(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"name":"Self-contained"}`
+	body := `{"category":"self_contained","name":"Self-contained"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -699,4 +729,12 @@ func TestListAgentOffersUnitTypeNotFound(t *testing.T) {
 	app.routes().ServeHTTP(rr, req)
 
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func intPointer(value int) *int {
+	return &value
+}
+
+func boolPointer(value bool) *bool {
+	return &value
 }

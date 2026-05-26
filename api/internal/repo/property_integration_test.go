@@ -219,8 +219,15 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 
 	created, err := repository.CreatePropertyUnitType(ctx, domain.PropertyUnitType{
 		PropertyID:  propertyID,
+		Category:    domain.UnitCategorySelfContained,
 		Name:        "Self-contained",
 		Description: "Private room with bathroom and kitchenette.",
+		Structure: domain.UnitStructure{
+			BedroomCount: intPtr(1),
+			HasParlour:   boolPtr(false),
+			BathroomType: "private",
+			KitchenType:  "private",
+		},
 	})
 	if err != nil {
 		t.Fatalf("create property unit type: %v", err)
@@ -234,6 +241,21 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 	if created.Name != "Self-contained" {
 		t.Fatalf("name = %q, want Self-contained", created.Name)
+	}
+	if created.Category != domain.UnitCategorySelfContained {
+		t.Fatalf("category = %q, want self_contained", created.Category)
+	}
+	if created.Structure.BedroomCount == nil || *created.Structure.BedroomCount != 1 {
+		t.Fatalf("bedroom_count = %v, want 1", created.Structure.BedroomCount)
+	}
+	if created.Structure.HasParlour == nil || *created.Structure.HasParlour {
+		t.Fatalf("has_parlour = %v, want false", created.Structure.HasParlour)
+	}
+	if created.Structure.BathroomType != "private" {
+		t.Fatalf("bathroom_type = %q, want private", created.Structure.BathroomType)
+	}
+	if created.Structure.KitchenType != "private" {
+		t.Fatalf("kitchen_type = %q, want private", created.Structure.KitchenType)
 	}
 	if created.Description != "Private room with bathroom and kitchenette." {
 		t.Fatalf("description = %q, want Private room with bathroom and kitchenette.", created.Description)
@@ -249,8 +271,23 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	if len(listed) != 1 {
 		t.Fatalf("unit types length = %d, want 1", len(listed))
 	}
-	if listed[0] != created {
-		t.Fatalf("listed property unit type = %#v, want %#v", listed[0], created)
+	if listed[0].ID != created.ID {
+		t.Fatalf("listed property unit type ID = %q, want %q", listed[0].ID, created.ID)
+	}
+	if listed[0].Category != created.Category {
+		t.Fatalf("listed category = %q, want %q", listed[0].Category, created.Category)
+	}
+	if listed[0].Structure.BedroomCount == nil || *listed[0].Structure.BedroomCount != 1 {
+		t.Fatalf("listed bedroom_count = %v, want 1", listed[0].Structure.BedroomCount)
+	}
+	if listed[0].Structure.HasParlour == nil || *listed[0].Structure.HasParlour {
+		t.Fatalf("listed has_parlour = %v, want false", listed[0].Structure.HasParlour)
+	}
+	if listed[0].Structure.BathroomType != "private" {
+		t.Fatalf("listed bathroom_type = %q, want private", listed[0].Structure.BathroomType)
+	}
+	if listed[0].Structure.KitchenType != "private" {
+		t.Fatalf("listed kitchen_type = %q, want private", listed[0].Structure.KitchenType)
 	}
 }
 
@@ -264,6 +301,7 @@ func TestPropertyRepositoryPropertyUnitTypesPropertyNotFound(t *testing.T) {
 
 	_, err := repository.CreatePropertyUnitType(ctx, domain.PropertyUnitType{
 		PropertyID: missingPropertyID,
+		Category:   domain.UnitCategorySelfContained,
 		Name:       "Self-contained",
 	})
 	if !errors.Is(err, ErrNotFound) {
@@ -575,4 +613,12 @@ func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitT
 	}
 
 	return domain.ID(offerID)
+}
+
+func intPtr(value int) *int {
+	return &value
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }

@@ -203,9 +203,14 @@ func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitTyp
 	}
 
 	row, err := r.queries.CreatePropertyUnitType(ctx, generateddb.CreatePropertyUnitTypeParams{
-		PropertyID:  propertyUUID,
-		Name:        unitType.Name,
-		Description: textParam(unitType.Description),
+		PropertyID:   propertyUUID,
+		Category:     string(unitType.Category),
+		Name:         unitType.Name,
+		Description:  textParam(unitType.Description),
+		BedroomCount: intParam(unitType.Structure.BedroomCount),
+		HasParlour:   boolParam(unitType.Structure.HasParlour),
+		BathroomType: textParam(unitType.Structure.BathroomType),
+		KitchenType:  textParam(unitType.Structure.KitchenType),
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
@@ -331,8 +336,15 @@ func propertyUnitTypeFromRow(row generateddb.PropertyUnitType) domain.PropertyUn
 	return domain.PropertyUnitType{
 		ID:          domain.ID(uuidString(row.ID)),
 		PropertyID:  domain.ID(uuidString(row.PropertyID)),
+		Category:    domain.UnitCategory(row.Category),
 		Name:        row.Name,
 		Description: textString(row.Description),
+		Structure: domain.UnitStructure{
+			BedroomCount: intPointer(row.BedroomCount),
+			HasParlour:   boolPointer(row.HasParlour),
+			BathroomType: textString(row.BathroomType),
+			KitchenType:  textString(row.KitchenType),
+		},
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
@@ -366,6 +378,40 @@ func textString(value pgtype.Text) string {
 	}
 
 	return value.String
+}
+
+func intParam(value *int) pgtype.Int4 {
+	if value == nil {
+		return pgtype.Int4{}
+	}
+
+	return pgtype.Int4{Int32: int32(*value), Valid: true}
+}
+
+func intPointer(value pgtype.Int4) *int {
+	if !value.Valid {
+		return nil
+	}
+
+	result := int(value.Int32)
+	return &result
+}
+
+func boolParam(value *bool) pgtype.Bool {
+	if value == nil {
+		return pgtype.Bool{}
+	}
+
+	return pgtype.Bool{Bool: *value, Valid: true}
+}
+
+func boolPointer(value pgtype.Bool) *bool {
+	if !value.Valid {
+		return nil
+	}
+
+	result := value.Bool
+	return &result
 }
 
 func uuidParam(id domain.ID) (pgtype.UUID, error) {

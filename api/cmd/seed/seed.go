@@ -97,15 +97,20 @@ func seedProperties(ctx context.Context, tx pgx.Tx, campusID string) error {
 func seedPropertyUnitTypes(ctx context.Context, tx pgx.Tx) error {
 	for _, unitType := range unitTypes {
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO property_unit_types (id, property_id, name, description, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $5)
+			INSERT INTO property_unit_types (id, property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
 			ON CONFLICT (id) DO UPDATE SET
 			  property_id = EXCLUDED.property_id,
+			  category = EXCLUDED.category,
 			  name = EXCLUDED.name,
 			  description = EXCLUDED.description,
+			  bedroom_count = EXCLUDED.bedroom_count,
+			  has_parlour = EXCLUDED.has_parlour,
+			  bathroom_type = EXCLUDED.bathroom_type,
+			  kitchen_type = EXCLUDED.kitchen_type,
 			  created_at = EXCLUDED.created_at,
 			  updated_at = now()
-		`, unitType.ID, unitType.PropertyID, unitType.Name, unitType.Description, unitType.CreatedAt); err != nil {
+		`, unitType.ID, unitType.PropertyID, unitType.Category, unitType.Name, unitType.Description, unitType.BedroomCount, unitType.HasParlour, unitType.BathroomType, unitType.KitchenType, unitType.CreatedAt); err != nil {
 			return fmt.Errorf("seed property unit type %s: %w", unitType.ID, err)
 		}
 	}

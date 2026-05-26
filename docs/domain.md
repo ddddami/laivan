@@ -112,6 +112,16 @@ This distinction matters because:
 
 multiple agents may advertise the same property unit type differently.
 
+Property unit types should capture both market language and light physical structure:
+
+* category: single room, self-contained, room-and-parlour, flat, or other market category
+* bedroom count, when known
+* whether a parlour/living room exists, when known
+* bathroom privacy: private, shared, or unknown
+* kitchen setup: private, shared, none, or unknown
+
+Do not model exact room numbers, landlord inventory systems, or per-unit availability yet. Laivan only needs enough structure to support discovery, comparison, and agent offers without turning into property management software.
+
 ---
 
 ## Agent Offer

@@ -19,11 +19,16 @@ type propertySeed struct {
 }
 
 type propertyUnitTypeSeed struct {
-	ID          string
-	PropertyID  string
-	Name        string
-	Description string
-	CreatedAt   time.Time
+	ID           string
+	PropertyID   string
+	Category     string
+	Name         string
+	Description  string
+	BedroomCount int
+	HasParlour   bool
+	BathroomType string
+	KitchenType  string
+	CreatedAt    time.Time
 }
 
 type agentOfferSeed struct {
@@ -82,11 +87,11 @@ var properties = []propertySeed{
 }
 
 var unitTypes = []propertyUnitTypeSeed{
-	{"66666666-6666-4666-8666-666666666661", "33333333-3333-4333-8333-333333333333", "Single Room", "Basic single room in the lodge compound.", seedBaseTime},
-	{"66666666-6666-4666-8666-666666666662", "33333333-3333-4333-8333-333333333333", "Self-contained", "Private room with toilet and bathroom.", seedBaseTime.Add(10 * time.Minute)},
-	{"77777777-7777-4777-8777-777777777771", "44444444-4444-4444-8444-444444444444", "Room and Parlour", "Larger unit suited for students who want extra space.", seedBaseTime.Add(20 * time.Minute)},
-	{"77777777-7777-4777-8777-777777777772", "44444444-4444-4444-8444-444444444444", "Self-contained", "Self-contained room in a quieter part of Aule.", seedBaseTime.Add(30 * time.Minute)},
-	{"88888888-8888-4888-8888-888888888881", "55555555-5555-4555-8555-555555555555", "Single Room", "Budget single room near South Gate.", seedBaseTime.Add(40 * time.Minute)},
+	{"66666666-6666-4666-8666-666666666661", "33333333-3333-4333-8333-333333333333", "single_room", "Single Room", "Basic single room in the lodge compound.", 1, false, "shared", "shared", seedBaseTime},
+	{"66666666-6666-4666-8666-666666666662", "33333333-3333-4333-8333-333333333333", "self_contained", "Self-contained", "Private room with toilet and bathroom.", 1, false, "private", "private", seedBaseTime.Add(10 * time.Minute)},
+	{"77777777-7777-4777-8777-777777777771", "44444444-4444-4444-8444-444444444444", "room_and_parlour", "Room and Parlour", "Larger unit suited for students who want extra space.", 1, true, "private", "private", seedBaseTime.Add(20 * time.Minute)},
+	{"77777777-7777-4777-8777-777777777772", "44444444-4444-4444-8444-444444444444", "self_contained", "Self-contained", "Self-contained room in a quieter part of Aule.", 1, false, "private", "private", seedBaseTime.Add(30 * time.Minute)},
+	{"88888888-8888-4888-8888-888888888881", "55555555-5555-4555-8555-555555555555", "single_room", "Single Room", "Budget single room near South Gate.", 1, false, "shared", "shared", seedBaseTime.Add(40 * time.Minute)},
 }
 
 var agentOffers = []agentOfferSeed{

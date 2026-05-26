@@ -178,8 +178,13 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	propertyID := chi.URLParam(r, "id")
 
 	var input struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Category     string `json:"category"`
+		Name         string `json:"name"`
+		Description  string `json:"description"`
+		BedroomCount *int   `json:"bedroom_count"`
+		HasParlour   *bool  `json:"has_parlour"`
+		BathroomType string `json:"bathroom_type"`
+		KitchenType  string `json:"kitchen_type"`
 	}
 
 	if err := readJSON(w, r, &input); err != nil {
@@ -190,9 +195,15 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 	v.Check(validator.NotBlank(propertyID), "id", "ID is required")
 	v.Check(validator.ValidUUID(propertyID), "id", "ID must be a valid UUID")
+	v.Check(validUnitCategory(input.Category), "category", "Category must be single_room, self_contained, room_and_parlour, one_bedroom_flat, two_bedroom_flat, three_bedroom_flat, or other")
 	v.Check(validator.NotBlank(input.Name), "name", "Name is required")
 	v.Check(validator.MaxChars(input.Name, 100), "name", "Name must not exceed 100 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
+	if input.BedroomCount != nil {
+		v.Check(*input.BedroomCount >= 0, "bedroom_count", "Bedroom count must be greater than or equal to 0")
+	}
+	v.Check(input.BathroomType == "" || validBathroomType(input.BathroomType), "bathroom_type", "Bathroom type must be private, shared, or unknown")
+	v.Check(input.KitchenType == "" || validKitchenType(input.KitchenType), "kitchen_type", "Kitchen type must be private, shared, none, or unknown")
 
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
@@ -201,8 +212,15 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 
 	created, err := app.propertyRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
 		PropertyID:  domain.ID(propertyID),
+		Category:    domain.UnitCategory(input.Category),
 		Name:        input.Name,
 		Description: input.Description,
+		Structure: domain.UnitStructure{
+			BedroomCount: input.BedroomCount,
+			HasParlour:   input.HasParlour,
+			BathroomType: input.BathroomType,
+			KitchenType:  input.KitchenType,
+		},
 	})
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -396,12 +414,17 @@ func propertyUnitTypesResponse(unitTypes []domain.PropertyUnitType) []map[string
 
 func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
 	return map[string]any{
-		"id":          string(ut.ID),
-		"property_id": string(ut.PropertyID),
-		"name":        ut.Name,
-		"description": ut.Description,
-		"created_at":  ut.CreatedAt.Format(time.RFC3339),
-		"updated_at":  ut.UpdatedAt.Format(time.RFC3339),
+		"id":            string(ut.ID),
+		"property_id":   string(ut.PropertyID),
+		"category":      string(ut.Category),
+		"name":          ut.Name,
+		"description":   ut.Description,
+		"bedroom_count": ut.Structure.BedroomCount,
+		"has_parlour":   ut.Structure.HasParlour,
+		"bathroom_type": nullableString(ut.Structure.BathroomType),
+		"kitchen_type":  nullableString(ut.Structure.KitchenType),
+		"created_at":    ut.CreatedAt.Format(time.RFC3339),
+		"updated_at":    ut.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -455,13 +478,18 @@ func propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) 
 
 func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
 	return map[string]any{
-		"id":           string(ut.ID),
-		"property_id":  string(ut.PropertyID),
-		"name":         ut.Name,
-		"description":  ut.Description,
-		"agent_offers": agentOffersResponse(ut.AgentOffers),
-		"created_at":   ut.CreatedAt.Format(time.RFC3339),
-		"updated_at":   ut.UpdatedAt.Format(time.RFC3339),
+		"id":            string(ut.ID),
+		"property_id":   string(ut.PropertyID),
+		"category":      string(ut.Category),
+		"name":          ut.Name,
+		"description":   ut.Description,
+		"bedroom_count": ut.Structure.BedroomCount,
+		"has_parlour":   ut.Structure.HasParlour,
+		"bathroom_type": nullableString(ut.Structure.BathroomType),
+		"kitchen_type":  nullableString(ut.Structure.KitchenType),
+		"agent_offers":  agentOffersResponse(ut.AgentOffers),
+		"created_at":    ut.CreatedAt.Format(time.RFC3339),
+		"updated_at":    ut.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -491,6 +519,47 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 func validAgentOfferStatus(status string) bool {
 	switch domain.AgentOfferStatus(status) {
 	case domain.AgentOfferStatusAvailable, domain.AgentOfferStatusUnavailable, domain.AgentOfferStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
+
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+
+	return value
+}
+
+func validUnitCategory(category string) bool {
+	switch domain.UnitCategory(category) {
+	case domain.UnitCategorySingleRoom,
+		domain.UnitCategorySelfContained,
+		domain.UnitCategoryRoomAndParlour,
+		domain.UnitCategoryOneBedroomFlat,
+		domain.UnitCategoryTwoBedroomFlat,
+		domain.UnitCategoryThreeBedroomFlat,
+		domain.UnitCategoryOther:
+		return true
+	default:
+		return false
+	}
+}
+
+func validBathroomType(value string) bool {
+	switch value {
+	case "private", "shared", "unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+func validKitchenType(value string) bool {
+	switch value {
+	case "private", "shared", "none", "unknown":
 		return true
 	default:
 		return false
