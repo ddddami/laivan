@@ -14,3 +14,14 @@ FROM properties
 WHERE campus_id = $1
 ORDER BY created_at DESC, id DESC
 LIMIT $2;
+
+-- name: CreateRoomType :one
+INSERT INTO room_types (property_id, name, description)
+VALUES ($1, $2, $3)
+RETURNING id, property_id, name, description, created_at, updated_at;
+
+-- name: ListRoomTypesByProperty :many
+SELECT id, property_id, name, description, created_at, updated_at
+FROM room_types
+WHERE property_id = $1
+ORDER BY created_at ASC, id ASC;

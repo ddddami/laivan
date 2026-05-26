@@ -10,6 +10,7 @@ import (
 	generateddb "github.com/ddddami/laivan/internal/db/generated"
 	"github.com/ddddami/laivan/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -97,6 +98,61 @@ func (r *PropertyRepository) List(ctx context.Context, filter PropertyListFilter
 	return properties, nil
 }
 
+func (r *PropertyRepository) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	propertyUUID, err := uuidParam(roomType.PropertyID)
+	if err != nil {
+		return domain.RoomType{}, err
+	}
+
+	row, err := r.queries.CreateRoomType(ctx, generateddb.CreateRoomTypeParams{
+		PropertyID:  propertyUUID,
+		Name:        roomType.Name,
+		Description: textParam(roomType.Description),
+	})
+	if err != nil {
+		if isForeignKeyViolation(err) {
+			return domain.RoomType{}, ErrNotFound
+		}
+
+		return domain.RoomType{}, fmt.Errorf("create room type: %w", err)
+	}
+
+	return roomTypeFromRow(row), nil
+}
+
+func (r *PropertyRepository) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	propertyUUID, err := uuidParam(propertyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := r.queries.GetProperty(ctx, propertyUUID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get property for room types: %w", err)
+	}
+
+	rows, err := r.queries.ListRoomTypesByProperty(ctx, propertyUUID)
+	if err != nil {
+		return nil, fmt.Errorf("list room types: %w", err)
+	}
+
+	roomTypes := make([]domain.RoomType, 0, len(rows))
+	for _, row := range rows {
+		roomTypes = append(roomTypes, roomTypeFromRow(row))
+	}
+
+	return roomTypes, nil
+}
+
 func propertyFromRow(row generateddb.Property) domain.Property {
 	return domain.Property{
 		ID:       domain.ID(uuidString(row.ID)),
@@ -106,6 +162,19 @@ func propertyFromRow(row generateddb.Property) domain.Property {
 			Area:     row.Area,
 			Landmark: textString(row.Landmark),
 		},
+		Description: textString(row.Description),
+		Timestamps: domain.Timestamps{
+			CreatedAt: row.CreatedAt.Time,
+			UpdatedAt: row.UpdatedAt.Time,
+		},
+	}
+}
+
+func roomTypeFromRow(row generateddb.RoomType) domain.RoomType {
+	return domain.RoomType{
+		ID:          domain.ID(uuidString(row.ID)),
+		PropertyID:  domain.ID(uuidString(row.PropertyID)),
+		Name:        row.Name,
 		Description: textString(row.Description),
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
@@ -152,4 +221,9 @@ func uuidString(uuid pgtype.UUID) string {
 	hex.Encode(buf[24:36], uuid.Bytes[10:16])
 
 	return string(buf)
+}
+
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }

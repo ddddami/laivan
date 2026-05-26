@@ -47,6 +47,32 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 	return i, err
 }
 
+const createRoomType = `-- name: CreateRoomType :one
+INSERT INTO room_types (property_id, name, description)
+VALUES ($1, $2, $3)
+RETURNING id, property_id, name, description, created_at, updated_at
+`
+
+type CreateRoomTypeParams struct {
+	PropertyID  pgtype.UUID
+	Name        string
+	Description pgtype.Text
+}
+
+func (q *Queries) CreateRoomType(ctx context.Context, arg CreateRoomTypeParams) (RoomType, error) {
+	row := q.db.QueryRow(ctx, createRoomType, arg.PropertyID, arg.Name, arg.Description)
+	var i RoomType
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProperty = `-- name: GetProperty :one
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties
@@ -97,6 +123,40 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 			&i.Name,
 			&i.Area,
 			&i.Landmark,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRoomTypesByProperty = `-- name: ListRoomTypesByProperty :many
+SELECT id, property_id, name, description, created_at, updated_at
+FROM room_types
+WHERE property_id = $1
+ORDER BY created_at ASC, id ASC
+`
+
+func (q *Queries) ListRoomTypesByProperty(ctx context.Context, propertyID pgtype.UUID) ([]RoomType, error) {
+	rows, err := q.db.Query(ctx, listRoomTypesByProperty, propertyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RoomType
+	for rows.Next() {
+		var i RoomType
+		if err := rows.Scan(
+			&i.ID,
+			&i.PropertyID,
+			&i.Name,
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,

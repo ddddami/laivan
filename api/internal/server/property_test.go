@@ -50,6 +50,36 @@ func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFil
 	}, nil
 }
 
+func (s *stubPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
+	if string(roomType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.RoomType{}, repo.ErrNotFound
+	}
+
+	roomType.ID = domain.ID("550e8400-e29b-41d4-a716-446655440020")
+	roomType.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	roomType.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return roomType, nil
+}
+
+func (s *stubPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
+	if string(propertyID) != "550e8400-e29b-41d4-a716-446655440000" {
+		return nil, repo.ErrNotFound
+	}
+
+	return []domain.RoomType{
+		{
+			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+			PropertyID:  propertyID,
+			Name:        "Self-contained",
+			Description: "Private room with bathroom and kitchenette.",
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}, nil
+}
+
 func testAppWithRepo() *app {
 	a := testApp()
 	a.propertyRepo = &stubPropertyRepo{}
@@ -231,6 +261,120 @@ func TestGetPropertyInvalidID(t *testing.T) {
 func TestGetPropertyNotFound(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/properties/11111111-1111-1111-1111-111111111111", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestCreateRoomTypeValidationErrors(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"name":""}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/not-a-uuid/room-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Code   string            `json:"code"`
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if bodyDecoded.Error.Code != "validation_failed" {
+		t.Fatalf("code = %q, want validation_failed", bodyDecoded.Error.Code)
+	}
+	if bodyDecoded.Error.Fields["id"] == "" {
+		t.Fatal("id validation error missing")
+	}
+	if bodyDecoded.Error.Fields["name"] == "" {
+		t.Fatal("name validation error missing")
+	}
+}
+
+func TestCreateRoomTypeReturnsRoomType(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"name":"Self-contained","description":"Private room with bathroom and kitchenette."}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/room-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	var bodyDecoded struct {
+		RoomType struct {
+			ID         string `json:"id"`
+			PropertyID string `json:"property_id"`
+			Name       string `json:"name"`
+		} `json:"room_type"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if bodyDecoded.RoomType.Name != "Self-contained" {
+		t.Fatalf("room type name = %q, want Self-contained", bodyDecoded.RoomType.Name)
+	}
+	if bodyDecoded.RoomType.PropertyID != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("property ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.RoomType.PropertyID)
+	}
+}
+
+func TestCreateRoomTypePropertyNotFound(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"name":"Self-contained"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/room-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestListRoomTypesReturnsRoomTypes(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/room-types", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body struct {
+		RoomTypes []struct {
+			PropertyID string `json:"property_id"`
+			Name       string `json:"name"`
+		} `json:"room_types"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if len(body.RoomTypes) != 1 {
+		t.Fatalf("room types length = %d, want 1", len(body.RoomTypes))
+	}
+	if body.RoomTypes[0].Name != "Self-contained" {
+		t.Fatalf("room type name = %q, want Self-contained", body.RoomTypes[0].Name)
+	}
+}
+
+func TestListRoomTypesPropertyNotFound(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties/11111111-1111-1111-1111-111111111111/room-types", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)

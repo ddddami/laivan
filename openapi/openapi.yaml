@@ -19,6 +19,8 @@ tags:
     description: Service health checks.
   - name: Properties
     description: Campus-scoped accommodation properties.
+  - name: Room Types
+    description: Property-level room categories that agents can later offer.
 paths:
   /healthz:
     get:
@@ -149,6 +151,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PropertyResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/properties/{id}/room-types:
+    get:
+      operationId: listRoomTypes
+      tags:
+        - Room Types
+      summary: List room types for a property.
+      description: Returns room categories for a property in creation order.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Room types returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomTypesResponse"
+              examples:
+                roomTypes:
+                  value:
+                    room_types:
+                      - id: 550e8400-e29b-41d4-a716-446655440020
+                        property_id: 550e8400-e29b-41d4-a716-446655440010
+                        name: Self-contained
+                        description: Private room with bathroom and kitchenette.
+                        created_at: "2026-05-01T10:00:00Z"
+                        updated_at: "2026-05-01T10:00:00Z"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createRoomType
+      tags:
+        - Room Types
+      summary: Create a room type for a property.
+      description: Creates a property-level room category without tying it to a specific agent offer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomTypeRequest"
+            examples:
+              roomType:
+                value:
+                  name: Self-contained
+                  description: Private room with bathroom and kitchenette.
+      responses:
+        "201":
+          description: Room type created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomTypeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
@@ -300,6 +381,48 @@ components:
           type: string
           format: date-time
 
+    CreateRoomTypeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+
+    RoomType:
+      type: object
+      required:
+        - id
+        - property_id
+        - name
+        - description
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          description: Room type description. May be empty when unavailable.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     PropertyResponse:
       type: object
       required:
@@ -317,6 +440,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Property"
+
+    RoomTypeResponse:
+      type: object
+      required:
+        - room_type
+      properties:
+        room_type:
+          $ref: "#/components/schemas/RoomType"
+
+    RoomTypesResponse:
+      type: object
+      required:
+        - room_types
+      properties:
+        room_types:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomType"
 
     Error:
       type: object
