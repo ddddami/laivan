@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/ddddami/laivan/internal/domain"
@@ -11,6 +12,61 @@ import (
 	"github.com/ddddami/laivan/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
+
+const (
+	defaultPropertyListLimit = 20
+	maxPropertyListLimit     = 100
+)
+
+func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
+	if app.propertyRepo == nil {
+		app.serverErrorResponse(w, r, errors.New("database not available"))
+		return
+	}
+
+	query := r.URL.Query()
+	campusID := query.Get("campus_id")
+	limitValue := query.Get("limit")
+	limit := defaultPropertyListLimit
+
+	v := validator.New()
+	v.Check(validator.NotBlank(campusID), "campus_id", "Campus ID is required")
+	v.Check(validator.ValidUUID(campusID), "campus_id", "Campus ID must be a valid UUID")
+
+	if limitValue != "" {
+		parsedLimit, err := strconv.Atoi(limitValue)
+		if err != nil {
+			v.AddFieldError("limit", "Limit must be an integer")
+		} else {
+			limit = parsedLimit
+		}
+	}
+
+	v.Check(limit > 0, "limit", "Limit must be greater than 0")
+	v.Check(limit <= maxPropertyListLimit, "limit", "Limit must not exceed 100")
+
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	properties, err := app.propertyRepo.List(r.Context(), repo.PropertyListFilter{
+		CampusID: domain.ID(campusID),
+		Limit:    int32(limit),
+	})
+	if err != nil {
+		app.serverErrorResponse(w, r, fmt.Errorf("list properties: %w", err))
+		return
+	}
+
+	data := envelope{
+		"properties": propertiesResponse(properties),
+	}
+
+	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
+		app.logger.Error("write properties response", "error", err)
+	}
+}
 
 func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 	if app.propertyRepo == nil {
@@ -105,6 +161,15 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
 		app.logger.Error("write property response", "error", err)
 	}
+}
+
+func propertiesResponse(properties []domain.Property) []map[string]any {
+	response := make([]map[string]any, 0, len(properties))
+	for _, property := range properties {
+		response = append(response, propertyResponse(property))
+	}
+
+	return response
 }
 
 func propertyResponse(p domain.Property) map[string]any {

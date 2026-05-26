@@ -7,3 +7,10 @@ RETURNING id, campus_id, name, area, landmark, description, created_at, updated_
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties
 WHERE id = $1;
+
+-- name: ListProperties :many
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
+FROM properties
+WHERE campus_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2;

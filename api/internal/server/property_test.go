@@ -34,6 +34,22 @@ func (s *stubPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Proper
 	return domain.Property{}, repo.ErrNotFound
 }
 
+func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error) {
+	return []domain.Property{
+		{
+			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+			CampusID:    filter.CampusID,
+			Name:        "Alice Lodge",
+			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
+			Description: "Self-contained rooms close to FUTA.",
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}, nil
+}
+
 func testAppWithRepo() *app {
 	a := testApp()
 	a.propertyRepo = &stubPropertyRepo{}
@@ -88,6 +104,96 @@ func TestCreatePropertyValidationErrors(t *testing.T) {
 
 	if bodyDecoded.Error.Fields["area"] == "" {
 		t.Fatal("area validation error missing")
+	}
+}
+
+func TestListPropertiesValidationErrors(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?limit=0", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var body struct {
+		Error struct {
+			Code   string            `json:"code"`
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if body.Error.Code != "validation_failed" {
+		t.Fatalf("code = %q, want validation_failed", body.Error.Code)
+	}
+	if body.Error.Fields["campus_id"] == "" {
+		t.Fatal("campus_id validation error missing")
+	}
+	if body.Error.Fields["limit"] == "" {
+		t.Fatal("limit validation error missing")
+	}
+}
+
+func TestListPropertiesInvalidLimit(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?campus_id=550e8400-e29b-41d4-a716-446655440002&limit=many", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var body struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.Error.Fields["limit"] != "Limit must be an integer" {
+		t.Fatalf("limit error = %q, want Limit must be an integer", body.Error.Fields["limit"])
+	}
+}
+
+func TestListPropertiesReturnsProperties(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties?campus_id=550e8400-e29b-41d4-a716-446655440002", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body struct {
+		Properties []struct {
+			ID       string `json:"id"`
+			CampusID string `json:"campus_id"`
+			Name     string `json:"name"`
+			Area     string `json:"area"`
+		} `json:"properties"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if len(body.Properties) != 1 {
+		t.Fatalf("properties length = %d, want 1", len(body.Properties))
+	}
+	if body.Properties[0].Name != "Alice Lodge" {
+		t.Fatalf("property name = %q, want Alice Lodge", body.Properties[0].Name)
+	}
+	if body.Properties[0].CampusID != "550e8400-e29b-41d4-a716-446655440002" {
+		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440002", body.Properties[0].CampusID)
 	}
 }
 
