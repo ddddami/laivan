@@ -94,14 +94,14 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 		return domain.PropertyDetail{}, fmt.Errorf("get property: %w", err)
 	}
 
-	roomTypeRows, err := r.queries.ListRoomTypesByProperty(ctx, propertyUUID)
+	unitTypeRows, err := r.queries.ListPropertyUnitTypesByProperty(ctx, propertyUUID)
 	if err != nil {
-		return domain.PropertyDetail{}, fmt.Errorf("list room types: %w", err)
+		return domain.PropertyDetail{}, fmt.Errorf("list property unit types: %w", err)
 	}
 
-	roomTypes := make([]domain.RoomTypeDetail, 0, len(roomTypeRows))
-	for _, rtRow := range roomTypeRows {
-		offerRows, err := r.queries.ListAgentOffersByRoomType(ctx, rtRow.ID)
+	unitTypes := make([]domain.PropertyUnitTypeDetail, 0, len(unitTypeRows))
+	for _, utRow := range unitTypeRows {
+		offerRows, err := r.queries.ListAgentOffersByPropertyUnitType(ctx, utRow.ID)
 		if err != nil {
 			return domain.PropertyDetail{}, fmt.Errorf("list agent offers: %w", err)
 		}
@@ -111,15 +111,15 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 			offers = append(offers, agentOfferFromRow(offerRow))
 		}
 
-		roomTypes = append(roomTypes, domain.RoomTypeDetail{
-			RoomType:    roomTypeFromRow(rtRow),
-			AgentOffers: offers,
+		unitTypes = append(unitTypes, domain.PropertyUnitTypeDetail{
+			PropertyUnitType: propertyUnitTypeFromRow(utRow),
+			AgentOffers:      offers,
 		})
 	}
 
 	return domain.PropertyDetail{
 		Property:  propertyFromRow(propertyRow),
-		RoomTypes: roomTypes,
+		UnitTypes: unitTypes,
 	}, nil
 }
 
@@ -146,9 +146,9 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	query := fmt.Sprintf(`
 		SELECT
 		  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
-		  COALESCE((SELECT COUNT(*) FROM room_types WHERE property_id = p.id), 0)::integer AS room_type_count,
-		  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-		  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+		  COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
+		  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
+		  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
 		  COUNT(*) OVER() AS total_count
 		FROM properties p
 		WHERE %s
@@ -176,7 +176,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 			&row.Description,
 			&row.CreatedAt,
 			&row.UpdatedAt,
-			&row.RoomTypeCount,
+			&row.UnitTypeCount,
 			&row.AvailableOfferCount,
 			&row.LowestPriceKobo,
 			&row.TotalCount,
@@ -193,32 +193,32 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	return summaries, int(totalCount), nil
 }
 
-func (r *PropertyRepository) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
+func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	propertyUUID, err := uuidParam(roomType.PropertyID)
+	propertyUUID, err := uuidParam(unitType.PropertyID)
 	if err != nil {
-		return domain.RoomType{}, err
+		return domain.PropertyUnitType{}, err
 	}
 
-	row, err := r.queries.CreateRoomType(ctx, generateddb.CreateRoomTypeParams{
+	row, err := r.queries.CreatePropertyUnitType(ctx, generateddb.CreatePropertyUnitTypeParams{
 		PropertyID:  propertyUUID,
-		Name:        roomType.Name,
-		Description: textParam(roomType.Description),
+		Name:        unitType.Name,
+		Description: textParam(unitType.Description),
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
-			return domain.RoomType{}, ErrNotFound
+			return domain.PropertyUnitType{}, ErrNotFound
 		}
 
-		return domain.RoomType{}, fmt.Errorf("create room type: %w", err)
+		return domain.PropertyUnitType{}, fmt.Errorf("create property unit type: %w", err)
 	}
 
-	return roomTypeFromRow(row), nil
+	return propertyUnitTypeFromRow(row), nil
 }
 
-func (r *PropertyRepository) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
+func (r *PropertyRepository) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -232,27 +232,27 @@ func (r *PropertyRepository) ListRoomTypes(ctx context.Context, propertyID domai
 			return nil, ErrNotFound
 		}
 
-		return nil, fmt.Errorf("get property for room types: %w", err)
+		return nil, fmt.Errorf("get property for unit types: %w", err)
 	}
 
-	rows, err := r.queries.ListRoomTypesByProperty(ctx, propertyUUID)
+	rows, err := r.queries.ListPropertyUnitTypesByProperty(ctx, propertyUUID)
 	if err != nil {
-		return nil, fmt.Errorf("list room types: %w", err)
+		return nil, fmt.Errorf("list property unit types: %w", err)
 	}
 
-	roomTypes := make([]domain.RoomType, 0, len(rows))
+	unitTypes := make([]domain.PropertyUnitType, 0, len(rows))
 	for _, row := range rows {
-		roomTypes = append(roomTypes, roomTypeFromRow(row))
+		unitTypes = append(unitTypes, propertyUnitTypeFromRow(row))
 	}
 
-	return roomTypes, nil
+	return unitTypes, nil
 }
 
 func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	roomTypeUUID, err := uuidParam(offer.RoomTypeID)
+	unitTypeUUID, err := uuidParam(offer.PropertyUnitTypeID)
 	if err != nil {
 		return domain.AgentOffer{}, err
 	}
@@ -262,12 +262,12 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 	}
 
 	row, err := r.queries.CreateAgentOffer(ctx, generateddb.CreateAgentOfferParams{
-		RoomTypeID:  roomTypeUUID,
-		AgentID:     agentUUID,
-		Title:       offer.Title,
-		Description: textParam(offer.Description),
-		PriceKobo:   offer.Price.AmountKobo,
-		Status:      string(offer.Status),
+		PropertyUnitTypeID: unitTypeUUID,
+		AgentID:            agentUUID,
+		Title:              offer.Title,
+		Description:        textParam(offer.Description),
+		PriceKobo:          offer.Price.AmountKobo,
+		Status:             string(offer.Status),
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
@@ -280,24 +280,24 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 	return agentOfferFromRow(row), nil
 }
 
-func (r *PropertyRepository) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
+func (r *PropertyRepository) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	roomTypeUUID, err := uuidParam(roomTypeID)
+	unitTypeUUID, err := uuidParam(unitTypeID)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := r.queries.GetRoomType(ctx, roomTypeUUID); err != nil {
+	if _, err := r.queries.GetPropertyUnitType(ctx, unitTypeUUID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 
-		return nil, fmt.Errorf("get room type for agent offers: %w", err)
+		return nil, fmt.Errorf("get property unit type for agent offers: %w", err)
 	}
 
-	rows, err := r.queries.ListAgentOffersByRoomType(ctx, roomTypeUUID)
+	rows, err := r.queries.ListAgentOffersByPropertyUnitType(ctx, unitTypeUUID)
 	if err != nil {
 		return nil, fmt.Errorf("list agent offers: %w", err)
 	}
@@ -327,8 +327,8 @@ func propertyFromRow(row generateddb.Property) domain.Property {
 	}
 }
 
-func roomTypeFromRow(row generateddb.RoomType) domain.RoomType {
-	return domain.RoomType{
+func propertyUnitTypeFromRow(row generateddb.PropertyUnitType) domain.PropertyUnitType {
+	return domain.PropertyUnitType{
 		ID:          domain.ID(uuidString(row.ID)),
 		PropertyID:  domain.ID(uuidString(row.PropertyID)),
 		Name:        row.Name,
@@ -342,13 +342,13 @@ func roomTypeFromRow(row generateddb.RoomType) domain.RoomType {
 
 func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
 	return domain.AgentOffer{
-		ID:          domain.ID(uuidString(row.ID)),
-		RoomTypeID:  domain.ID(uuidString(row.RoomTypeID)),
-		AgentID:     domain.ID(uuidString(row.AgentID)),
-		Title:       row.Title,
-		Description: textString(row.Description),
-		Price:       domain.Money{AmountKobo: row.PriceKobo},
-		Status:      domain.AgentOfferStatus(row.Status),
+		ID:                 domain.ID(uuidString(row.ID)),
+		PropertyUnitTypeID: domain.ID(uuidString(row.PropertyUnitTypeID)),
+		AgentID:            domain.ID(uuidString(row.AgentID)),
+		Title:              row.Title,
+		Description:        textString(row.Description),
+		Price:              domain.Money{AmountKobo: row.PriceKobo},
+		Status:             domain.AgentOfferStatus(row.Status),
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
@@ -417,7 +417,7 @@ func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain
 				UpdatedAt: row.UpdatedAt.Time,
 			},
 		},
-		RoomTypeCount:       row.RoomTypeCount,
+		UnitTypeCount:       row.UnitTypeCount,
 		AvailableOfferCount: row.AvailableOfferCount,
 		LowestPriceKobo:     row.LowestPriceKobo,
 	}

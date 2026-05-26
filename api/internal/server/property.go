@@ -169,7 +169,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *app) createRoomType(w http.ResponseWriter, r *http.Request) {
+func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
@@ -199,7 +199,7 @@ func (app *app) createRoomType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := app.propertyRepo.CreateRoomType(r.Context(), domain.RoomType{
+	created, err := app.propertyRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
 		PropertyID:  domain.ID(propertyID),
 		Name:        input.Name,
 		Description: input.Description,
@@ -210,20 +210,20 @@ func (app *app) createRoomType(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		app.serverErrorResponse(w, r, fmt.Errorf("create room type: %w", err))
+		app.serverErrorResponse(w, r, fmt.Errorf("create property unit type: %w", err))
 		return
 	}
 
 	data := envelope{
-		"room_type": roomTypeResponse(created),
+		"unit_type": propertyUnitTypeResponse(created),
 	}
 
 	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
-		app.logger.Error("write room type response", "error", err)
+		app.logger.Error("write property unit type response", "error", err)
 	}
 }
 
-func (app *app) listRoomTypes(w http.ResponseWriter, r *http.Request) {
+func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
 	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
@@ -239,23 +239,23 @@ func (app *app) listRoomTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roomTypes, err := app.propertyRepo.ListRoomTypes(r.Context(), domain.ID(propertyID))
+	unitTypes, err := app.propertyRepo.ListPropertyUnitTypes(r.Context(), domain.ID(propertyID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
 			return
 		}
 
-		app.serverErrorResponse(w, r, fmt.Errorf("list room types: %w", err))
+		app.serverErrorResponse(w, r, fmt.Errorf("list property unit types: %w", err))
 		return
 	}
 
 	data := envelope{
-		"room_types": roomTypesResponse(roomTypes),
+		"unit_types": propertyUnitTypesResponse(unitTypes),
 	}
 
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
-		app.logger.Error("write room types response", "error", err)
+		app.logger.Error("write property unit types response", "error", err)
 	}
 }
 
@@ -265,7 +265,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roomTypeID := chi.URLParam(r, "id")
+	unitTypeID := chi.URLParam(r, "id")
 
 	var input struct {
 		AgentID     string `json:"agent_id"`
@@ -285,8 +285,8 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
-	v.Check(validator.NotBlank(roomTypeID), "id", "ID is required")
-	v.Check(validator.ValidUUID(roomTypeID), "id", "ID must be a valid UUID")
+	v.Check(validator.NotBlank(unitTypeID), "id", "ID is required")
+	v.Check(validator.ValidUUID(unitTypeID), "id", "ID must be a valid UUID")
 	v.Check(validator.NotBlank(input.AgentID), "agent_id", "Agent ID is required")
 	v.Check(validator.ValidUUID(input.AgentID), "agent_id", "Agent ID must be a valid UUID")
 	v.Check(validator.NotBlank(input.Title), "title", "Title is required")
@@ -301,12 +301,12 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, err := app.propertyRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
-		RoomTypeID:  domain.ID(roomTypeID),
-		AgentID:     domain.ID(input.AgentID),
-		Title:       input.Title,
-		Description: input.Description,
-		Price:       domain.Money{AmountKobo: input.PriceNaira * 100},
-		Status:      domain.AgentOfferStatus(input.Status),
+		PropertyUnitTypeID: domain.ID(unitTypeID),
+		AgentID:            domain.ID(input.AgentID),
+		Title:              input.Title,
+		Description:        input.Description,
+		Price:              domain.Money{AmountKobo: input.PriceNaira * 100},
+		Status:             domain.AgentOfferStatus(input.Status),
 	})
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -333,17 +333,17 @@ func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roomTypeID := chi.URLParam(r, "id")
+	unitTypeID := chi.URLParam(r, "id")
 
 	v := validator.New()
-	v.Check(validator.NotBlank(roomTypeID), "id", "ID is required")
-	v.Check(validator.ValidUUID(roomTypeID), "id", "ID must be a valid UUID")
+	v.Check(validator.NotBlank(unitTypeID), "id", "ID is required")
+	v.Check(validator.ValidUUID(unitTypeID), "id", "ID must be a valid UUID")
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
 		return
 	}
 
-	offers, err := app.propertyRepo.ListAgentOffers(r.Context(), domain.ID(roomTypeID))
+	offers, err := app.propertyRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
@@ -385,23 +385,23 @@ func propertyResponse(p domain.Property) map[string]any {
 	}
 }
 
-func roomTypesResponse(roomTypes []domain.RoomType) []map[string]any {
-	response := make([]map[string]any, 0, len(roomTypes))
-	for _, roomType := range roomTypes {
-		response = append(response, roomTypeResponse(roomType))
+func propertyUnitTypesResponse(unitTypes []domain.PropertyUnitType) []map[string]any {
+	response := make([]map[string]any, 0, len(unitTypes))
+	for _, unitType := range unitTypes {
+		response = append(response, propertyUnitTypeResponse(unitType))
 	}
 
 	return response
 }
 
-func roomTypeResponse(rt domain.RoomType) map[string]any {
+func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
 	return map[string]any{
-		"id":          string(rt.ID),
-		"property_id": string(rt.PropertyID),
-		"name":        rt.Name,
-		"description": rt.Description,
-		"created_at":  rt.CreatedAt.Format(time.RFC3339),
-		"updated_at":  rt.UpdatedAt.Format(time.RFC3339),
+		"id":          string(ut.ID),
+		"property_id": string(ut.PropertyID),
+		"name":        ut.Name,
+		"description": ut.Description,
+		"created_at":  ut.CreatedAt.Format(time.RFC3339),
+		"updated_at":  ut.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -422,7 +422,7 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"area":                  p.Location.Area,
 		"landmark":              p.Location.Landmark,
 		"description":           p.Description,
-		"room_type_count":       p.RoomTypeCount,
+		"unit_type_count":       p.UnitTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
 		"lowest_price_naira":    p.LowestPriceKobo / 100,
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
@@ -438,30 +438,30 @@ func propertyDetailResponse(p domain.PropertyDetail) map[string]any {
 		"area":        p.Location.Area,
 		"landmark":    p.Location.Landmark,
 		"description": p.Description,
-		"room_types":  roomTypeDetailsResponse(p.RoomTypes),
+		"unit_types":  propertyUnitTypeDetailsResponse(p.UnitTypes),
 		"created_at":  p.CreatedAt.Format(time.RFC3339),
 		"updated_at":  p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func roomTypeDetailsResponse(roomTypes []domain.RoomTypeDetail) []map[string]any {
-	response := make([]map[string]any, 0, len(roomTypes))
-	for _, rt := range roomTypes {
-		response = append(response, roomTypeDetailResponse(rt))
+func propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) []map[string]any {
+	response := make([]map[string]any, 0, len(unitTypes))
+	for _, ut := range unitTypes {
+		response = append(response, propertyUnitTypeDetailResponse(ut))
 	}
 
 	return response
 }
 
-func roomTypeDetailResponse(rt domain.RoomTypeDetail) map[string]any {
+func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
 	return map[string]any{
-		"id":           string(rt.ID),
-		"property_id":  string(rt.PropertyID),
-		"name":         rt.Name,
-		"description":  rt.Description,
-		"agent_offers": agentOffersResponse(rt.AgentOffers),
-		"created_at":   rt.CreatedAt.Format(time.RFC3339),
-		"updated_at":   rt.UpdatedAt.Format(time.RFC3339),
+		"id":           string(ut.ID),
+		"property_id":  string(ut.PropertyID),
+		"name":         ut.Name,
+		"description":  ut.Description,
+		"agent_offers": agentOffersResponse(ut.AgentOffers),
+		"created_at":   ut.CreatedAt.Format(time.RFC3339),
+		"updated_at":   ut.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -476,15 +476,15 @@ func agentOffersResponse(offers []domain.AgentOffer) []map[string]any {
 
 func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 	return map[string]any{
-		"id":           string(offer.ID),
-		"room_type_id": string(offer.RoomTypeID),
-		"agent_id":     string(offer.AgentID),
-		"title":        offer.Title,
-		"description":  offer.Description,
-		"price_naira":  offer.Price.AmountKobo / 100,
-		"status":       string(offer.Status),
-		"created_at":   offer.CreatedAt.Format(time.RFC3339),
-		"updated_at":   offer.UpdatedAt.Format(time.RFC3339),
+		"id":                    string(offer.ID),
+		"property_unit_type_id": string(offer.PropertyUnitTypeID),
+		"agent_id":              string(offer.AgentID),
+		"title":                 offer.Title,
+		"description":           offer.Description,
+		"price_naira":           offer.Price.AmountKobo / 100,
+		"status":                string(offer.Status),
+		"created_at":            offer.CreatedAt.Format(time.RFC3339),
+		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

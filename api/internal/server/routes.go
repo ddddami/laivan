@@ -24,11 +24,11 @@ func (app *app) routes() http.Handler {
 		r.Get("/", app.listProperties)
 		r.Post("/", app.createProperty)
 		r.Get("/{id}", app.getProperty)
-		r.Get("/{id}/room-types", app.listRoomTypes)
-		r.Post("/{id}/room-types", app.createRoomType)
+		r.Get("/{id}/unit-types", app.listPropertyUnitTypes)
+		r.Post("/{id}/unit-types", app.createPropertyUnitType)
 	})
 
-	r.Route("/v1/room-types", func(r chi.Router) {
+	r.Route("/v1/unit-types", func(r chi.Router) {
 		r.Get("/{id}/agent-offers", app.listAgentOffers)
 		r.Post("/{id}/agent-offers", app.createAgentOffer)
 	})

@@ -51,9 +51,9 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 			},
 		},
-		RoomTypes: []domain.RoomTypeDetail{
+		UnitTypes: []domain.PropertyUnitTypeDetail{
 			{
-				RoomType: domain.RoomType{
+				PropertyUnitType: domain.PropertyUnitType{
 					ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
 					PropertyID:  id,
 					Name:        "Self-contained",
@@ -65,13 +65,13 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 				},
 				AgentOffers: []domain.AgentOffer{
 					{
-						ID:          domain.ID("550e8400-e29b-41d4-a716-446655440030"),
-						RoomTypeID:  domain.ID("550e8400-e29b-41d4-a716-446655440020"),
-						AgentID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
-						Title:       "Fresh self-contained room",
-						Description: "Recently painted room with private bathroom.",
-						Price:       domain.Money{AmountKobo: 35000000},
-						Status:      domain.AgentOfferStatusAvailable,
+						ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+						PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+						AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+						Title:              "Fresh self-contained room",
+						Description:        "Recently painted room with private bathroom.",
+						Price:              domain.Money{AmountKobo: 35000000},
+						Status:             domain.AgentOfferStatusAvailable,
 						Timestamps: domain.Timestamps{
 							CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 							UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -97,30 +97,30 @@ func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prop
 					UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				},
 			},
-			RoomTypeCount:       3,
+			UnitTypeCount:       3,
 			AvailableOfferCount: 5,
 			LowestPriceKobo:     25000000,
 		},
 	}, 1, nil
 }
 
-func (s *stubPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
-	if string(roomType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
-		return domain.RoomType{}, repo.ErrNotFound
+func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.PropertyUnitType{}, repo.ErrNotFound
 	}
 
-	roomType.ID = domain.ID("550e8400-e29b-41d4-a716-446655440020")
-	roomType.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
-	roomType.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
-	return roomType, nil
+	unitType.ID = domain.ID("550e8400-e29b-41d4-a716-446655440020")
+	unitType.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	unitType.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return unitType, nil
 }
 
-func (s *stubPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
+func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
 	if string(propertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return nil, repo.ErrNotFound
 	}
 
-	return []domain.RoomType{
+	return []domain.PropertyUnitType{
 		{
 			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
 			PropertyID:  propertyID,
@@ -135,7 +135,7 @@ func (s *stubPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.
 }
 
 func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
-	if string(offer.RoomTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+	if string(offer.PropertyUnitTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
 		return domain.AgentOffer{}, repo.ErrNotFound
 	}
 
@@ -145,20 +145,20 @@ func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.Ag
 	return offer, nil
 }
 
-func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
-	if string(roomTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	if string(unitTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
 		return nil, repo.ErrNotFound
 	}
 
 	return []domain.AgentOffer{
 		{
-			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440030"),
-			RoomTypeID:  roomTypeID,
-			AgentID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
-			Title:       "Fresh self-contained room",
-			Description: "Recently painted room with private bathroom.",
-			Price:       domain.Money{AmountKobo: 35000000},
-			Status:      domain.AgentOfferStatusAvailable,
+			ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+			PropertyUnitTypeID: domain.ID(unitTypeID),
+			AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+			Title:              "Fresh self-contained room",
+			Description:        "Recently painted room with private bathroom.",
+			Price:              domain.Money{AmountKobo: 35000000},
+			Status:             domain.AgentOfferStatusAvailable,
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -297,7 +297,7 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 			CampusID            string `json:"campus_id"`
 			Name                string `json:"name"`
 			Area                string `json:"area"`
-			RoomTypeCount       int    `json:"room_type_count"`
+			UnitTypeCount       int    `json:"unit_type_count"`
 			AvailableOfferCount int    `json:"available_offer_count"`
 			LowestPriceNaira    int    `json:"lowest_price_naira"`
 		} `json:"properties"`
@@ -315,8 +315,8 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 	if body.Properties[0].CampusID != "550e8400-e29b-41d4-a716-446655440002" {
 		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440002", body.Properties[0].CampusID)
 	}
-	if body.Properties[0].RoomTypeCount != 3 {
-		t.Fatalf("room_type_count = %d, want 3", body.Properties[0].RoomTypeCount)
+	if body.Properties[0].UnitTypeCount != 3 {
+		t.Fatalf("unit_type_count = %d, want 3", body.Properties[0].UnitTypeCount)
 	}
 	if body.Properties[0].AvailableOfferCount != 5 {
 		t.Fatalf("available_offer_count = %d, want 5", body.Properties[0].AvailableOfferCount)
@@ -341,14 +341,14 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 		Property struct {
 			ID        string `json:"id"`
 			Name      string `json:"name"`
-			RoomTypes []struct {
+			UnitTypes []struct {
 				ID          string `json:"id"`
 				Name        string `json:"name"`
 				AgentOffers []struct {
 					Title      string `json:"title"`
 					PriceNaira int    `json:"price_naira"`
 				} `json:"agent_offers"`
-			} `json:"room_types"`
+			} `json:"unit_types"`
 		} `json:"property"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -358,17 +358,17 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 	if body.Property.Name != "Alice Lodge" {
 		t.Fatalf("property name = %q, want Alice Lodge", body.Property.Name)
 	}
-	if len(body.Property.RoomTypes) != 1 {
-		t.Fatalf("room types length = %d, want 1", len(body.Property.RoomTypes))
+	if len(body.Property.UnitTypes) != 1 {
+		t.Fatalf("unit types length = %d, want 1", len(body.Property.UnitTypes))
 	}
-	if body.Property.RoomTypes[0].Name != "Self-contained" {
-		t.Fatalf("room type name = %q, want Self-contained", body.Property.RoomTypes[0].Name)
+	if body.Property.UnitTypes[0].Name != "Self-contained" {
+		t.Fatalf("unit type name = %q, want Self-contained", body.Property.UnitTypes[0].Name)
 	}
-	if len(body.Property.RoomTypes[0].AgentOffers) != 1 {
-		t.Fatalf("agent offers length = %d, want 1", len(body.Property.RoomTypes[0].AgentOffers))
+	if len(body.Property.UnitTypes[0].AgentOffers) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(body.Property.UnitTypes[0].AgentOffers))
 	}
-	if body.Property.RoomTypes[0].AgentOffers[0].PriceNaira != 350000 {
-		t.Fatalf("price_naira = %d, want 350000", body.Property.RoomTypes[0].AgentOffers[0].PriceNaira)
+	if body.Property.UnitTypes[0].AgentOffers[0].PriceNaira != 350000 {
+		t.Fatalf("price_naira = %d, want 350000", body.Property.UnitTypes[0].AgentOffers[0].PriceNaira)
 	}
 }
 
@@ -413,10 +413,10 @@ func TestGetPropertyNotFound(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
-func TestCreateRoomTypeValidationErrors(t *testing.T) {
+func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"name":""}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/not-a-uuid/room-types", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/not-a-uuid/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -446,10 +446,10 @@ func TestCreateRoomTypeValidationErrors(t *testing.T) {
 	}
 }
 
-func TestCreateRoomTypeReturnsRoomType(t *testing.T) {
+func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"name":"Self-contained","description":"Private room with bathroom and kitchenette."}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/room-types", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -459,28 +459,28 @@ func TestCreateRoomTypeReturnsRoomType(t *testing.T) {
 	}
 
 	var bodyDecoded struct {
-		RoomType struct {
+		UnitType struct {
 			ID         string `json:"id"`
 			PropertyID string `json:"property_id"`
 			Name       string `json:"name"`
-		} `json:"room_type"`
+		} `json:"unit_type"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
 		t.Fatalf("decode response body: %v", err)
 	}
 
-	if bodyDecoded.RoomType.Name != "Self-contained" {
-		t.Fatalf("room type name = %q, want Self-contained", bodyDecoded.RoomType.Name)
+	if bodyDecoded.UnitType.Name != "Self-contained" {
+		t.Fatalf("unit type name = %q, want Self-contained", bodyDecoded.UnitType.Name)
 	}
-	if bodyDecoded.RoomType.PropertyID != "550e8400-e29b-41d4-a716-446655440000" {
-		t.Fatalf("property ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.RoomType.PropertyID)
+	if bodyDecoded.UnitType.PropertyID != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("property ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.UnitType.PropertyID)
 	}
 }
 
-func TestCreateRoomTypePropertyNotFound(t *testing.T) {
+func TestCreatePropertyUnitTypePropertyNotFound(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"name":"Self-contained"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/room-types", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -488,9 +488,9 @@ func TestCreateRoomTypePropertyNotFound(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
-func TestListRoomTypesReturnsRoomTypes(t *testing.T) {
+func TestListPropertyUnitTypesReturnsUnitTypes(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/room-types", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -500,26 +500,26 @@ func TestListRoomTypesReturnsRoomTypes(t *testing.T) {
 	}
 
 	var body struct {
-		RoomTypes []struct {
+		UnitTypes []struct {
 			PropertyID string `json:"property_id"`
 			Name       string `json:"name"`
-		} `json:"room_types"`
+		} `json:"unit_types"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response body: %v", err)
 	}
 
-	if len(body.RoomTypes) != 1 {
-		t.Fatalf("room types length = %d, want 1", len(body.RoomTypes))
+	if len(body.UnitTypes) != 1 {
+		t.Fatalf("unit types length = %d, want 1", len(body.UnitTypes))
 	}
-	if body.RoomTypes[0].Name != "Self-contained" {
-		t.Fatalf("room type name = %q, want Self-contained", body.RoomTypes[0].Name)
+	if body.UnitTypes[0].Name != "Self-contained" {
+		t.Fatalf("unit type name = %q, want Self-contained", body.UnitTypes[0].Name)
 	}
 }
 
-func TestListRoomTypesPropertyNotFound(t *testing.T) {
+func TestListPropertyUnitTypesPropertyNotFound(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/properties/11111111-1111-1111-1111-111111111111/room-types", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties/11111111-1111-1111-1111-111111111111/unit-types", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -530,7 +530,7 @@ func TestListRoomTypesPropertyNotFound(t *testing.T) {
 func TestCreateAgentOfferValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"agent_id":"","title":"","price_naira":0,"status":"gone"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/not-a-uuid/agent-offers", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/not-a-uuid/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -559,7 +559,7 @@ func TestCreateAgentOfferValidationErrors(t *testing.T) {
 func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -570,11 +570,11 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 
 	var bodyDecoded struct {
 		AgentOffer struct {
-			RoomTypeID string `json:"room_type_id"`
-			AgentID    string `json:"agent_id"`
-			Title      string `json:"title"`
-			PriceNaira int    `json:"price_naira"`
-			Status     string `json:"status"`
+			PropertyUnitTypeID string `json:"property_unit_type_id"`
+			AgentID            string `json:"agent_id"`
+			Title              string `json:"title"`
+			PriceNaira         int    `json:"price_naira"`
+			Status             string `json:"status"`
 		} `json:"agent_offer"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
@@ -598,7 +598,7 @@ func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 	app.propertyRepo = spy
 
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -633,12 +633,12 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 	return s.stub.ListWithSummary(ctx, filter)
 }
 
-func (s *spyPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
-	return s.stub.CreateRoomType(ctx, roomType)
+func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	return s.stub.CreatePropertyUnitType(ctx, unitType)
 }
 
-func (s *spyPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
-	return s.stub.ListRoomTypes(ctx, propertyID)
+func (s *spyPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
+	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
 }
 
 func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
@@ -646,14 +646,14 @@ func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.Age
 	return s.stub.CreateAgentOffer(ctx, offer)
 }
 
-func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
-	return s.stub.ListAgentOffers(ctx, roomTypeID)
+func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	return s.stub.ListAgentOffers(ctx, unitTypeID)
 }
 
-func TestCreateAgentOfferRoomTypeNotFound(t *testing.T) {
+func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/11111111-1111-1111-1111-111111111111/agent-offers", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/11111111-1111-1111-1111-111111111111/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -663,7 +663,7 @@ func TestCreateAgentOfferRoomTypeNotFound(t *testing.T) {
 
 func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -674,9 +674,9 @@ func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 
 	var body struct {
 		AgentOffers []struct {
-			RoomTypeID string `json:"room_type_id"`
-			Title      string `json:"title"`
-			PriceNaira int    `json:"price_naira"`
+			PropertyUnitTypeID string `json:"property_unit_type_id"`
+			Title              string `json:"title"`
+			PriceNaira         int    `json:"price_naira"`
 		} `json:"agent_offers"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -691,9 +691,9 @@ func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 	}
 }
 
-func TestListAgentOffersRoomTypeNotFound(t *testing.T) {
+func TestListAgentOffersUnitTypeNotFound(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/room-types/11111111-1111-1111-1111-111111111111/agent-offers", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/unit-types/11111111-1111-1111-1111-111111111111/agent-offers", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)

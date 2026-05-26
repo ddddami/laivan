@@ -11,17 +11,17 @@ type Property struct {
 
 type PropertySummary struct {
 	Property
-	RoomTypeCount       int
+	UnitTypeCount       int
 	AvailableOfferCount int
 	LowestPriceKobo     int
 }
 
 type PropertyDetail struct {
 	Property
-	RoomTypes []RoomTypeDetail
+	UnitTypes []PropertyUnitTypeDetail
 }
 
-type RoomTypeDetail struct {
-	RoomType
+type PropertyUnitTypeDetail struct {
+	PropertyUnitType
 	AgentOffers []AgentOffer
 }

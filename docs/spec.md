@@ -72,7 +72,7 @@ The platform should provide a structured listing feed.
 Listings should include:
 
 * title
-* room type
+* unit type
 * approximate area
 * pricing
 * images
@@ -93,7 +93,7 @@ The feed should prioritize:
 Users should be able to filter by:
 
 * price range
-* room type
+* unit type
 * area
 * gender preference (if applicable)
 * availability

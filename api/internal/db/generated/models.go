@@ -18,15 +18,15 @@ type Agent struct {
 }
 
 type AgentOffer struct {
-	ID          pgtype.UUID
-	RoomTypeID  pgtype.UUID
-	AgentID     pgtype.UUID
-	Title       string
-	Description pgtype.Text
-	PriceKobo   int
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID                 pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentID            pgtype.UUID
+	Title              string
+	Description        pgtype.Text
+	PriceKobo          int
+	Status             string
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
 }
 
 type Campuse struct {
@@ -40,15 +40,15 @@ type Campuse struct {
 }
 
 type Medium struct {
-	ID                pgtype.UUID
-	PropertyID        pgtype.UUID
-	RoomTypeID        pgtype.UUID
-	AgentOfferID      pgtype.UUID
-	UploadedByAgentID pgtype.UUID
-	Url               string
-	Kind              string
-	Caption           pgtype.Text
-	CreatedAt         pgtype.Timestamptz
+	ID                 pgtype.UUID
+	PropertyID         pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentOfferID       pgtype.UUID
+	UploadedByAgentID  pgtype.UUID
+	Url                string
+	Kind               string
+	Caption            pgtype.Text
+	CreatedAt          pgtype.Timestamptz
 }
 
 type Property struct {
@@ -62,7 +62,7 @@ type Property struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
-type RoomType struct {
+type PropertyUnitType struct {
 	ID          pgtype.UUID
 	PropertyID  pgtype.UUID
 	Name        string

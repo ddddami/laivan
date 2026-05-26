@@ -96,11 +96,11 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 
 	campusID := testCampusID(t, ctx, pool)
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
-	roomType1 := insertRoomType(t, ctx, pool, propertyID, "Self-contained")
-	roomType2 := insertRoomType(t, ctx, pool, propertyID, "Single room")
+	unitType1 := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	unitType2 := insertPropertyUnitType(t, ctx, pool, propertyID, "Single room")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
-	insertAgentOffer(t, ctx, pool, roomType1, agentID, "Selfcon offer", 25000000)
-	insertAgentOffer(t, ctx, pool, roomType2, agentID, "Single room offer", 15000000)
+	insertAgentOffer(t, ctx, pool, unitType1, agentID, "Selfcon offer", 25000000)
+	insertAgentOffer(t, ctx, pool, unitType2, agentID, "Single room offer", 15000000)
 
 	repository := NewPropertyRepository(pool)
 
@@ -112,17 +112,17 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	if detail.Name != "Alice Lodge" {
 		t.Fatalf("name = %q, want Alice Lodge", detail.Name)
 	}
-	if len(detail.RoomTypes) != 2 {
-		t.Fatalf("room types length = %d, want 2", len(detail.RoomTypes))
+	if len(detail.UnitTypes) != 2 {
+		t.Fatalf("unit types length = %d, want 2", len(detail.UnitTypes))
 	}
-	if detail.RoomTypes[0].Name != "Self-contained" {
-		t.Fatalf("room type name = %q, want Self-contained", detail.RoomTypes[0].Name)
+	if detail.UnitTypes[0].Name != "Self-contained" {
+		t.Fatalf("unit type name = %q, want Self-contained", detail.UnitTypes[0].Name)
 	}
-	if len(detail.RoomTypes[0].AgentOffers) != 1 {
-		t.Fatalf("agent offers length = %d, want 1", len(detail.RoomTypes[0].AgentOffers))
+	if len(detail.UnitTypes[0].AgentOffers) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(detail.UnitTypes[0].AgentOffers))
 	}
-	if detail.RoomTypes[0].AgentOffers[0].Price.AmountKobo != 25000000 {
-		t.Fatalf("price = %d, want 25000000", detail.RoomTypes[0].AgentOffers[0].Price.AmountKobo)
+	if detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo != 25000000 {
+		t.Fatalf("price = %d, want 25000000", detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo)
 	}
 
 	// Test not found
@@ -151,12 +151,12 @@ func TestPropertyRepositoryList(t *testing.T) {
 	older := insertProperty(t, ctx, pool, campusID, "Older Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	newer := insertProperty(t, ctx, pool, campusID, "Newer Lodge", time.Date(2026, time.May, 3, 12, 0, 0, 0, time.UTC))
 
-	// Add room types and offers to newer property for summary testing
-	roomType1 := insertRoomType(t, ctx, pool, newer, "Self-contained")
-	roomType2 := insertRoomType(t, ctx, pool, newer, "Single room")
+	// Add unit types and offers to newer property for summary testing
+	unitType1 := insertPropertyUnitType(t, ctx, pool, newer, "Self-contained")
+	unitType2 := insertPropertyUnitType(t, ctx, pool, newer, "Single room")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
-	insertAgentOffer(t, ctx, pool, roomType1, agentID, "Selfcon offer", 25000000)
-	insertAgentOffer(t, ctx, pool, roomType2, agentID, "Single room offer", 15000000)
+	insertAgentOffer(t, ctx, pool, unitType1, agentID, "Selfcon offer", 25000000)
+	insertAgentOffer(t, ctx, pool, unitType2, agentID, "Single room offer", 15000000)
 
 	repository := NewPropertyRepository(pool)
 
@@ -183,8 +183,8 @@ func TestPropertyRepositoryList(t *testing.T) {
 	if summaries[0].ID != newer {
 		t.Fatalf("first summary ID = %q, want %q", summaries[0].ID, newer)
 	}
-	if summaries[0].RoomTypeCount != 2 {
-		t.Fatalf("room_type_count = %d, want 2", summaries[0].RoomTypeCount)
+	if summaries[0].UnitTypeCount != 2 {
+		t.Fatalf("unit_type_count = %d, want 2", summaries[0].UnitTypeCount)
 	}
 	if summaries[0].AvailableOfferCount != 2 {
 		t.Fatalf("available_offer_count = %d, want 2", summaries[0].AvailableOfferCount)
@@ -193,19 +193,19 @@ func TestPropertyRepositoryList(t *testing.T) {
 		t.Fatalf("lowest_price_kobo = %d, want 15000000", summaries[0].LowestPriceKobo)
 	}
 
-	// Older property has no room types or offers
+	// Older property has no unit types or offers
 	if summaries[1].ID != older {
 		t.Fatalf("second summary ID = %q, want %q", summaries[1].ID, older)
 	}
-	if summaries[1].RoomTypeCount != 0 {
-		t.Fatalf("room_type_count = %d, want 0", summaries[1].RoomTypeCount)
+	if summaries[1].UnitTypeCount != 0 {
+		t.Fatalf("unit_type_count = %d, want 0", summaries[1].UnitTypeCount)
 	}
 	if summaries[1].LowestPriceKobo != 0 {
 		t.Fatalf("lowest_price_kobo = %d, want 0", summaries[1].LowestPriceKobo)
 	}
 }
 
-func TestPropertyRepositoryCreateAndListRoomTypes(t *testing.T) {
+func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
 	t.Cleanup(pool.Close)
@@ -217,17 +217,17 @@ func TestPropertyRepositoryCreateAndListRoomTypes(t *testing.T) {
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	repository := NewPropertyRepository(pool)
 
-	created, err := repository.CreateRoomType(ctx, domain.RoomType{
+	created, err := repository.CreatePropertyUnitType(ctx, domain.PropertyUnitType{
 		PropertyID:  propertyID,
 		Name:        "Self-contained",
 		Description: "Private room with bathroom and kitchenette.",
 	})
 	if err != nil {
-		t.Fatalf("create room type: %v", err)
+		t.Fatalf("create property unit type: %v", err)
 	}
 
 	if created.ID == "" {
-		t.Fatal("created room type ID is empty")
+		t.Fatal("created property unit type ID is empty")
 	}
 	if created.PropertyID != propertyID {
 		t.Fatalf("property ID = %q, want %q", created.PropertyID, propertyID)
@@ -239,22 +239,22 @@ func TestPropertyRepositoryCreateAndListRoomTypes(t *testing.T) {
 		t.Fatalf("description = %q, want Private room with bathroom and kitchenette.", created.Description)
 	}
 	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
-		t.Fatal("created room type timestamps must be set")
+		t.Fatal("created property unit type timestamps must be set")
 	}
 
-	listed, err := repository.ListRoomTypes(ctx, propertyID)
+	listed, err := repository.ListPropertyUnitTypes(ctx, propertyID)
 	if err != nil {
-		t.Fatalf("list room types: %v", err)
+		t.Fatalf("list property unit types: %v", err)
 	}
 	if len(listed) != 1 {
-		t.Fatalf("room types length = %d, want 1", len(listed))
+		t.Fatalf("unit types length = %d, want 1", len(listed))
 	}
 	if listed[0] != created {
-		t.Fatalf("listed room type = %#v, want %#v", listed[0], created)
+		t.Fatalf("listed property unit type = %#v, want %#v", listed[0], created)
 	}
 }
 
-func TestPropertyRepositoryRoomTypesPropertyNotFound(t *testing.T) {
+func TestPropertyRepositoryPropertyUnitTypesPropertyNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
 	t.Cleanup(pool.Close)
@@ -262,7 +262,7 @@ func TestPropertyRepositoryRoomTypesPropertyNotFound(t *testing.T) {
 	repository := NewPropertyRepository(pool)
 	missingPropertyID := domain.ID("550e8400-e29b-41d4-a716-446655440000")
 
-	_, err := repository.CreateRoomType(ctx, domain.RoomType{
+	_, err := repository.CreatePropertyUnitType(ctx, domain.PropertyUnitType{
 		PropertyID: missingPropertyID,
 		Name:       "Self-contained",
 	})
@@ -270,7 +270,7 @@ func TestPropertyRepositoryRoomTypesPropertyNotFound(t *testing.T) {
 		t.Fatalf("create error = %v, want %v", err, ErrNotFound)
 	}
 
-	_, err = repository.ListRoomTypes(ctx, missingPropertyID)
+	_, err = repository.ListPropertyUnitTypes(ctx, missingPropertyID)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("list error = %v, want %v", err, ErrNotFound)
 	}
@@ -290,17 +290,17 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 
 	campusID := testCampusID(t, ctx, pool)
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
-	roomTypeID := insertRoomType(t, ctx, pool, propertyID, "Self-contained")
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
 	repository := NewPropertyRepository(pool)
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
-		RoomTypeID:  roomTypeID,
-		AgentID:     agentID,
-		Title:       "Fresh self-contained room",
-		Description: "Recently painted room with private bathroom.",
-		Price:       domain.Money{AmountKobo: 35000000},
-		Status:      domain.AgentOfferStatusAvailable,
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            agentID,
+		Title:              "Fresh self-contained room",
+		Description:        "Recently painted room with private bathroom.",
+		Price:              domain.Money{AmountKobo: 35000000},
+		Status:             domain.AgentOfferStatusAvailable,
 	})
 	if err != nil {
 		t.Fatalf("create agent offer: %v", err)
@@ -309,8 +309,8 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	if created.ID == "" {
 		t.Fatal("created agent offer ID is empty")
 	}
-	if created.RoomTypeID != roomTypeID {
-		t.Fatalf("room type ID = %q, want %q", created.RoomTypeID, roomTypeID)
+	if created.PropertyUnitTypeID != unitTypeID {
+		t.Fatalf("property unit type ID = %q, want %q", created.PropertyUnitTypeID, unitTypeID)
 	}
 	if created.AgentID != agentID {
 		t.Fatalf("agent ID = %q, want %q", created.AgentID, agentID)
@@ -322,7 +322,7 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 		t.Fatalf("status = %q, want available", created.Status)
 	}
 
-	listed, err := repository.ListAgentOffers(ctx, roomTypeID)
+	listed, err := repository.ListAgentOffers(ctx, unitTypeID)
 	if err != nil {
 		t.Fatalf("list agent offers: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 
 	campusID := testCampusID(t, ctx, pool)
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
-	roomTypeID := insertRoomType(t, ctx, pool, propertyID, "Self-contained")
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
 	repository := NewPropertyRepository(pool)
 
@@ -357,12 +357,12 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	koboStored := nairaInput * 100
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
-		RoomTypeID:  roomTypeID,
-		AgentID:     agentID,
-		Title:       "Fresh self-contained room",
-		Description: "Recently painted room with private bathroom.",
-		Price:       domain.Money{AmountKobo: koboStored},
-		Status:      domain.AgentOfferStatusAvailable,
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            agentID,
+		Title:              "Fresh self-contained room",
+		Description:        "Recently painted room with private bathroom.",
+		Price:              domain.Money{AmountKobo: koboStored},
+		Status:             domain.AgentOfferStatusAvailable,
 	})
 	if err != nil {
 		t.Fatalf("create agent offer: %v", err)
@@ -388,7 +388,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	}
 
 	// Verify fetched back as kobo (handler converts to naira for display)
-	listed, err := repository.ListAgentOffers(ctx, roomTypeID)
+	listed, err := repository.ListAgentOffers(ctx, unitTypeID)
 	if err != nil {
 		t.Fatalf("list agent offers: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	}
 }
 
-func TestPropertyRepositoryAgentOffersRoomTypeNotFound(t *testing.T) {
+func TestPropertyRepositoryAgentOffersUnitTypeNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
 	t.Cleanup(pool.Close)
@@ -410,20 +410,20 @@ func TestPropertyRepositoryAgentOffersRoomTypeNotFound(t *testing.T) {
 
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
 	repository := NewPropertyRepository(pool)
-	missingRoomTypeID := domain.ID("550e8400-e29b-41d4-a716-446655440000")
+	missingUnitTypeID := domain.ID("550e8400-e29b-41d4-a716-446655440000")
 
 	_, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
-		RoomTypeID: missingRoomTypeID,
-		AgentID:    agentID,
-		Title:      "Fresh self-contained room",
-		Price:      domain.Money{AmountKobo: 35000000},
-		Status:     domain.AgentOfferStatusAvailable,
+		PropertyUnitTypeID: missingUnitTypeID,
+		AgentID:            agentID,
+		Title:              "Fresh self-contained room",
+		Price:              domain.Money{AmountKobo: 35000000},
+		Status:             domain.AgentOfferStatusAvailable,
 	})
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("create error = %v, want %v", err, ErrNotFound)
 	}
 
-	_, err = repository.ListAgentOffers(ctx, missingRoomTypeID)
+	_, err = repository.ListAgentOffers(ctx, missingUnitTypeID)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("list error = %v, want %v", err, ErrNotFound)
 	}
@@ -520,23 +520,23 @@ func insertProperty(t *testing.T, ctx context.Context, db *pgxpool.Pool, campusI
 	return domain.ID(propertyID)
 }
 
-func insertRoomType(t *testing.T, ctx context.Context, db *pgxpool.Pool, propertyID domain.ID, name string) domain.ID {
+func insertPropertyUnitType(t *testing.T, ctx context.Context, db *pgxpool.Pool, propertyID domain.ID, name string) domain.ID {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	var roomTypeID string
+	var unitTypeID string
 	err := db.QueryRow(ctx, `
-		INSERT INTO room_types (property_id, name, description)
+		INSERT INTO property_unit_types (property_id, name, description)
 		VALUES ($1, $2, 'Private room with bathroom and kitchenette.')
 		RETURNING id::text
-	`, string(propertyID), name).Scan(&roomTypeID)
+	`, string(propertyID), name).Scan(&unitTypeID)
 	if err != nil {
-		t.Fatalf("insert room type: %v", err)
+		t.Fatalf("insert property unit type: %v", err)
 	}
 
-	return domain.ID(roomTypeID)
+	return domain.ID(unitTypeID)
 }
 
 func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayName string) domain.ID {
@@ -558,7 +558,7 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	return domain.ID(agentID)
 }
 
-func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, roomTypeID domain.ID, agentID domain.ID, title string, priceKobo int) domain.ID {
+func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitTypeID domain.ID, agentID domain.ID, title string, priceKobo int) domain.ID {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -566,10 +566,10 @@ func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, roomT
 
 	var offerID string
 	err := db.QueryRow(ctx, `
-		INSERT INTO agent_offers (room_type_id, agent_id, title, description, price_kobo, status)
+		INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, price_kobo, status)
 		VALUES ($1, $2, $3, 'Test offer', $4, 'available')
 		RETURNING id::text
-	`, string(roomTypeID), string(agentID), title, priceKobo).Scan(&offerID)
+	`, string(unitTypeID), string(agentID), title, priceKobo).Scan(&offerID)
 	if err != nil {
 		t.Fatalf("insert agent offer: %v", err)
 	}
