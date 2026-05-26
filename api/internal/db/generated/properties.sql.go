@@ -233,6 +233,69 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 	return items, nil
 }
 
+const listPropertiesWithSummary = `-- name: ListPropertiesWithSummary :many
+SELECT
+  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+  COALESCE((SELECT COUNT(*) FROM room_types WHERE property_id = p.id), 0)::integer AS room_type_count,
+  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
+  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN room_types rt ON ao.room_type_id = rt.id WHERE rt.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo
+FROM properties p
+WHERE p.campus_id = $1
+ORDER BY p.created_at DESC, p.id DESC
+LIMIT $2
+`
+
+type ListPropertiesWithSummaryParams struct {
+	CampusID pgtype.UUID
+	Limit    int32
+}
+
+type ListPropertiesWithSummaryRow struct {
+	ID                  pgtype.UUID
+	CampusID            pgtype.UUID
+	Name                string
+	Area                string
+	Landmark            pgtype.Text
+	Description         pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	RoomTypeCount       int32
+	AvailableOfferCount int32
+	LowestPriceKobo     int32
+}
+
+func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropertiesWithSummaryParams) ([]ListPropertiesWithSummaryRow, error) {
+	rows, err := q.db.Query(ctx, listPropertiesWithSummary, arg.CampusID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPropertiesWithSummaryRow
+	for rows.Next() {
+		var i ListPropertiesWithSummaryRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampusID,
+			&i.Name,
+			&i.Area,
+			&i.Landmark,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RoomTypeCount,
+			&i.AvailableOfferCount,
+			&i.LowestPriceKobo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRoomTypesByProperty = `-- name: ListRoomTypesByProperty :many
 SELECT id, property_id, name, description, created_at, updated_at
 FROM room_types

@@ -92,6 +92,9 @@ paths:
                         area: Obanla
                         landmark: Near South Gate
                         description: Gated lodge with multiple room categories near campus.
+                        room_type_count: 3
+                        available_offer_count: 5
+                        lowest_price_kobo: 25000000
                         created_at: "2026-05-01T10:00:00Z"
                         updated_at: "2026-05-01T10:00:00Z"
         "422":
@@ -442,6 +445,9 @@ components:
         - area
         - landmark
         - description
+        - room_type_count
+        - available_offer_count
+        - lowest_price_kobo
         - created_at
         - updated_at
       properties:
@@ -461,6 +467,18 @@ components:
         description:
           type: string
           description: Building-level notes. May be empty when unavailable.
+        room_type_count:
+          type: integer
+          minimum: 0
+          description: Number of room types at this property.
+        available_offer_count:
+          type: integer
+          minimum: 0
+          description: Number of currently available agent offers across all room types.
+        lowest_price_kobo:
+          type: integer
+          minimum: 0
+          description: Lowest price among available offers. 0 when no offers exist.
         created_at:
           type: string
           format: date-time
