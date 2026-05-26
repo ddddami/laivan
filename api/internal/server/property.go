@@ -38,6 +38,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 	filters.SortSafelist = []string{
 		"created_at", "-created_at",
 		"name", "-name",
+		"area", "-area",
 		"lowest_price_naira", "-lowest_price_naira",
 		"available_offer_count", "-available_offer_count",
 	}
@@ -47,18 +48,32 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 
 	data.ValidateFilters(v, filters)
 
+	area := readString(qs, "area", "")
+	name := readString(qs, "name", "")
+	hasOffers := readBool(qs, "has_offers", nil, v)
+	minPrice := readInt(qs, "min_price", 0, v)
+	maxPrice := readInt(qs, "max_price", 0, v)
+
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
 		return
 	}
 
-	area := readString(qs, "area", "")
+	filter := repo.PropertyListFilter{
+		CampusID:  domain.ID(campusID),
+		Area:      area,
+		Name:      name,
+		HasOffers: hasOffers,
+		Filters:   filters,
+	}
+	if minPrice > 0 {
+		filter.MinPrice = &minPrice
+	}
+	if maxPrice > 0 {
+		filter.MaxPrice = &maxPrice
+	}
 
-	properties, totalRecords, err := app.propertyRepo.ListWithSummary(r.Context(), repo.PropertyListFilter{
-		CampusID: domain.ID(campusID),
-		Area:     area,
-		Filters:  filters,
-	})
+	properties, totalRecords, err := app.propertyRepo.ListWithSummary(r.Context(), filter)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("list properties: %w", err))
 		return

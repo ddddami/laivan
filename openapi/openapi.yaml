@@ -89,7 +89,7 @@ paths:
           description: Sort order. Prefix with `-` for descending. Defaults to `-created_at`.
           schema:
             type: string
-            enum: [created_at, -created_at, name, -name, lowest_price_naira, -lowest_price_naira, available_offer_count, -available_offer_count]
+            enum: [created_at, -created_at, name, -name, area, -area, lowest_price_naira, -lowest_price_naira, available_offer_count, -available_offer_count]
             default: -created_at
         - name: area
           in: query
@@ -97,6 +97,32 @@ paths:
           description: Filter by area text (case-insensitive partial match).
           schema:
             type: string
+        - name: name
+          in: query
+          required: false
+          description: Filter by property name (case-insensitive partial match).
+          schema:
+            type: string
+        - name: has_offers
+          in: query
+          required: false
+          description: Filter to properties that have at least one available agent offer. Accepts `true` or `false`.
+          schema:
+            type: boolean
+        - name: min_price
+          in: query
+          required: false
+          description: Minimum price in naira. Filters by the property's lowest available offer price.
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_price
+          in: query
+          required: false
+          description: Maximum price in naira. Filters by the property's lowest available offer price.
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: Properties returned successfully.
