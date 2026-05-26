@@ -572,6 +572,25 @@ func insertProperty(t *testing.T, ctx context.Context, db *pgxpool.Pool, campusI
 	return domain.ID(propertyID)
 }
 
+func insertPropertyWithArea(t *testing.T, ctx context.Context, db *pgxpool.Pool, campusID domain.ID, name string, area string, createdAt time.Time) domain.ID {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var propertyID string
+	err := db.QueryRow(ctx, `
+		INSERT INTO properties (campus_id, name, area, landmark, description, created_at, updated_at)
+		VALUES ($1, $2, $3, 'Near South Gate', 'Test property', $4, $4)
+		RETURNING id::text
+	`, string(campusID), name, area, createdAt).Scan(&propertyID)
+	if err != nil {
+		t.Fatalf("insert property with area: %v", err)
+	}
+
+	return domain.ID(propertyID)
+}
+
 func insertPropertyUnitType(t *testing.T, ctx context.Context, db *pgxpool.Pool, propertyID domain.ID, name string) domain.ID {
 	t.Helper()
 
@@ -584,6 +603,25 @@ func insertPropertyUnitType(t *testing.T, ctx context.Context, db *pgxpool.Pool,
 		VALUES ($1, $2, 'Private room with bathroom and kitchenette.')
 		RETURNING id::text
 	`, string(propertyID), name).Scan(&unitTypeID)
+	if err != nil {
+		t.Fatalf("insert property unit type: %v", err)
+	}
+
+	return domain.ID(unitTypeID)
+}
+
+func insertPropertyUnitTypeFull(t *testing.T, ctx context.Context, db *pgxpool.Pool, propertyID domain.ID, category, name string, bedroomCount int, hasParlour bool, bathroomType, kitchenType, notes string) domain.ID {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var unitTypeID string
+	err := db.QueryRow(ctx, `
+		INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
+		VALUES ($1, $2, $3, 'Test unit type', $4, $5, $6, $7, $8)
+		RETURNING id::text
+	`, string(propertyID), category, name, notes, bedroomCount, hasParlour, bathroomType, kitchenType).Scan(&unitTypeID)
 	if err != nil {
 		t.Fatalf("insert property unit type: %v", err)
 	}
@@ -627,6 +665,229 @@ func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitT
 	}
 
 	return domain.ID(offerID)
+}
+
+func TestRepositoryDiscover(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	agentID := insertAgent(t, ctx, pool, "Test Agent")
+
+	// Property A: Alice Lodge, Obanla
+	alice := insertPropertyWithArea(t, ctx, pool, campusID, "Alice Lodge", "Obanla", time.Date(2026, time.May, 3, 12, 0, 0, 0, time.UTC))
+	aliceSelfCon := insertPropertyUnitTypeFull(t, ctx, pool, alice, "self_contained", "", 1, false, "private", "private", "Top floor")
+	aliceSingle := insertPropertyUnitTypeFull(t, ctx, pool, alice, "single_room", "", 1, false, "shared", "shared", "Upstairs")
+	insertAgentOffer(t, ctx, pool, aliceSelfCon, agentID, "Alice self-con", 35000000)
+	insertAgentOffer(t, ctx, pool, aliceSingle, agentID, "Alice single", 18000000)
+
+	// Property B: Blue Roof, Aule
+	blueRoof := insertPropertyWithArea(t, ctx, pool, campusID, "Blue Roof", "Aule", time.Date(2026, time.May, 2, 12, 0, 0, 0, time.UTC))
+	blueRoomParlour := insertPropertyUnitTypeFull(t, ctx, pool, blueRoof, "room_and_parlour", "", 1, true, "private", "private", "Gate closes by 10pm")
+	blueSelfCon := insertPropertyUnitTypeFull(t, ctx, pool, blueRoof, "self_contained", "", 1, false, "private", "private", "Ground floor")
+	insertAgentOffer(t, ctx, pool, blueRoomParlour, agentID, "Blue room and parlour", 50000000)
+	insertAgentOffer(t, ctx, pool, blueSelfCon, agentID, "Blue self-con", 32000000)
+
+	// Property C: Quiet Place, South Gate
+	quiet := insertPropertyWithArea(t, ctx, pool, campusID, "Quiet Place", "South Gate", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	quietSingle := insertPropertyUnitTypeFull(t, ctx, pool, quiet, "single_room", "", 1, false, "shared", "shared", "Shared kitchen")
+	insertAgentOffer(t, ctx, pool, quietSingle, agentID, "Quiet single", 15000000)
+
+	repository := NewPropertyRepository(pool)
+	baseFilter := data.Filters{Page: 1, PageSize: 10, Sort: "-created_at", SortSafelist: []string{"created_at", "-created_at"}}
+
+	// All results for campus
+	results, total, err := repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover all: %v", err)
+	}
+	if total != 5 {
+		t.Fatalf("total = %d, want 5", total)
+	}
+	if len(results) != 5 {
+		t.Fatalf("results length = %d, want 5", len(results))
+	}
+
+	// Filter by single category
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Categories: []string{"self_contained"}, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by category: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("self_contained total = %d, want 2", total)
+	}
+
+	// Filter by multiple categories
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Categories: []string{"self_contained", "single_room"}, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by categories: %v", err)
+	}
+	if total != 4 {
+		t.Fatalf("multi-category total = %d, want 4", total)
+	}
+
+	// Filter by area partial match
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Area: "Obanla", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by area: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("Obanla total = %d, want 2", total)
+	}
+
+	// Filter by min price (naira converted to kobo internally)
+	minPrice := 200000
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, MinPrice: &minPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by min price: %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("min_price=200000 total = %d, want 3", total)
+	}
+
+	// Filter by max price
+	maxPrice := 200000
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, MaxPrice: &maxPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by max price: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("max_price=200000 total = %d, want 2", total)
+	}
+
+	// Filter by bathroom_type
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, BathroomType: "private", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by bathroom: %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("private bathroom total = %d, want 3", total)
+	}
+
+	// Filter by has_parlour
+	hasParlour := true
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, HasParlour: &hasParlour, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by parlour: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("has_parlour=true total = %d, want 1", total)
+	}
+
+	// Combined filters
+	maxPrice = 330000
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Categories: []string{"self_contained"}, MaxPrice: &maxPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover combined: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("self_contained + max_price=330000 total = %d, want 1", total)
+	}
+	if results[0].PropertyName != "Blue Roof" {
+		t.Fatalf("property name = %q, want Blue Roof", results[0].PropertyName)
+	}
+}
+
+func TestRepositoryListPropertiesWithFilters(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	agentID := insertAgent(t, ctx, pool, "Test Agent")
+
+	// Property with offers
+	alice := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 3, 12, 0, 0, 0, time.UTC))
+	aliceUnit := insertPropertyUnitType(t, ctx, pool, alice, "Self-contained")
+	insertAgentOffer(t, ctx, pool, aliceUnit, agentID, "Alice offer", 25000000)
+
+	// Property without offers
+	insertProperty(t, ctx, pool, campusID, "Empty Lodge", time.Date(2026, time.May, 2, 12, 0, 0, 0, time.UTC))
+
+	// Property with higher price
+	premium := insertProperty(t, ctx, pool, campusID, "Premium Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	premiumUnit := insertPropertyUnitType(t, ctx, pool, premium, "Self-contained")
+	insertAgentOffer(t, ctx, pool, premiumUnit, agentID, "Premium offer", 45000000)
+
+	repository := NewPropertyRepository(pool)
+	baseFilter := data.Filters{Page: 1, PageSize: 10, Sort: "-created_at", SortSafelist: []string{"created_at", "-created_at"}}
+
+	// Filter by name partial match
+	summaries, total, err := repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Name: "Alice", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("list by name: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("name='Alice' total = %d, want 1", total)
+	}
+	if summaries[0].Name != "Alice Lodge" {
+		t.Fatalf("name = %q, want Alice Lodge", summaries[0].Name)
+	}
+
+	// Filter by has_offers=true
+	hasOffers := true
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, HasOffers: &hasOffers, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("list has_offers=true: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("has_offers=true total = %d, want 2", total)
+	}
+
+	// Filter by has_offers=false
+	hasOffers = false
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, HasOffers: &hasOffers, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("list has_offers=false: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("has_offers=false total = %d, want 1", total)
+	}
+	if summaries[0].Name != "Empty Lodge" {
+		t.Fatalf("name = %q, want Empty Lodge", summaries[0].Name)
+	}
+
+	// Filter by min price
+	minPrice := 300000
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, MinPrice: &minPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("list min_price=300000: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("min_price=300000 total = %d, want 1", total)
+	}
+	if summaries[0].Name != "Premium Lodge" {
+		t.Fatalf("name = %q, want Premium Lodge", summaries[0].Name)
+	}
+
+	// Filter by max price with has_offers to exclude properties with no pricing
+	maxPrice := 300000
+	hasOffers = true
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, HasOffers: &hasOffers, MaxPrice: &maxPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("list max_price=300000: %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("max_price=300000 total = %d, want 1", total)
+	}
+	if summaries[0].Name != "Alice Lodge" {
+		t.Fatalf("name = %q, want Alice Lodge", summaries[0].Name)
+	}
 }
 
 func intPtr(value int) *int {
