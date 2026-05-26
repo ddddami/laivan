@@ -181,6 +181,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		Category     string `json:"category"`
 		Name         string `json:"name"`
 		Description  string `json:"description"`
+		Notes        string `json:"notes"`
 		BedroomCount *int   `json:"bedroom_count"`
 		HasParlour   *bool  `json:"has_parlour"`
 		BathroomType string `json:"bathroom_type"`
@@ -199,6 +200,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	v.Check(validator.NotBlank(input.Name), "name", "Name is required")
 	v.Check(validator.MaxChars(input.Name, 100), "name", "Name must not exceed 100 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
+	v.Check(validator.MaxChars(input.Notes, 2000), "notes", "Notes must not exceed 2000 characters")
 	if input.BedroomCount != nil {
 		v.Check(*input.BedroomCount >= 0, "bedroom_count", "Bedroom count must be greater than or equal to 0")
 	}
@@ -215,6 +217,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		Category:    domain.UnitCategory(input.Category),
 		Name:        input.Name,
 		Description: input.Description,
+		Notes:       input.Notes,
 		Structure: domain.UnitStructure{
 			BedroomCount: input.BedroomCount,
 			HasParlour:   input.HasParlour,
@@ -289,6 +292,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		AgentID     string `json:"agent_id"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
+		Notes       string `json:"notes"`
 		PriceNaira  int    `json:"price_naira"`
 		Status      string `json:"status"`
 	}
@@ -310,6 +314,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	v.Check(validator.NotBlank(input.Title), "title", "Title is required")
 	v.Check(validator.MaxChars(input.Title, 255), "title", "Title must not exceed 255 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
+	v.Check(validator.MaxChars(input.Notes, 2000), "notes", "Notes must not exceed 2000 characters")
 	v.Check(input.PriceNaira > 0, "price_naira", "Price must be greater than 0")
 	v.Check(validAgentOfferStatus(input.Status), "status", "Status must be available, unavailable, or paused")
 
@@ -323,6 +328,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		AgentID:            domain.ID(input.AgentID),
 		Title:              input.Title,
 		Description:        input.Description,
+		Notes:              input.Notes,
 		Price:              domain.Money{AmountKobo: input.PriceNaira * 100},
 		Status:             domain.AgentOfferStatus(input.Status),
 	})
@@ -419,6 +425,7 @@ func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
 		"category":      string(ut.Category),
 		"name":          ut.Name,
 		"description":   ut.Description,
+		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
 		"has_parlour":   ut.Structure.HasParlour,
 		"bathroom_type": nullableString(ut.Structure.BathroomType),
@@ -483,6 +490,7 @@ func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string
 		"category":      string(ut.Category),
 		"name":          ut.Name,
 		"description":   ut.Description,
+		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
 		"has_parlour":   ut.Structure.HasParlour,
 		"bathroom_type": nullableString(ut.Structure.BathroomType),
@@ -509,6 +517,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"agent_id":              string(offer.AgentID),
 		"title":                 offer.Title,
 		"description":           offer.Description,
+		"notes":                 nullableString(offer.Notes),
 		"price_naira":           offer.Price.AmountKobo / 100,
 		"status":                string(offer.Status),
 		"created_at":            offer.CreatedAt.Format(time.RFC3339),

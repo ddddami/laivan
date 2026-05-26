@@ -27,6 +27,7 @@ type AgentOffer struct {
 	Status             string
 	CreatedAt          pgtype.Timestamptz
 	UpdatedAt          pgtype.Timestamptz
+	Notes              pgtype.Text
 }
 
 type Campuse struct {
@@ -74,4 +75,5 @@ type PropertyUnitType struct {
 	HasParlour   pgtype.Bool
 	BathroomType pgtype.Text
 	KitchenType  pgtype.Text
+	Notes        pgtype.Text
 }

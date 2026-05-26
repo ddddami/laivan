@@ -122,6 +122,29 @@ Property unit types should capture both market language and light physical struc
 
 Do not model exact room numbers, landlord inventory systems, or per-unit availability yet. Laivan only needs enough structure to support discovery, comparison, and agent offers without turning into property management software.
 
+### Two kinds of notes
+
+Notes are split by meaning. This separation is critical.
+
+**Property/unit-level notes** (structural truth):
+
+* Describe what the unit physically is
+* Examples: "Kitchen is outside but private", "Top floor corner unit"
+* Belong to: `PropertyUnitType`
+* These are slow-changing facts about the building
+
+**Agent/offer-level notes** (operational/market context):
+
+* Describe how the unit is being sold or managed right now
+* Examples: "2 left", "Inspection tomorrow only", "Landlord prefers students"
+* Belong to: `AgentOffer`
+* These change quickly and are specific to one agent's situation
+
+This separation preserves the architectural boundary:
+
+* Property layer = structural reality
+* Offer layer = marketplace/operational state
+
 ---
 
 ## Agent Offer

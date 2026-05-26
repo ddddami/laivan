@@ -222,6 +222,7 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 		Category:    domain.UnitCategorySelfContained,
 		Name:        "Self-contained",
 		Description: "Private room with bathroom and kitchenette.",
+		Notes:       "Top floor corner unit with better ventilation.",
 		Structure: domain.UnitStructure{
 			BedroomCount: intPtr(1),
 			HasParlour:   boolPtr(false),
@@ -260,6 +261,9 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	if created.Description != "Private room with bathroom and kitchenette." {
 		t.Fatalf("description = %q, want Private room with bathroom and kitchenette.", created.Description)
 	}
+	if created.Notes != "Top floor corner unit with better ventilation." {
+		t.Fatalf("notes = %q, want Top floor corner unit with better ventilation.", created.Notes)
+	}
 	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
 		t.Fatal("created property unit type timestamps must be set")
 	}
@@ -288,6 +292,9 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 	if listed[0].Structure.KitchenType != "private" {
 		t.Fatalf("listed kitchen_type = %q, want private", listed[0].Structure.KitchenType)
+	}
+	if listed[0].Notes != "Top floor corner unit with better ventilation." {
+		t.Fatalf("listed notes = %q, want Top floor corner unit with better ventilation.", listed[0].Notes)
 	}
 }
 
@@ -337,6 +344,7 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 		AgentID:            agentID,
 		Title:              "Fresh self-contained room",
 		Description:        "Recently painted room with private bathroom.",
+		Notes:              "2 left. Inspection tomorrow only.",
 		Price:              domain.Money{AmountKobo: 35000000},
 		Status:             domain.AgentOfferStatusAvailable,
 	})
@@ -359,6 +367,9 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	if created.Status != domain.AgentOfferStatusAvailable {
 		t.Fatalf("status = %q, want available", created.Status)
 	}
+	if created.Notes != "2 left. Inspection tomorrow only." {
+		t.Fatalf("notes = %q, want 2 left. Inspection tomorrow only.", created.Notes)
+	}
 
 	listed, err := repository.ListAgentOffers(ctx, unitTypeID)
 	if err != nil {
@@ -367,8 +378,11 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	if len(listed) != 1 {
 		t.Fatalf("agent offers length = %d, want 1", len(listed))
 	}
-	if listed[0] != created {
-		t.Fatalf("listed agent offer = %#v, want %#v", listed[0], created)
+	if listed[0].ID != created.ID {
+		t.Fatalf("listed agent offer ID = %q, want %q", listed[0].ID, created.ID)
+	}
+	if listed[0].Notes != "2 left. Inspection tomorrow only." {
+		t.Fatalf("listed notes = %q, want 2 left. Inspection tomorrow only.", listed[0].Notes)
 	}
 }
 
