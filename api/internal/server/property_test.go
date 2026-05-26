@@ -111,6 +111,29 @@ func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prop
 	}, 1, nil
 }
 
+func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return []domain.DiscoveryResult{
+		{
+			PropertyID:       domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+			PropertyName:     "Alice Lodge",
+			PropertyArea:     "Obanla",
+			PropertyLandmark: "Near South Gate",
+			UnitTypeID:       domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+			UnitTypeCategory: domain.UnitCategorySelfContained,
+			UnitTypeName:     "Self-contained",
+			Structure: domain.UnitStructure{
+				BedroomCount: intPointer(1),
+				HasParlour:   boolPointer(false),
+				BathroomType: "private",
+				KitchenType:  "private",
+			},
+			LowestPriceKobo:     35000000,
+			AvailableOfferCount: 2,
+			CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+		},
+	}, 1, nil
+}
+
 func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
 	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return domain.PropertyUnitType{}, repo.ErrNotFound
@@ -708,6 +731,10 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 	return s.stub.ListWithSummary(ctx, filter)
 }
 
+func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return s.stub.Discover(ctx, filter)
+}
+
 func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
 	s.createdUnitType = unitType
 	return s.stub.CreatePropertyUnitType(ctx, unitType)
@@ -775,6 +802,93 @@ func TestListAgentOffersUnitTypeNotFound(t *testing.T) {
 	app.routes().ServeHTTP(rr, req)
 
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestDiscoveryReturnsResults(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&category=self_contained", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body struct {
+		Results []struct {
+			Property struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+				Area string `json:"area"`
+			} `json:"property"`
+			UnitType struct {
+				Category     string `json:"category"`
+				Name         string `json:"name"`
+				BedroomCount int    `json:"bedroom_count"`
+			} `json:"unit_type"`
+			Pricing struct {
+				LowestPriceNaira int `json:"lowest_price_naira"`
+			} `json:"pricing"`
+			OfferSummary struct {
+				AvailableOfferCount int `json:"available_offer_count"`
+			} `json:"offer_summary"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if len(body.Results) != 1 {
+		t.Fatalf("results length = %d, want 1", len(body.Results))
+	}
+	if body.Results[0].Property.Name != "Alice Lodge" {
+		t.Fatalf("property name = %q, want Alice Lodge", body.Results[0].Property.Name)
+	}
+	if body.Results[0].UnitType.Category != "self_contained" {
+		t.Fatalf("category = %q, want self_contained", body.Results[0].UnitType.Category)
+	}
+	if body.Results[0].UnitType.Name != "Self-contained" {
+		t.Fatalf("unit type name = %q, want Self-contained", body.Results[0].UnitType.Name)
+	}
+	if body.Results[0].Pricing.LowestPriceNaira != 350000 {
+		t.Fatalf("lowest_price_naira = %d, want 350000", body.Results[0].Pricing.LowestPriceNaira)
+	}
+	if body.Results[0].OfferSummary.AvailableOfferCount != 2 {
+		t.Fatalf("available_offer_count = %d, want 2", body.Results[0].OfferSummary.AvailableOfferCount)
+	}
+}
+
+func TestDiscoveryValidationErrors(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=bad-uuid&category=self_contained&has_parlour=yes", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var body struct {
+		Error struct {
+			Code   string            `json:"code"`
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if body.Error.Code != "validation_failed" {
+		t.Fatalf("code = %q, want validation_failed", body.Error.Code)
+	}
+	if body.Error.Fields["campus_id"] == "" {
+		t.Fatal("campus_id validation error missing")
+	}
+	if body.Error.Fields["has_parlour"] == "" {
+		t.Fatal("has_parlour validation error missing")
+	}
 }
 
 func intPointer(value int) *int {

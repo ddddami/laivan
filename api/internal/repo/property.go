@@ -32,6 +32,18 @@ type PropertyListFilter struct {
 	Filters   data.Filters
 }
 
+type DiscoveryFilter struct {
+	CampusID     domain.ID
+	Category     string
+	Area         string
+	BathroomType string
+	KitchenType  string
+	HasParlour   *bool
+	MinPrice     *int
+	MaxPrice     *int
+	Filters      data.Filters
+}
+
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
 	return &PropertyRepository{queries: generateddb.New(database), db: database}
 }
@@ -222,6 +234,145 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	}
 
 	return summaries, int(totalCount), nil
+}
+
+// Discover returns searchable rentable opportunities — one row per property+unit type combination.
+func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	campusUUID, err := uuidParam(filter.CampusID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	whereClause := "p.campus_id = $1"
+	args := []any{campusUUID}
+	argPos := 2
+
+	if filter.Category != "" {
+		whereClause += fmt.Sprintf(" AND put.category = $%d", argPos)
+		args = append(args, filter.Category)
+		argPos++
+	}
+	if filter.Area != "" {
+		whereClause += fmt.Sprintf(" AND p.area ILIKE $%d", argPos)
+		args = append(args, "%"+filter.Area+"%")
+		argPos++
+	}
+	if filter.BathroomType != "" {
+		whereClause += fmt.Sprintf(" AND put.bathroom_type = $%d", argPos)
+		args = append(args, filter.BathroomType)
+		argPos++
+	}
+	if filter.KitchenType != "" {
+		whereClause += fmt.Sprintf(" AND put.kitchen_type = $%d", argPos)
+		args = append(args, filter.KitchenType)
+		argPos++
+	}
+	if filter.HasParlour != nil {
+		whereClause += fmt.Sprintf(" AND put.has_parlour = $%d", argPos)
+		args = append(args, *filter.HasParlour)
+		argPos++
+	}
+
+	havingClause := "TRUE"
+	if filter.MinPrice != nil {
+		havingClause += fmt.Sprintf(" AND lowest_price_kobo >= $%d", argPos)
+		args = append(args, *filter.MinPrice*100)
+		argPos++
+	}
+	if filter.MaxPrice != nil {
+		havingClause += fmt.Sprintf(" AND lowest_price_kobo <= $%d", argPos)
+		args = append(args, *filter.MaxPrice*100)
+		argPos++
+	}
+
+	query := fmt.Sprintf(`
+		SELECT *, COUNT(*) OVER() AS total_count
+		FROM (
+		  SELECT
+		    p.id AS property_id, p.name AS property_name, p.area AS property_area, p.landmark AS property_landmark,
+		    put.id AS unit_type_id, put.category, put.name AS unit_type_name, put.description, put.notes,
+		    put.bedroom_count, put.has_parlour, put.bathroom_type, put.kitchen_type,
+		    COALESCE(MIN(ao.price_kobo), 0)::integer AS lowest_price_kobo,
+		    COALESCE(COUNT(ao.id), 0)::integer AS available_offer_count,
+		    p.created_at
+		  FROM properties p
+		  JOIN property_unit_types put ON p.id = put.property_id
+		  LEFT JOIN agent_offers ao ON put.id = ao.property_unit_type_id AND ao.status = 'available'
+		  WHERE %s
+		  GROUP BY p.id, put.id
+		) sub
+		WHERE %s
+		ORDER BY %s %s, unit_type_id ASC
+		LIMIT $%d OFFSET $%d`, whereClause, havingClause, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
+
+	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("discover: %w", err)
+	}
+	defer rows.Close()
+
+	var totalCount int64
+	var results []domain.DiscoveryResult
+	for rows.Next() {
+		var (
+			propertyID          pgtype.UUID
+			propertyName        string
+			propertyArea        string
+			propertyLandmark    pgtype.Text
+			unitTypeID          pgtype.UUID
+			category            string
+			unitTypeName        string
+			description         pgtype.Text
+			notes               pgtype.Text
+			bedroomCount        pgtype.Int4
+			hasParlour          pgtype.Bool
+			bathroomType        pgtype.Text
+			kitchenType         pgtype.Text
+			lowestPriceKobo     int
+			availableOfferCount int
+			createdAt           pgtype.Timestamptz
+			totalCountScan      int64
+		)
+		if err := rows.Scan(
+			&propertyID, &propertyName, &propertyArea, &propertyLandmark,
+			&unitTypeID, &category, &unitTypeName, &description, &notes,
+			&bedroomCount, &hasParlour, &bathroomType, &kitchenType,
+			&lowestPriceKobo, &availableOfferCount, &createdAt, &totalCountScan,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan discovery result: %w", err)
+		}
+		totalCount = totalCountScan
+		results = append(results, domain.DiscoveryResult{
+			PropertyID:          domain.ID(uuidString(propertyID)),
+			PropertyName:        propertyName,
+			PropertyArea:        propertyArea,
+			PropertyLandmark:    textString(propertyLandmark),
+			UnitTypeID:          domain.ID(uuidString(unitTypeID)),
+			UnitTypeCategory:    domain.UnitCategory(category),
+			UnitTypeName:        unitTypeName,
+			UnitTypeDescription: textString(description),
+			UnitTypeNotes:       textString(notes),
+			Structure: domain.UnitStructure{
+				BedroomCount: intPointer(bedroomCount),
+				HasParlour:   boolPointer(hasParlour),
+				BathroomType: textString(bathroomType),
+				KitchenType:  textString(kitchenType),
+			},
+			LowestPriceKobo:     lowestPriceKobo,
+			AvailableOfferCount: availableOfferCount,
+			CreatedAt:           createdAt.Time,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate discovery results: %w", err)
+	}
+
+	return results, int(totalCount), nil
 }
 
 func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
