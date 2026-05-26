@@ -1,0 +1,346 @@
+openapi: 3.1.0
+info:
+  title: Laivan API
+  version: 0.1.0
+  summary: Backend API for Laivan's (campus-scoped) accommodation marketplace.
+  description: |
+    Laivan is a coordination, trust, and workflow layer for fragmented campus accommodation markets.
+
+    This contract documents the currently implemented API surface. It should describe observable HTTP behavior, not internal Go package structure.
+servers:
+  - url: http://localhost:4000
+    description: Local API server
+tags:
+  - name: Health
+    description: Service health checks.
+  - name: Properties
+    description: Campus-scoped accommodation properties.
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      tags:
+        - Health
+      summary: Check API health.
+      responses:
+        "200":
+          description: API is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                healthy:
+                  value:
+                    status: ok
+                    environment: development
+                    version: dev
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/properties:
+    get:
+      operationId: listProperties
+      tags:
+        - Properties
+      summary: List properties for a campus.
+      description: |
+        Returns campus-scoped properties ordered by newest first.
+
+        This is the initial discovery feed foundation. It intentionally returns properties, not a separate generic listing model.
+      parameters:
+        - name: campus_id
+          in: query
+          required: true
+          description: Campus ID that scopes marketplace discovery.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of properties to return. Defaults to 20. Maximum is 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Properties returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertiesResponse"
+              examples:
+                properties:
+                  value:
+                    properties:
+                      - id: 550e8400-e29b-41d4-a716-446655440010
+                        campus_id: 550e8400-e29b-41d4-a716-446655440002
+                        name: Alice Lodge
+                        area: Obanla
+                        landmark: Near South Gate
+                        description: Self-contained rooms close to FUTA.
+                        created_at: "2026-05-01T10:00:00Z"
+                        updated_at: "2026-05-01T10:00:00Z"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createProperty
+      tags:
+        - Properties
+      summary: Create a property.
+      description: Creates a real-world accommodation property within a campus.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePropertyRequest"
+            examples:
+              property:
+                value:
+                  campus_id: 550e8400-e29b-41d4-a716-446655440002
+                  name: Alice Lodge
+                  area: Obanla
+                  landmark: Near South Gate
+                  description: Self-contained rooms close to FUTA.
+      responses:
+        "201":
+          description: Property created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/properties/{id}:
+    get:
+      operationId: getProperty
+      tags:
+        - Properties
+      summary: Get a property by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Property returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  responses:
+    BadRequest:
+      description: Request body or syntax is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            badRequest:
+              value:
+                error:
+                  code: bad_request
+                  message: request body contains unknown field "unknown"
+    ValidationFailed:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+          examples:
+            validationFailed:
+              value:
+                error:
+                  code: validation_failed
+                  message: Request validation failed
+                  fields:
+                    campus_id: Campus ID is required
+    NotFound:
+      description: Resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            notFound:
+              value:
+                error:
+                  code: not_found
+                  message: The requested resource could not be found
+    InternalServerError:
+      description: Server encountered an unexpected problem.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            internalServerError:
+              value:
+                error:
+                  code: internal_server_error
+                  message: The server encountered a problem and could not process your request
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - environment
+        - version
+      properties:
+        status:
+          type: string
+          example: ok
+        environment:
+          type: string
+          example: development
+        version:
+          type: string
+          example: dev
+
+    CreatePropertyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - campus_id
+        - name
+        - area
+      properties:
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        area:
+          type: string
+          minLength: 1
+          maxLength: 100
+        landmark:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+
+    Property:
+      type: object
+      required:
+        - id
+        - campus_id
+        - name
+        - area
+        - landmark
+        - description
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        area:
+          type: string
+        landmark:
+          type: string
+          description: Approximate landmark. May be empty when unavailable.
+        description:
+          type: string
+          description: Property description. May be empty when unavailable.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PropertyResponse:
+      type: object
+      required:
+        - property
+      properties:
+        property:
+          $ref: "#/components/schemas/Property"
+
+    PropertiesResponse:
+      type: object
+      required:
+        - properties
+      properties:
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/Property"
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          examples:
+            - bad_request
+            - validation_failed
+            - not_found
+            - method_not_allowed
+            - internal_server_error
+        message:
+          type: string
+
+    ValidationError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - type: object
+          required:
+            - fields
+          properties:
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ValidationError"
