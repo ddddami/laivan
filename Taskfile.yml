@@ -89,6 +89,12 @@ tasks:
     cmds:
       - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir {{.API_DIR}}/migrations postgres "$LAIVAN_DB_URL" reset'
 
+  db:seed:dev:
+    desc: Seed local database with deterministic dev marketplace data
+    dir: "{{.API_DIR}}"
+    cmds:
+      - ': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && go run ./cmd/seed'
+
   db:test:reset:
     internal: true
     desc: Reset local test database migrations
