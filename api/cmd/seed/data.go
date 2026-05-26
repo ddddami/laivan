@@ -18,7 +18,7 @@ type propertySeed struct {
 	CreatedAt   time.Time
 }
 
-type roomTypeSeed struct {
+type propertyUnitTypeSeed struct {
 	ID          string
 	PropertyID  string
 	Name        string
@@ -28,7 +28,7 @@ type roomTypeSeed struct {
 
 type agentOfferSeed struct {
 	ID          string
-	RoomTypeID  string
+	UnitTypeID  string
 	AgentID     string
 	Title       string
 	Description string
@@ -76,12 +76,12 @@ var properties = []propertySeed{
 		Name:        "South Gate Residence",
 		Area:        "South Gate",
 		Landmark:    "Behind mini market",
-		Description: "Walkable accommodation cluster with mixed room types for students comparing options.",
+		Description: "Walkable accommodation cluster with mixed unit types for students comparing options.",
 		CreatedAt:   seedBaseTime,
 	},
 }
 
-var roomTypes = []roomTypeSeed{
+var unitTypes = []propertyUnitTypeSeed{
 	{"66666666-6666-4666-8666-666666666661", "33333333-3333-4333-8333-333333333333", "Single Room", "Basic single room in the lodge compound.", seedBaseTime},
 	{"66666666-6666-4666-8666-666666666662", "33333333-3333-4333-8333-333333333333", "Self-contained", "Private room with toilet and bathroom.", seedBaseTime.Add(10 * time.Minute)},
 	{"77777777-7777-4777-8777-777777777771", "44444444-4444-4444-8444-444444444444", "Room and Parlour", "Larger unit suited for students who want extra space.", seedBaseTime.Add(20 * time.Minute)},

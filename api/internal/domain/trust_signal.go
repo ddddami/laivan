@@ -6,7 +6,7 @@ type TrustSignalSubject string
 
 const (
 	TrustSignalSubjectProperty   TrustSignalSubject = "property"
-	TrustSignalSubjectRoomType   TrustSignalSubject = "room_type"
+	TrustSignalSubjectUnitType   TrustSignalSubject = "property_unit_type"
 	TrustSignalSubjectAgentOffer TrustSignalSubject = "agent_offer"
 	TrustSignalSubjectAgent      TrustSignalSubject = "agent"
 )

@@ -9,12 +9,12 @@ const (
 )
 
 type AgentOffer struct {
-	ID          ID
-	RoomTypeID  ID
-	AgentID     ID
-	Title       string
-	Description string
-	Price       Money
-	Status      AgentOfferStatus
+	ID                 ID
+	PropertyUnitTypeID ID
+	AgentID            ID
+	Title              string
+	Description        string
+	Price              Money
+	Status             AgentOfferStatus
 	Timestamps
 }

@@ -19,10 +19,10 @@ tags:
     description: Service health checks.
   - name: Properties
     description: Campus-scoped accommodation properties.
-  - name: Room Types
-    description: Property-level room categories that agents can later offer.
+  - name: Unit Types
+    description: Property-level rentable unit types that agents can later offer.
   - name: Agent Offers
-    description: Agent-specific availability, pricing, and presentation for room types.
+    description: Agent-specific availability, pricing, and presentation for unit types.
 paths:
   /healthz:
     get:
@@ -113,8 +113,8 @@ paths:
                         name: Alice Lodge
                         area: Obanla
                         landmark: Near South Gate
-                        description: Gated lodge with multiple room categories near campus.
-                        room_type_count: 3
+                        description: Gated lodge with multiple unit types near campus.
+                        unit_type_count: 3
                         available_offer_count: 5
                         lowest_price_naira: 250000
                         created_at: "2026-05-01T10:00:00Z"
@@ -148,7 +148,7 @@ paths:
                   name: Alice Lodge
                   area: Obanla
                   landmark: Near South Gate
-                  description: Gated lodge with multiple room categories near campus.
+                  description: Gated lodge with multiple unit types near campus.
       responses:
         "201":
           description: Property created successfully.
@@ -191,13 +191,13 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /v1/properties/{id}/room-types:
+  /v1/properties/{id}/unit-types:
     get:
-      operationId: listRoomTypes
+      operationId: listPropertyUnitTypes
       tags:
-        - Room Types
-      summary: List room types for a property.
-      description: Returns room categories for a property in creation order.
+        - Unit Types
+      summary: List unit types for a property.
+      description: Returns property-level rentable unit types in creation order.
       parameters:
         - name: id
           in: path
@@ -208,15 +208,15 @@ paths:
             format: uuid
       responses:
         "200":
-          description: Room types returned successfully.
+          description: Unit types returned successfully.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoomTypesResponse"
+                $ref: "#/components/schemas/UnitTypesResponse"
               examples:
-                roomTypes:
+                unitTypes:
                   value:
-                    room_types:
+                    unit_types:
                       - id: 550e8400-e29b-41d4-a716-446655440020
                         property_id: 550e8400-e29b-41d4-a716-446655440010
                         name: Self-contained
@@ -230,11 +230,11 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
     post:
-      operationId: createRoomType
+      operationId: createPropertyUnitType
       tags:
-        - Room Types
-      summary: Create a room type for a property.
-      description: Creates a property-level room category without tying it to a specific agent offer.
+        - Unit Types
+      summary: Create a unit type for a property.
+      description: Creates a property-level rentable unit type without tying it to a specific agent offer.
       parameters:
         - name: id
           in: path
@@ -248,19 +248,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateRoomTypeRequest"
+              $ref: "#/components/schemas/CreateUnitTypeRequest"
             examples:
-              roomType:
+              unitType:
                 value:
                   name: Self-contained
                   description: Private room with bathroom and kitchenette.
       responses:
         "201":
-          description: Room type created successfully.
+          description: Unit type created successfully.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RoomTypeResponse"
+                $ref: "#/components/schemas/UnitTypeResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
@@ -270,18 +270,18 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /v1/room-types/{id}/agent-offers:
+  /v1/unit-types/{id}/agent-offers:
     get:
       operationId: listAgentOffers
       tags:
         - Agent Offers
-      summary: List agent offers for a room type.
-      description: Returns agent-specific offers for a room type ordered by newest first.
+      summary: List agent offers for a unit type.
+      description: Returns agent-specific offers for a property unit type ordered by newest first.
       parameters:
         - name: id
           in: path
           required: true
-          description: Room type ID.
+          description: Unit type ID.
           schema:
             type: string
             format: uuid
@@ -297,7 +297,7 @@ paths:
                   value:
                     agent_offers:
                       - id: 550e8400-e29b-41d4-a716-446655440030
-                        room_type_id: 550e8400-e29b-41d4-a716-446655440020
+                        property_unit_type_id: 550e8400-e29b-41d4-a716-446655440020
                         agent_id: 550e8400-e29b-41d4-a716-446655440040
                         title: Fresh self-contained room
                         description: Recently painted room with private bathroom.
@@ -315,13 +315,13 @@ paths:
       operationId: createAgentOffer
       tags:
         - Agent Offers
-      summary: Create an agent offer for a room type.
-      description: Creates an agent-specific offer for a room category, including price and current availability status.
+      summary: Create an agent offer for a unit type.
+      description: Creates an agent-specific offer for a property unit type, including price and current availability status.
       parameters:
         - name: id
           in: path
           required: true
-          description: Room type ID.
+          description: Unit type ID.
           schema:
             type: string
             format: uuid
@@ -473,7 +473,7 @@ components:
         - area
         - landmark
         - description
-        - room_type_count
+        - unit_type_count
         - available_offer_count
         - lowest_price_naira
         - created_at
@@ -495,14 +495,14 @@ components:
         description:
           type: string
           description: Building-level notes. May be empty when unavailable.
-        room_type_count:
+        unit_type_count:
           type: integer
           minimum: 0
-          description: Number of room types at this property.
+          description: Number of unit types at this property.
         available_offer_count:
           type: integer
           minimum: 0
-          description: Number of currently available agent offers across all room types.
+          description: Number of currently available agent offers across all unit types.
         lowest_price_naira:
           type: integer
           minimum: 0
@@ -514,7 +514,7 @@ components:
           type: string
           format: date-time
 
-    CreateRoomTypeRequest:
+    CreateUnitTypeRequest:
       type: object
       additionalProperties: false
       required:
@@ -528,7 +528,7 @@ components:
           type: string
           maxLength: 1000
 
-    RoomType:
+    UnitType:
       type: object
       required:
         - id
@@ -548,7 +548,7 @@ components:
           type: string
         description:
           type: string
-          description: Room type description. May be empty when unavailable.
+          description: Unit type description. May be empty when unavailable.
         created_at:
           type: string
           format: date-time
@@ -589,7 +589,7 @@ components:
       type: object
       required:
         - id
-        - room_type_id
+        - property_unit_type_id
         - agent_id
         - title
         - description
@@ -601,7 +601,7 @@ components:
         id:
           type: string
           format: uuid
-        room_type_id:
+        property_unit_type_id:
           type: string
           format: uuid
         agent_id:
@@ -628,7 +628,7 @@ components:
           type: string
           format: date-time
 
-    RoomTypeDetail:
+    UnitTypeDetail:
       type: object
       required:
         - id
@@ -649,7 +649,7 @@ components:
           type: string
         description:
           type: string
-          description: Room type description. May be empty when unavailable.
+          description: Unit type description. May be empty when unavailable.
         agent_offers:
           type: array
           items:
@@ -670,7 +670,7 @@ components:
         - area
         - landmark
         - description
-        - room_types
+        - unit_types
         - created_at
         - updated_at
       properties:
@@ -690,10 +690,10 @@ components:
         description:
           type: string
           description: Building-level notes. May be empty when unavailable.
-        room_types:
+        unit_types:
           type: array
           items:
-            $ref: "#/components/schemas/RoomTypeDetail"
+            $ref: "#/components/schemas/UnitTypeDetail"
         created_at:
           type: string
           format: date-time
@@ -750,23 +750,23 @@ components:
         total_records:
           type: integer
 
-    RoomTypeResponse:
+    UnitTypeResponse:
       type: object
       required:
-        - room_type
+        - unit_type
       properties:
-        room_type:
-          $ref: "#/components/schemas/RoomType"
+        unit_type:
+          $ref: "#/components/schemas/UnitType"
 
-    RoomTypesResponse:
+    UnitTypesResponse:
       type: object
       required:
-        - room_types
+        - unit_types
       properties:
-        room_types:
+        unit_types:
           type: array
           items:
-            $ref: "#/components/schemas/RoomType"
+            $ref: "#/components/schemas/UnitType"
 
     AgentOfferResponse:
       type: object

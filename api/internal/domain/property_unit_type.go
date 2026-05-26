@@ -1,6 +1,6 @@
 package domain
 
-type RoomType struct {
+type PropertyUnitType struct {
 	ID          ID
 	PropertyID  ID
 	Name        string

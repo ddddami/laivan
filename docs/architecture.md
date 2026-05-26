@@ -190,7 +190,7 @@ Trust is behavioral, not binary.
 **Decision:** Model the marketplace around:
 
 ```
-Property -> Room Type -> Agent Offer
+Property -> Property Unit Type -> Agent Offer
 ```
 
 not:

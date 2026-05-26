@@ -13,7 +13,7 @@ But the actual market behaves differently.
 The same property may:
 
 * appear under multiple agents
-* have multiple room types
+* have multiple unit types
 * use different titles
 * use different images
 * have different pricing depending on agent
@@ -33,7 +33,7 @@ That realization fundamentally changes the architecture.
 The domain should roughly evolve around:
 
 Property
--> Room Types
+-> Property Unit Types
 -> Agent Offers
 -> Media
 -> Signals
@@ -65,7 +65,7 @@ Campus is intentionally the top-level entity for now. There is no University tab
 
 When a university has multiple campuses (e.g. UNILAG: Akoka and Idi-Araba), each campus is modeled as a separate Campus row. A future University entity can be introduced later if needed for admin, analytics, or partnership workflows. Do not add it now.
 
-Properties belong to a campus. Room types belong to a property. Agent offers belong to room types. This hierarchy prevents cross-campus contamination.
+Properties belong to a campus. Property unit types belong to a property. Agent offers belong to property unit types. This hierarchy prevents cross-campus contamination.
 
 ---
 
@@ -83,7 +83,7 @@ Properties are the highest-level real-world entities.
 
 Properties may contain:
 
-* multiple room types
+* multiple unit types
 * multiple agents
 * multiple media submissions
 * multiple trust signals
@@ -94,9 +94,9 @@ However, this process may initially be partially manual.
 
 ---
 
-## Room Type
+## Property Unit Type
 
-A property may contain different room categories.
+A property may contain different rentable unit types.
 
 Examples:
 
@@ -106,11 +106,11 @@ Examples:
 * one-bedroom apartment
 * shared apartment
 
-Room types exist independently from agents.
+Property unit types exist independently from agents.
 
 This distinction matters because:
 
-multiple agents may advertise the same room type differently.
+multiple agents may advertise the same property unit type differently.
 
 ---
 
@@ -118,7 +118,7 @@ multiple agents may advertise the same room type differently.
 
 An agent offer represents:
 
-"this particular agent offering this particular room"
+"this particular agent offering this particular property unit type"
 
 This is extremely important.
 
@@ -232,7 +232,7 @@ the system should eventually infer:
 These likely refer to:
 
 Property: Alice Lodge
-Room Type: Self-Contained
+Property Unit Type: Self-Contained
 
 However:
 
@@ -419,4 +419,3 @@ Instead, the platform models:
 "who participates in distributing access to the property"
 
 That is a more accurate reflection of market reality.
-

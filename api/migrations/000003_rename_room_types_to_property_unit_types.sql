@@ -1,0 +1,29 @@
+-- +goose Up
+ALTER TABLE room_types RENAME TO property_unit_types;
+ALTER TABLE property_unit_types RENAME CONSTRAINT room_types_pkey TO property_unit_types_pkey;
+ALTER TABLE property_unit_types RENAME CONSTRAINT room_types_property_id_fkey TO property_unit_types_property_id_fkey;
+ALTER INDEX idx_room_types_property_id RENAME TO idx_property_unit_types_property_id;
+
+ALTER TABLE agent_offers RENAME COLUMN room_type_id TO property_unit_type_id;
+ALTER TABLE agent_offers RENAME CONSTRAINT agent_offers_room_type_id_fkey TO agent_offers_property_unit_type_id_fkey;
+ALTER TABLE agent_offers RENAME CONSTRAINT agent_offers_room_type_id_agent_id_key TO agent_offers_property_unit_type_id_agent_id_key;
+ALTER INDEX idx_agent_offers_room_type_id RENAME TO idx_agent_offers_property_unit_type_id;
+
+ALTER TABLE media RENAME COLUMN room_type_id TO property_unit_type_id;
+ALTER TABLE media RENAME CONSTRAINT media_room_type_id_fkey TO media_property_unit_type_id_fkey;
+ALTER INDEX idx_media_room_type_id RENAME TO idx_media_property_unit_type_id;
+
+-- +goose Down
+ALTER TABLE media RENAME COLUMN property_unit_type_id TO room_type_id;
+ALTER TABLE media RENAME CONSTRAINT media_property_unit_type_id_fkey TO media_room_type_id_fkey;
+ALTER INDEX idx_media_property_unit_type_id RENAME TO idx_media_room_type_id;
+
+ALTER TABLE agent_offers RENAME COLUMN property_unit_type_id TO room_type_id;
+ALTER TABLE agent_offers RENAME CONSTRAINT agent_offers_property_unit_type_id_fkey TO agent_offers_room_type_id_fkey;
+ALTER TABLE agent_offers RENAME CONSTRAINT agent_offers_property_unit_type_id_agent_id_key TO agent_offers_room_type_id_agent_id_key;
+ALTER INDEX idx_agent_offers_property_unit_type_id RENAME TO idx_agent_offers_room_type_id;
+
+ALTER TABLE property_unit_types RENAME TO room_types;
+ALTER TABLE room_types RENAME CONSTRAINT property_unit_types_pkey TO room_types_pkey;
+ALTER TABLE room_types RENAME CONSTRAINT property_unit_types_property_id_fkey TO room_types_property_id_fkey;
+ALTER INDEX idx_property_unit_types_property_id RENAME TO idx_room_types_property_id;

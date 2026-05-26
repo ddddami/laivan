@@ -10,13 +10,13 @@ const (
 )
 
 type Media struct {
-	ID                ID
-	PropertyID        ID
-	RoomTypeID        ID
-	AgentOfferID      ID
-	UploadedByAgentID ID
-	URL               string
-	Kind              MediaKind
-	Caption           string
-	CreatedAt         time.Time
+	ID                 ID
+	PropertyID         ID
+	PropertyUnitTypeID ID
+	AgentOfferID       ID
+	UploadedByAgentID  ID
+	URL                string
+	Kind               MediaKind
+	Caption            string
+	CreatedAt          time.Time
 }
