@@ -891,6 +891,37 @@ func TestDiscoveryValidationErrors(t *testing.T) {
 	}
 }
 
+func TestUnitTypeDisplayName(t *testing.T) {
+	tests := []struct {
+		name     string
+		unitType domain.PropertyUnitType
+		want     string
+	}{
+		{"custom name preserved", domain.PropertyUnitType{Name: "Premium Self-con", Category: domain.UnitCategorySelfContained}, "Premium Self-con"},
+		{"empty name defaults to category", domain.PropertyUnitType{Name: "", Category: domain.UnitCategorySelfContained}, "Self-contained"},
+		{"single room category", domain.PropertyUnitType{Name: "", Category: domain.UnitCategorySingleRoom}, "Single Room"},
+		{"room and parlour category", domain.PropertyUnitType{Name: "", Category: domain.UnitCategoryRoomAndParlour}, "Room and Parlour"},
+		{"other category", domain.PropertyUnitType{Name: "", Category: domain.UnitCategoryOther}, "Other"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := unitTypeDisplayName(tt.unitType); got != tt.want {
+				t.Fatalf("unitTypeDisplayName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNairaConversion(t *testing.T) {
+	if got := naira(domain.Money{AmountKobo: 35000000}); got != 350000 {
+		t.Fatalf("naira(35000000 kobo) = %d, want 350000", got)
+	}
+	if got := naira(domain.Money{AmountKobo: 0}); got != 0 {
+		t.Fatalf("naira(0 kobo) = %d, want 0", got)
+	}
+}
+
 func intPointer(value int) *int {
 	return &value
 }
