@@ -21,6 +21,7 @@ type app struct {
 type PropertyStore interface {
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
+	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error)
 	CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error)

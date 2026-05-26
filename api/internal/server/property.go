@@ -143,7 +143,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	property, err := app.propertyRepo.Get(r.Context(), domain.ID(id))
+	property, err := app.propertyRepo.GetWithDetails(r.Context(), domain.ID(id))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
@@ -155,7 +155,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := envelope{
-		"property": propertyResponse(property),
+		"property": propertyDetailResponse(property),
 	}
 
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
@@ -421,6 +421,41 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"lowest_price_kobo":     p.LowestPriceKobo,
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func propertyDetailResponse(p domain.PropertyDetail) map[string]any {
+	return map[string]any{
+		"id":          string(p.ID),
+		"campus_id":   string(p.CampusID),
+		"name":        p.Name,
+		"area":        p.Location.Area,
+		"landmark":    p.Location.Landmark,
+		"description": p.Description,
+		"room_types":  roomTypeDetailsResponse(p.RoomTypes),
+		"created_at":  p.CreatedAt.Format(time.RFC3339),
+		"updated_at":  p.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func roomTypeDetailsResponse(roomTypes []domain.RoomTypeDetail) []map[string]any {
+	response := make([]map[string]any, 0, len(roomTypes))
+	for _, rt := range roomTypes {
+		response = append(response, roomTypeDetailResponse(rt))
+	}
+
+	return response
+}
+
+func roomTypeDetailResponse(rt domain.RoomTypeDetail) map[string]any {
+	return map[string]any{
+		"id":           string(rt.ID),
+		"property_id":  string(rt.PropertyID),
+		"name":         rt.Name,
+		"description":  rt.Description,
+		"agent_offers": agentOffersResponse(rt.AgentOffers),
+		"created_at":   rt.CreatedAt.Format(time.RFC3339),
+		"updated_at":   rt.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

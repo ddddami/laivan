@@ -155,7 +155,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PropertyResponse"
+                $ref: "#/components/schemas/PropertyDetailResponse"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
@@ -600,6 +600,79 @@ components:
           type: string
           format: date-time
 
+    RoomTypeDetail:
+      type: object
+      required:
+        - id
+        - property_id
+        - name
+        - description
+        - agent_offers
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          description: Room type description. May be empty when unavailable.
+        agent_offers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentOffer"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PropertyDetail:
+      type: object
+      required:
+        - id
+        - campus_id
+        - name
+        - area
+        - landmark
+        - description
+        - room_types
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        area:
+          type: string
+        landmark:
+          type: string
+          description: Approximate landmark. May be empty when unavailable.
+        description:
+          type: string
+          description: Building-level notes. May be empty when unavailable.
+        room_types:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomTypeDetail"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
     PropertyResponse:
       type: object
       required:
@@ -607,6 +680,14 @@ components:
       properties:
         property:
           $ref: "#/components/schemas/Property"
+
+    PropertyDetailResponse:
+      type: object
+      required:
+        - property
+      properties:
+        property:
+          $ref: "#/components/schemas/PropertyDetail"
 
     PropertiesResponse:
       type: object
