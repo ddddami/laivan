@@ -406,12 +406,7 @@ func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
 }
 
 func propertiesResponse(properties []domain.Property) []map[string]any {
-	response := make([]map[string]any, 0, len(properties))
-	for _, property := range properties {
-		response = append(response, propertyResponse(property))
-	}
-
-	return response
+	return mapItems(properties, propertyResponse)
 }
 
 func propertyResponse(p domain.Property) map[string]any {
@@ -428,25 +423,15 @@ func propertyResponse(p domain.Property) map[string]any {
 }
 
 func propertyUnitTypesResponse(unitTypes []domain.PropertyUnitType) []map[string]any {
-	response := make([]map[string]any, 0, len(unitTypes))
-	for _, unitType := range unitTypes {
-		response = append(response, propertyUnitTypeResponse(unitType))
-	}
-
-	return response
+	return mapItems(unitTypes, propertyUnitTypeResponse)
 }
 
 func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
-	name := ut.Name
-	if name == "" {
-		name = unitCategoryDisplayName(ut.Category)
-	}
-
 	return map[string]any{
 		"id":            string(ut.ID),
 		"property_id":   string(ut.PropertyID),
 		"category":      string(ut.Category),
-		"name":          name,
+		"name":          unitTypeDisplayName(ut),
 		"description":   ut.Description,
 		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
@@ -459,12 +444,7 @@ func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
 }
 
 func propertiesSummaryResponse(properties []domain.PropertySummary) []map[string]any {
-	response := make([]map[string]any, 0, len(properties))
-	for _, property := range properties {
-		response = append(response, propertySummaryResponse(property))
-	}
-
-	return response
+	return mapItems(properties, propertySummaryResponse)
 }
 
 func propertySummaryResponse(p domain.PropertySummary) map[string]any {
@@ -477,7 +457,7 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"description":           p.Description,
 		"unit_type_count":       p.UnitTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
-		"lowest_price_naira":    p.LowestPrice.AmountKobo / 100,
+		"lowest_price_naira":    naira(p.LowestPrice),
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
@@ -498,25 +478,15 @@ func propertyDetailResponse(p domain.PropertyDetail) map[string]any {
 }
 
 func propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) []map[string]any {
-	response := make([]map[string]any, 0, len(unitTypes))
-	for _, ut := range unitTypes {
-		response = append(response, propertyUnitTypeDetailResponse(ut))
-	}
-
-	return response
+	return mapItems(unitTypes, propertyUnitTypeDetailResponse)
 }
 
 func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
-	name := ut.Name
-	if name == "" {
-		name = unitCategoryDisplayName(ut.Category)
-	}
-
 	return map[string]any{
 		"id":            string(ut.ID),
 		"property_id":   string(ut.PropertyID),
 		"category":      string(ut.Category),
-		"name":          name,
+		"name":          unitTypeDisplayName(ut.PropertyUnitType),
 		"description":   ut.Description,
 		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
@@ -530,12 +500,7 @@ func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string
 }
 
 func agentOffersResponse(offers []domain.AgentOffer) []map[string]any {
-	response := make([]map[string]any, 0, len(offers))
-	for _, offer := range offers {
-		response = append(response, agentOfferResponse(offer))
-	}
-
-	return response
+	return mapItems(offers, agentOfferResponse)
 }
 
 func agentOfferResponse(offer domain.AgentOffer) map[string]any {
@@ -546,7 +511,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"title":                 offer.Title,
 		"description":           offer.Description,
 		"notes":                 nullableString(offer.Notes),
-		"price_naira":           offer.Price.AmountKobo / 100,
+		"price_naira":           naira(offer.Price),
 		"status":                string(offer.Status),
 		"created_at":            offer.CreatedAt.Format(time.RFC3339),
 		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
@@ -620,6 +585,38 @@ func validKitchenType(value string) bool {
 	default:
 		return false
 	}
+}
+
+// mapItems transforms a slice of domain items into a slice of response maps.
+// It replaces the repetitive for...append pattern in response builders.
+func mapItems[T any](items []T, fn func(T) map[string]any) []map[string]any {
+	result := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		result = append(result, fn(item))
+	}
+	return result
+}
+
+// naira converts Money from internal kobo storage to naira for API display.
+func naira(m domain.Money) int {
+	return m.AmountKobo / 100
+}
+
+// unitTypeDisplayName returns the unit type name, defaulting to the category
+// display name when no custom name is set.
+func unitTypeDisplayName(ut domain.PropertyUnitType) string {
+	if ut.Name != "" {
+		return ut.Name
+	}
+	return unitCategoryDisplayName(ut.Category)
+}
+
+// unitTypeDisplayNameFromResult is the DiscoveryResult variant of unitTypeDisplayName.
+func unitTypeDisplayNameFromResult(r domain.DiscoveryResult) string {
+	if r.UnitTypeName != "" {
+		return r.UnitTypeName
+	}
+	return unitCategoryDisplayName(r.UnitTypeCategory)
 }
 
 func (app *app) discover(w http.ResponseWriter, r *http.Request) {
@@ -699,19 +696,10 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 }
 
 func discoveryResultsResponse(results []domain.DiscoveryResult) []map[string]any {
-	response := make([]map[string]any, 0, len(results))
-	for _, r := range results {
-		response = append(response, discoveryResultResponse(r))
-	}
-	return response
+	return mapItems(results, discoveryResultResponse)
 }
 
 func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
-	name := r.UnitTypeName
-	if name == "" {
-		name = unitCategoryDisplayName(r.UnitTypeCategory)
-	}
-
 	return map[string]any{
 		"property": map[string]any{
 			"id":       string(r.PropertyID),
@@ -722,7 +710,7 @@ func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 		"unit_type": map[string]any{
 			"id":            string(r.UnitTypeID),
 			"category":      string(r.UnitTypeCategory),
-			"name":          name,
+			"name":          unitTypeDisplayNameFromResult(r),
 			"description":   nullableString(r.UnitTypeDescription),
 			"notes":         nullableString(r.UnitTypeNotes),
 			"bedroom_count": r.Structure.BedroomCount,
@@ -731,7 +719,7 @@ func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 			"kitchen_type":  nullableString(r.Structure.KitchenType),
 		},
 		"pricing": map[string]any{
-			"lowest_price_naira": r.LowestPrice.AmountKobo / 100,
+			"lowest_price_naira": naira(r.LowestPrice),
 		},
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,
