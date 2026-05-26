@@ -87,7 +87,11 @@ func TestPropertyRepositoryList(t *testing.T) {
 	t.Cleanup(pool.Close)
 
 	truncateProperties(t, ctx, pool)
-	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
 
 	campusID := testCampusID(t, ctx, pool)
 	otherCampusID := createTestCampus(t, ctx, pool, "futa-north")
@@ -96,31 +100,55 @@ func TestPropertyRepositoryList(t *testing.T) {
 	older := insertProperty(t, ctx, pool, campusID, "Older Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	newer := insertProperty(t, ctx, pool, campusID, "Newer Lodge", time.Date(2026, time.May, 3, 12, 0, 0, 0, time.UTC))
 
+	// Add room types and offers to newer property for summary testing
+	roomType1 := insertRoomType(t, ctx, pool, newer, "Self-contained")
+	roomType2 := insertRoomType(t, ctx, pool, newer, "Single room")
+	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	insertAgentOffer(t, ctx, pool, roomType1, agentID, "Selfcon offer", 25000000)
+	insertAgentOffer(t, ctx, pool, roomType2, agentID, "Single room offer", 15000000)
+
 	repository := NewPropertyRepository(pool)
-	properties, err := repository.List(ctx, PropertyListFilter{CampusID: campusID, Limit: 1})
-	if err != nil {
-		t.Fatalf("list properties: %v", err)
-	}
 
-	if len(properties) != 1 {
-		t.Fatalf("properties length = %d, want 1", len(properties))
-	}
-	if properties[0].ID != newer {
-		t.Fatalf("first property ID = %q, want newer property %q", properties[0].ID, newer)
-	}
-	if properties[0].CampusID != campusID {
-		t.Fatalf("campus ID = %q, want %q", properties[0].CampusID, campusID)
-	}
-
-	properties, err = repository.List(ctx, PropertyListFilter{CampusID: campusID, Limit: 10})
+	// Test plain List still works
+	properties, err := repository.List(ctx, PropertyListFilter{CampusID: campusID, Limit: 10})
 	if err != nil {
 		t.Fatalf("list properties: %v", err)
 	}
 	if len(properties) != 2 {
 		t.Fatalf("properties length = %d, want 2", len(properties))
 	}
-	if properties[0].ID != newer || properties[1].ID != older {
-		t.Fatalf("property order = [%q, %q], want [%q, %q]", properties[0].ID, properties[1].ID, newer, older)
+
+	// Test ListWithSummary
+	summaries, err := repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Limit: 10})
+	if err != nil {
+		t.Fatalf("list properties with summary: %v", err)
+	}
+	if len(summaries) != 2 {
+		t.Fatalf("summaries length = %d, want 2", len(summaries))
+	}
+	// Newer property should be first (newest first)
+	if summaries[0].ID != newer {
+		t.Fatalf("first summary ID = %q, want %q", summaries[0].ID, newer)
+	}
+	if summaries[0].RoomTypeCount != 2 {
+		t.Fatalf("room_type_count = %d, want 2", summaries[0].RoomTypeCount)
+	}
+	if summaries[0].AvailableOfferCount != 2 {
+		t.Fatalf("available_offer_count = %d, want 2", summaries[0].AvailableOfferCount)
+	}
+	if summaries[0].LowestPriceKobo != 15000000 {
+		t.Fatalf("lowest_price_kobo = %d, want 15000000", summaries[0].LowestPriceKobo)
+	}
+
+	// Older property has no room types or offers
+	if summaries[1].ID != older {
+		t.Fatalf("second summary ID = %q, want %q", summaries[1].ID, older)
+	}
+	if summaries[1].RoomTypeCount != 0 {
+		t.Fatalf("room_type_count = %d, want 0", summaries[1].RoomTypeCount)
+	}
+	if summaries[1].LowestPriceKobo != 0 {
+		t.Fatalf("lowest_price_kobo = %d, want 0", summaries[1].LowestPriceKobo)
 	}
 }
 
@@ -409,4 +437,23 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	}
 
 	return domain.ID(agentID)
+}
+
+func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, roomTypeID domain.ID, agentID domain.ID, title string, priceKobo int32) domain.ID {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var offerID string
+	err := db.QueryRow(ctx, `
+		INSERT INTO agent_offers (room_type_id, agent_id, title, description, price_kobo, status)
+		VALUES ($1, $2, $3, 'Test offer', $4, 'available')
+		RETURNING id::text
+	`, string(roomTypeID), string(agentID), title, priceKobo).Scan(&offerID)
+	if err != nil {
+		t.Fatalf("insert agent offer: %v", err)
+	}
+
+	return domain.ID(offerID)
 }

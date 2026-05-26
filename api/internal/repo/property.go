@@ -98,6 +98,31 @@ func (r *PropertyRepository) List(ctx context.Context, filter PropertyListFilter
 	return properties, nil
 }
 
+func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter PropertyListFilter) ([]domain.PropertySummary, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	campusUUID, err := uuidParam(filter.CampusID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.queries.ListPropertiesWithSummary(ctx, generateddb.ListPropertiesWithSummaryParams{
+		CampusID: campusUUID,
+		Limit:    filter.Limit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list properties with summary: %w", err)
+	}
+
+	summaries := make([]domain.PropertySummary, 0, len(rows))
+	for _, row := range rows {
+		summaries = append(summaries, propertySummaryFromRow(row))
+	}
+
+	return summaries, nil
+}
+
 func (r *PropertyRepository) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
@@ -304,4 +329,26 @@ func uuidString(uuid pgtype.UUID) string {
 func isForeignKeyViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+}
+
+func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain.PropertySummary {
+	return domain.PropertySummary{
+		Property: domain.Property{
+			ID:       domain.ID(uuidString(row.ID)),
+			CampusID: domain.ID(uuidString(row.CampusID)),
+			Name:     row.Name,
+			Location: domain.ApproxLocation{
+				Area:     row.Area,
+				Landmark: textString(row.Landmark),
+			},
+			Description: textString(row.Description),
+			Timestamps: domain.Timestamps{
+				CreatedAt: row.CreatedAt.Time,
+				UpdatedAt: row.UpdatedAt.Time,
+			},
+		},
+		RoomTypeCount:       row.RoomTypeCount,
+		AvailableOfferCount: row.AvailableOfferCount,
+		LowestPriceKobo:     row.LowestPriceKobo,
+	}
 }

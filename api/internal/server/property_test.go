@@ -50,6 +50,27 @@ func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFil
 	}, nil
 }
 
+func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error) {
+	return []domain.PropertySummary{
+		{
+			Property: domain.Property{
+				ID:          domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+				CampusID:    filter.CampusID,
+				Name:        "Alice Lodge",
+				Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
+				Description: "Gated lodge with multiple room categories near campus.",
+				Timestamps: domain.Timestamps{
+					CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+					UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				},
+			},
+			RoomTypeCount:       3,
+			AvailableOfferCount: 5,
+			LowestPriceKobo:     25000000,
+		},
+	}, nil
+}
+
 func (s *stubPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
 	if string(roomType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return domain.RoomType{}, repo.ErrNotFound
@@ -239,10 +260,13 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 
 	var body struct {
 		Properties []struct {
-			ID       string `json:"id"`
-			CampusID string `json:"campus_id"`
-			Name     string `json:"name"`
-			Area     string `json:"area"`
+			ID                  string `json:"id"`
+			CampusID            string `json:"campus_id"`
+			Name                string `json:"name"`
+			Area                string `json:"area"`
+			RoomTypeCount       int32  `json:"room_type_count"`
+			AvailableOfferCount int32  `json:"available_offer_count"`
+			LowestPriceKobo     int32  `json:"lowest_price_kobo"`
 		} `json:"properties"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -257,6 +281,15 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 	}
 	if body.Properties[0].CampusID != "550e8400-e29b-41d4-a716-446655440002" {
 		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440002", body.Properties[0].CampusID)
+	}
+	if body.Properties[0].RoomTypeCount != 3 {
+		t.Fatalf("room_type_count = %d, want 3", body.Properties[0].RoomTypeCount)
+	}
+	if body.Properties[0].AvailableOfferCount != 5 {
+		t.Fatalf("available_offer_count = %d, want 5", body.Properties[0].AvailableOfferCount)
+	}
+	if body.Properties[0].LowestPriceKobo != 25000000 {
+		t.Fatalf("lowest_price_kobo = %d, want 25000000", body.Properties[0].LowestPriceKobo)
 	}
 }
 

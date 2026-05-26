@@ -22,6 +22,7 @@ type PropertyStore interface {
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error)
+	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error)
 	CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error)
 	ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error)
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)

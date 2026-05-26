@@ -50,7 +50,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	properties, err := app.propertyRepo.List(r.Context(), repo.PropertyListFilter{
+	properties, err := app.propertyRepo.ListWithSummary(r.Context(), repo.PropertyListFilter{
 		CampusID: domain.ID(campusID),
 		Limit:    int32(limit),
 	})
@@ -60,7 +60,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := envelope{
-		"properties": propertiesResponse(properties),
+		"properties": propertiesSummaryResponse(properties),
 	}
 
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
@@ -396,6 +396,31 @@ func roomTypeResponse(rt domain.RoomType) map[string]any {
 		"description": rt.Description,
 		"created_at":  rt.CreatedAt.Format(time.RFC3339),
 		"updated_at":  rt.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func propertiesSummaryResponse(properties []domain.PropertySummary) []map[string]any {
+	response := make([]map[string]any, 0, len(properties))
+	for _, property := range properties {
+		response = append(response, propertySummaryResponse(property))
+	}
+
+	return response
+}
+
+func propertySummaryResponse(p domain.PropertySummary) map[string]any {
+	return map[string]any{
+		"id":                    string(p.ID),
+		"campus_id":             string(p.CampusID),
+		"name":                  p.Name,
+		"area":                  p.Location.Area,
+		"landmark":              p.Location.Landmark,
+		"description":           p.Description,
+		"room_type_count":       p.RoomTypeCount,
+		"available_offer_count": p.AvailableOfferCount,
+		"lowest_price_kobo":     p.LowestPriceKobo,
+		"created_at":            p.CreatedAt.Format(time.RFC3339),
+		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
