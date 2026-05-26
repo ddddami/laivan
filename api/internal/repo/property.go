@@ -363,7 +363,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 				BathroomType: textString(bathroomType),
 				KitchenType:  textString(kitchenType),
 			},
-			LowestPriceKobo:     lowestPriceKobo,
+			LowestPrice:         domain.Money{AmountKobo: lowestPriceKobo},
 			AvailableOfferCount: availableOfferCount,
 			CreatedAt:           createdAt.Time,
 		})
@@ -651,6 +651,6 @@ func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain
 		},
 		UnitTypeCount:       row.UnitTypeCount,
 		AvailableOfferCount: row.AvailableOfferCount,
-		LowestPriceKobo:     row.LowestPriceKobo,
+		LowestPrice:         domain.Money{AmountKobo: row.LowestPriceKobo},
 	}
 }

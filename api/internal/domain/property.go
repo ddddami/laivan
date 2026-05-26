@@ -13,7 +13,7 @@ type PropertySummary struct {
 	Property
 	UnitTypeCount       int
 	AvailableOfferCount int
-	LowestPriceKobo     int
+	LowestPrice         Money
 }
 
 type PropertyDetail struct {
