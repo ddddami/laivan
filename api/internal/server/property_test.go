@@ -429,7 +429,7 @@ func TestGetPropertyNotFound(t *testing.T) {
 
 func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"name":""}`
+	body := `{"category":"self_contained"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/properties/not-a-uuid/unit-types", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -455,8 +455,28 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 	if bodyDecoded.Error.Fields["id"] == "" {
 		t.Fatal("id validation error missing")
 	}
-	if bodyDecoded.Error.Fields["name"] == "" {
-		t.Fatal("name validation error missing")
+}
+
+func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
+	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+
+	body := `{"category":"self_contained","bedroom_count":1,"bathroom_type":"private","kitchen_type":"private"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	if spy.createdUnitType.Name != "Self-contained" {
+		t.Fatalf("name = %q, want Self-contained", spy.createdUnitType.Name)
+	}
+	if spy.createdUnitType.Category != domain.UnitCategorySelfContained {
+		t.Fatalf("category = %q, want self_contained", spy.createdUnitType.Category)
 	}
 }
 
@@ -643,8 +663,9 @@ func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 }
 
 type spyPropertyRepo struct {
-	stub         *stubPropertyRepo
-	createdOffer domain.AgentOffer
+	stub            *stubPropertyRepo
+	createdUnitType domain.PropertyUnitType
+	createdOffer    domain.AgentOffer
 }
 
 func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
@@ -664,6 +685,7 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 }
 
 func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	s.createdUnitType = unitType
 	return s.stub.CreatePropertyUnitType(ctx, unitType)
 }
 

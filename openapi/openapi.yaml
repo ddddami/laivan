@@ -533,7 +533,6 @@ components:
       additionalProperties: false
       required:
         - category
-        - name
       properties:
         category:
           $ref: "#/components/schemas/UnitCategory"
@@ -541,6 +540,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+          description: Optional custom label. Defaults to the category display name (e.g. "Self-contained") when omitted.
         description:
           type: string
           maxLength: 1000

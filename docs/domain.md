@@ -112,15 +112,32 @@ This distinction matters because:
 
 multiple agents may advertise the same property unit type differently.
 
-Property unit types should capture both market language and light physical structure:
+Property unit types should capture both market language and light physical structure.
 
-* category: single room, self-contained, room-and-parlour, flat, or other market category
-* bedroom count, when known
-* whether a parlour/living room exists, when known
-* bathroom privacy: private, shared, or unknown
-* kitchen setup: private, shared, none, or unknown
+### Category IS the structure
 
-Do not model exact room numbers, landlord inventory systems, or per-unit availability yet. Laivan only needs enough structure to support discovery, comparison, and agent offers without turning into property management software.
+In Nigerian student housing, category names carry well-defined structural meaning. These are not arbitrary labels.
+
+| Category | Bedrooms | Bathroom | Kitchen | Parlour |
+|----------|----------|----------|---------|---------|
+| single_room | 1 | shared | shared | no |
+| self_contained | 1 | private | private | no |
+| room_and_parlour | 1 | private | private | yes |
+| one_bedroom_flat | 1 | private | private | yes |
+| two_bedroom_flat | 2 | private | private | yes |
+| three_bedroom_flat | 3 | private | private | yes |
+
+This is what agents and students actually mean when they use these terms. A "self-contained" without a private kitchen is not a self-contained -- it is a single room miscategorized. The system treats category as the primary structural definition.
+
+### Optional overrides
+
+The explicit structure fields (`bedroom_count`, `bathroom_type`, `kitchen_type`, `has_parlour`) exist for edge cases and for the `other` category. When provided, they override the category default. When omitted, the system derives them from category.
+
+This preserves flexibility without requiring agents to fill out a form when the standard term already says everything.
+
+### Name is optional
+
+The `name` field is a custom label for marketing flair ("Premium Self-con", "Executive Room and Parlour"). When omitted, it defaults to the category display name (e.g. "Self-contained"). Most unit types will not need a custom name.
 
 ### Two kinds of notes
 
