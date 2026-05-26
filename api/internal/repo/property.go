@@ -141,6 +141,8 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 }
 
 // ListWithSummary uses a raw query here, sqlc cannot safely generate dynamic ORDER BY clauses.
+// IMPORTANT: If you change the SELECT column list, you must update the Scan call below.
+// pgx Scan errors on column count mismatch, which our integration tests catch.
 func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
@@ -238,6 +240,8 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 }
 
 // Discover returns searchable rentable opportunities — one row per property+unit type combination.
+// IMPORTANT: If you change the SELECT column list, you must update the Scan call below.
+// pgx Scan errors on column count mismatch, which our integration tests catch.
 func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
