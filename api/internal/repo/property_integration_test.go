@@ -81,6 +81,56 @@ func TestPropertyRepositoryGetNotFound(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryGetWithDetails(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	roomType1 := insertRoomType(t, ctx, pool, propertyID, "Self-contained")
+	roomType2 := insertRoomType(t, ctx, pool, propertyID, "Single room")
+	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	insertAgentOffer(t, ctx, pool, roomType1, agentID, "Selfcon offer", 25000000)
+	insertAgentOffer(t, ctx, pool, roomType2, agentID, "Single room offer", 15000000)
+
+	repository := NewPropertyRepository(pool)
+
+	detail, err := repository.GetWithDetails(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("get property with details: %v", err)
+	}
+
+	if detail.Name != "Alice Lodge" {
+		t.Fatalf("name = %q, want Alice Lodge", detail.Name)
+	}
+	if len(detail.RoomTypes) != 2 {
+		t.Fatalf("room types length = %d, want 2", len(detail.RoomTypes))
+	}
+	if detail.RoomTypes[0].Name != "Self-contained" {
+		t.Fatalf("room type name = %q, want Self-contained", detail.RoomTypes[0].Name)
+	}
+	if len(detail.RoomTypes[0].AgentOffers) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(detail.RoomTypes[0].AgentOffers))
+	}
+	if detail.RoomTypes[0].AgentOffers[0].Price.AmountKobo != 25000000 {
+		t.Fatalf("price = %d, want 25000000", detail.RoomTypes[0].AgentOffers[0].Price.AmountKobo)
+	}
+
+	// Test not found
+	_, err = repository.GetWithDetails(ctx, domain.ID("550e8400-e29b-41d4-a716-446655440000"))
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("error = %v, want %v", err, ErrNotFound)
+	}
+}
+
 func TestPropertyRepositoryList(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)

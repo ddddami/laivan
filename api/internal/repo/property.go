@@ -73,6 +73,53 @@ func (r *PropertyRepository) Get(ctx context.Context, id domain.ID) (domain.Prop
 	return propertyFromRow(row), nil
 }
 
+func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	propertyUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.PropertyDetail{}, err
+	}
+
+	propertyRow, err := r.queries.GetProperty(ctx, propertyUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.PropertyDetail{}, ErrNotFound
+		}
+
+		return domain.PropertyDetail{}, fmt.Errorf("get property: %w", err)
+	}
+
+	roomTypeRows, err := r.queries.ListRoomTypesByProperty(ctx, propertyUUID)
+	if err != nil {
+		return domain.PropertyDetail{}, fmt.Errorf("list room types: %w", err)
+	}
+
+	roomTypes := make([]domain.RoomTypeDetail, 0, len(roomTypeRows))
+	for _, rtRow := range roomTypeRows {
+		offerRows, err := r.queries.ListAgentOffersByRoomType(ctx, rtRow.ID)
+		if err != nil {
+			return domain.PropertyDetail{}, fmt.Errorf("list agent offers: %w", err)
+		}
+
+		offers := make([]domain.AgentOffer, 0, len(offerRows))
+		for _, offerRow := range offerRows {
+			offers = append(offers, agentOfferFromRow(offerRow))
+		}
+
+		roomTypes = append(roomTypes, domain.RoomTypeDetail{
+			RoomType:    roomTypeFromRow(rtRow),
+			AgentOffers: offers,
+		})
+	}
+
+	return domain.PropertyDetail{
+		Property:  propertyFromRow(propertyRow),
+		RoomTypes: roomTypes,
+	}, nil
+}
+
 func (r *PropertyRepository) List(ctx context.Context, filter PropertyListFilter) ([]domain.Property, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()

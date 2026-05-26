@@ -34,6 +34,55 @@ func (s *stubPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Proper
 	return domain.Property{}, repo.ErrNotFound
 }
 
+func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	if string(id) != "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.PropertyDetail{}, repo.ErrNotFound
+	}
+
+	return domain.PropertyDetail{
+		Property: domain.Property{
+			ID:          id,
+			CampusID:    domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+			Name:        "Alice Lodge",
+			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
+			Description: "Gated lodge with multiple room categories near campus.",
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+		RoomTypes: []domain.RoomTypeDetail{
+			{
+				RoomType: domain.RoomType{
+					ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+					PropertyID:  id,
+					Name:        "Self-contained",
+					Description: "Private room with bathroom and kitchenette.",
+					Timestamps: domain.Timestamps{
+						CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+					},
+				},
+				AgentOffers: []domain.AgentOffer{
+					{
+						ID:          domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+						RoomTypeID:  domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+						AgentID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+						Title:       "Fresh self-contained room",
+						Description: "Recently painted room with private bathroom.",
+						Price:       domain.Money{AmountKobo: 35000000},
+						Status:      domain.AgentOfferStatusAvailable,
+						Timestamps: domain.Timestamps{
+							CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+							UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						},
+					},
+				},
+			},
+		},
+	}, nil
+}
+
 func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error) {
 	return []domain.Property{
 		{
@@ -290,6 +339,52 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 	}
 	if body.Properties[0].LowestPriceKobo != 25000000 {
 		t.Fatalf("lowest_price_kobo = %d, want 25000000", body.Properties[0].LowestPriceKobo)
+	}
+}
+
+func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body struct {
+		Property struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			RoomTypes []struct {
+				ID          string `json:"id"`
+				Name        string `json:"name"`
+				AgentOffers []struct {
+					Title     string `json:"title"`
+					PriceKobo int32  `json:"price_kobo"`
+				} `json:"agent_offers"`
+			} `json:"room_types"`
+		} `json:"property"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if body.Property.Name != "Alice Lodge" {
+		t.Fatalf("property name = %q, want Alice Lodge", body.Property.Name)
+	}
+	if len(body.Property.RoomTypes) != 1 {
+		t.Fatalf("room types length = %d, want 1", len(body.Property.RoomTypes))
+	}
+	if body.Property.RoomTypes[0].Name != "Self-contained" {
+		t.Fatalf("room type name = %q, want Self-contained", body.Property.RoomTypes[0].Name)
+	}
+	if len(body.Property.RoomTypes[0].AgentOffers) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(body.Property.RoomTypes[0].AgentOffers))
+	}
+	if body.Property.RoomTypes[0].AgentOffers[0].PriceKobo != 35000000 {
+		t.Fatalf("price_kobo = %d, want 35000000", body.Property.RoomTypes[0].AgentOffers[0].PriceKobo)
 	}
 }
 
