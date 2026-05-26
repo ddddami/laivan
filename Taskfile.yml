@@ -101,6 +101,11 @@ tasks:
     cmds:
       - sqlc generate
 
+  api:docs:validate:
+    desc: Validate the OpenAPI contract
+    cmds:
+      - pnpm --package=@redocly/cli@2.31.4 dlx redocly lint openapi/openapi.yaml
+
   web:install:
     desc: Install web dependencies
     dir: "{{.WEB_DIR}}"

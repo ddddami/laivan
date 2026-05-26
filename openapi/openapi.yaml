@@ -7,9 +7,13 @@ info:
     Laivan is a coordination, trust, and workflow layer for fragmented campus accommodation markets.
 
     This contract documents the currently implemented API surface. It should describe observable HTTP behavior, not internal Go package structure.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
 servers:
-  - url: http://localhost:4000
-    description: Local API server
+  - url: /
+    description: API server
+security: []
 tags:
   - name: Health
     description: Service health checks.
@@ -37,6 +41,8 @@ paths:
                     version: dev
         "500":
           $ref: "#/components/responses/InternalServerError"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
 
   /v1/properties:
     get:
@@ -190,6 +196,18 @@ components:
                 error:
                   code: not_found
                   message: The requested resource could not be found
+    MethodNotAllowed:
+      description: HTTP method is not supported for this resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            methodNotAllowed:
+              value:
+                error:
+                  code: method_not_allowed
+                  message: The request method is not supported for this resource
     InternalServerError:
       description: Server encountered an unexpected problem.
       content:
