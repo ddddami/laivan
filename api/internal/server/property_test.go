@@ -106,7 +106,7 @@ func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prop
 			},
 			UnitTypeCount:       3,
 			AvailableOfferCount: 5,
-			LowestPriceKobo:     25000000,
+			LowestPrice:         domain.Money{AmountKobo: 25000000},
 		},
 	}, 1, nil
 }
@@ -127,7 +127,7 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 				BathroomType: "private",
 				KitchenType:  "private",
 			},
-			LowestPriceKobo:     35000000,
+			LowestPrice:         domain.Money{AmountKobo: 35000000},
 			AvailableOfferCount: 2,
 			CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 		},

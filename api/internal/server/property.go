@@ -477,7 +477,7 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"description":           p.Description,
 		"unit_type_count":       p.UnitTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
-		"lowest_price_naira":    p.LowestPriceKobo / 100,
+		"lowest_price_naira":    p.LowestPrice.AmountKobo / 100,
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
@@ -731,7 +731,7 @@ func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 			"kitchen_type":  nullableString(r.Structure.KitchenType),
 		},
 		"pricing": map[string]any{
-			"lowest_price_naira": r.LowestPriceKobo / 100,
+			"lowest_price_naira": r.LowestPrice.AmountKobo / 100,
 		},
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,

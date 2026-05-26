@@ -14,7 +14,7 @@ type DiscoveryResult struct {
 	UnitTypeDescription string
 	UnitTypeNotes       string
 	Structure           UnitStructure
-	LowestPriceKobo     int
+	LowestPrice         Money
 	AvailableOfferCount int
 	CreatedAt           time.Time
 }

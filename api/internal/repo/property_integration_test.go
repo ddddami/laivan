@@ -189,8 +189,8 @@ func TestPropertyRepositoryList(t *testing.T) {
 	if summaries[0].AvailableOfferCount != 2 {
 		t.Fatalf("available_offer_count = %d, want 2", summaries[0].AvailableOfferCount)
 	}
-	if summaries[0].LowestPriceKobo != 15000000 {
-		t.Fatalf("lowest_price_kobo = %d, want 15000000", summaries[0].LowestPriceKobo)
+	if summaries[0].LowestPrice.AmountKobo != 15000000 {
+		t.Fatalf("lowest_price_kobo = %d, want 15000000", summaries[0].LowestPrice.AmountKobo)
 	}
 
 	// Older property has no unit types or offers
@@ -200,8 +200,8 @@ func TestPropertyRepositoryList(t *testing.T) {
 	if summaries[1].UnitTypeCount != 0 {
 		t.Fatalf("unit_type_count = %d, want 0", summaries[1].UnitTypeCount)
 	}
-	if summaries[1].LowestPriceKobo != 0 {
-		t.Fatalf("lowest_price_kobo = %d, want 0", summaries[1].LowestPriceKobo)
+	if summaries[1].LowestPrice.AmountKobo != 0 {
+		t.Fatalf("lowest_price_kobo = %d, want 0", summaries[1].LowestPrice.AmountKobo)
 	}
 }
 
