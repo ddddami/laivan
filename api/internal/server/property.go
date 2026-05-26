@@ -347,7 +347,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		Title:              input.Title,
 		Description:        input.Description,
 		Notes:              input.Notes,
-		Price:              domain.Money{AmountKobo: input.PriceNaira * 100},
+		Price:              domain.Money{AmountKobo: domain.Kobo(input.PriceNaira)},
 		Status:             domain.AgentOfferStatus(input.Status),
 	})
 	if err != nil {
@@ -457,7 +457,7 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"description":           p.Description,
 		"unit_type_count":       p.UnitTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
-		"lowest_price_naira":    naira(p.LowestPrice),
+		"lowest_price_naira":    p.LowestPrice.Naira(),
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
@@ -511,7 +511,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"title":                 offer.Title,
 		"description":           offer.Description,
 		"notes":                 nullableString(offer.Notes),
-		"price_naira":           naira(offer.Price),
+		"price_naira":           offer.Price.Naira(),
 		"status":                string(offer.Status),
 		"created_at":            offer.CreatedAt.Format(time.RFC3339),
 		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
@@ -595,11 +595,6 @@ func mapItems[T any](items []T, fn func(T) map[string]any) []map[string]any {
 		result = append(result, fn(item))
 	}
 	return result
-}
-
-// naira converts Money from internal kobo storage to naira for API display.
-func naira(m domain.Money) int {
-	return m.AmountKobo / 100
 }
 
 // unitTypeDisplayName returns the unit type name, defaulting to the category
@@ -719,7 +714,7 @@ func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 			"kitchen_type":  nullableString(r.Structure.KitchenType),
 		},
 		"pricing": map[string]any{
-			"lowest_price_naira": naira(r.LowestPrice),
+			"lowest_price_naira": r.LowestPrice.Naira(),
 		},
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,

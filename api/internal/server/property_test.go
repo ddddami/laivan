@@ -914,11 +914,19 @@ func TestUnitTypeDisplayName(t *testing.T) {
 }
 
 func TestNairaConversion(t *testing.T) {
-	if got := naira(domain.Money{AmountKobo: 35000000}); got != 350000 {
+	m := domain.Money{AmountKobo: 35000000}
+	if got := m.Naira(); got != 350000 {
 		t.Fatalf("naira(35000000 kobo) = %d, want 350000", got)
 	}
-	if got := naira(domain.Money{AmountKobo: 0}); got != 0 {
+	m = domain.Money{AmountKobo: 0}
+	if got := m.Naira(); got != 0 {
 		t.Fatalf("naira(0 kobo) = %d, want 0", got)
+	}
+	if got := domain.Kobo(350000); got != 35000000 {
+		t.Fatalf("kobo(350000 naira) = %d, want 35000000", got)
+	}
+	if got := domain.Kobo(0); got != 0 {
+		t.Fatalf("kobo(0 naira) = %d, want 0", got)
 	}
 }
 

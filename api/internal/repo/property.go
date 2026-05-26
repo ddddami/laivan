@@ -177,12 +177,12 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	}
 	if filter.MinPrice != nil {
 		havingConditions += fmt.Sprintf(" AND lowest_price_kobo >= $%d", argPos)
-		args = append(args, *filter.MinPrice*100) // convert naira to kobo for filtering
+		args = append(args, domain.Kobo(*filter.MinPrice))
 		argPos++
 	}
 	if filter.MaxPrice != nil {
 		havingConditions += fmt.Sprintf(" AND lowest_price_kobo <= $%d", argPos)
-		args = append(args, *filter.MaxPrice*100) // convert naira to kobo for filtering
+		args = append(args, domain.Kobo(*filter.MaxPrice))
 		argPos++
 	}
 
@@ -288,12 +288,12 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 	havingClause := "TRUE"
 	if filter.MinPrice != nil {
 		havingClause += fmt.Sprintf(" AND lowest_price_kobo >= $%d", argPos)
-		args = append(args, *filter.MinPrice*100)
+		args = append(args, domain.Kobo(*filter.MinPrice))
 		argPos++
 	}
 	if filter.MaxPrice != nil {
 		havingClause += fmt.Sprintf(" AND lowest_price_kobo <= $%d", argPos)
-		args = append(args, *filter.MaxPrice*100)
+		args = append(args, domain.Kobo(*filter.MaxPrice))
 		argPos++
 	}
 
