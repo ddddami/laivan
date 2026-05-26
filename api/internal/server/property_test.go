@@ -315,7 +315,7 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 			Area                string `json:"area"`
 			RoomTypeCount       int32  `json:"room_type_count"`
 			AvailableOfferCount int32  `json:"available_offer_count"`
-			LowestPriceKobo     int32  `json:"lowest_price_kobo"`
+			LowestPriceNaira    int32  `json:"lowest_price_naira"`
 		} `json:"properties"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -337,8 +337,8 @@ func TestListPropertiesReturnsProperties(t *testing.T) {
 	if body.Properties[0].AvailableOfferCount != 5 {
 		t.Fatalf("available_offer_count = %d, want 5", body.Properties[0].AvailableOfferCount)
 	}
-	if body.Properties[0].LowestPriceKobo != 25000000 {
-		t.Fatalf("lowest_price_kobo = %d, want 25000000", body.Properties[0].LowestPriceKobo)
+	if body.Properties[0].LowestPriceNaira != 250000 {
+		t.Fatalf("lowest_price_naira = %d, want 250000", body.Properties[0].LowestPriceNaira)
 	}
 }
 
@@ -361,8 +361,8 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 				ID          string `json:"id"`
 				Name        string `json:"name"`
 				AgentOffers []struct {
-					Title     string `json:"title"`
-					PriceKobo int32  `json:"price_kobo"`
+					Title      string `json:"title"`
+					PriceNaira int32  `json:"price_naira"`
 				} `json:"agent_offers"`
 			} `json:"room_types"`
 		} `json:"property"`
@@ -383,8 +383,8 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 	if len(body.Property.RoomTypes[0].AgentOffers) != 1 {
 		t.Fatalf("agent offers length = %d, want 1", len(body.Property.RoomTypes[0].AgentOffers))
 	}
-	if body.Property.RoomTypes[0].AgentOffers[0].PriceKobo != 35000000 {
-		t.Fatalf("price_kobo = %d, want 35000000", body.Property.RoomTypes[0].AgentOffers[0].PriceKobo)
+	if body.Property.RoomTypes[0].AgentOffers[0].PriceNaira != 350000 {
+		t.Fatalf("price_naira = %d, want 350000", body.Property.RoomTypes[0].AgentOffers[0].PriceNaira)
 	}
 }
 
@@ -545,7 +545,7 @@ func TestListRoomTypesPropertyNotFound(t *testing.T) {
 
 func TestCreateAgentOfferValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"agent_id":"","title":"","price_kobo":0,"status":"gone"}`
+	body := `{"agent_id":"","title":"","price_naira":0,"status":"gone"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/not-a-uuid/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -565,7 +565,7 @@ func TestCreateAgentOfferValidationErrors(t *testing.T) {
 		t.Fatalf("decode response body: %v", err)
 	}
 
-	for _, field := range []string{"id", "agent_id", "title", "price_kobo", "status"} {
+	for _, field := range []string{"id", "agent_id", "title", "price_naira", "status"} {
 		if bodyDecoded.Error.Fields[field] == "" {
 			t.Fatalf("%s validation error missing", field)
 		}
@@ -574,7 +574,7 @@ func TestCreateAgentOfferValidationErrors(t *testing.T) {
 
 func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_kobo":35000000}`
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_naira":350000}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -589,7 +589,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 			RoomTypeID string `json:"room_type_id"`
 			AgentID    string `json:"agent_id"`
 			Title      string `json:"title"`
-			PriceKobo  int32  `json:"price_kobo"`
+			PriceNaira int32  `json:"price_naira"`
 			Status     string `json:"status"`
 		} `json:"agent_offer"`
 	}
@@ -600,17 +600,79 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 	if bodyDecoded.AgentOffer.Title != "Fresh self-contained room" {
 		t.Fatalf("title = %q, want Fresh self-contained room", bodyDecoded.AgentOffer.Title)
 	}
-	if bodyDecoded.AgentOffer.PriceKobo != 35000000 {
-		t.Fatalf("price_kobo = %d, want 35000000", bodyDecoded.AgentOffer.PriceKobo)
+	if bodyDecoded.AgentOffer.PriceNaira != 350000 {
+		t.Fatalf("price_naira = %d, want 350000", bodyDecoded.AgentOffer.PriceNaira)
 	}
 	if bodyDecoded.AgentOffer.Status != "available" {
 		t.Fatalf("status = %q, want available", bodyDecoded.AgentOffer.Status)
 	}
 }
 
+func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
+	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	if spy.createdOffer.Price.AmountKobo != 35000000 {
+		t.Fatalf("stored price = %d kobo, want 35000000", spy.createdOffer.Price.AmountKobo)
+	}
+}
+
+type spyPropertyRepo struct {
+	stub         *stubPropertyRepo
+	createdOffer domain.AgentOffer
+}
+
+func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+	return s.stub.Create(ctx, property)
+}
+
+func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
+	return s.stub.Get(ctx, id)
+}
+
+func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	return s.stub.GetWithDetails(ctx, id)
+}
+
+func (s *spyPropertyRepo) List(ctx context.Context, filter repo.PropertyListFilter) ([]domain.Property, error) {
+	return s.stub.List(ctx, filter)
+}
+
+func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, error) {
+	return s.stub.ListWithSummary(ctx, filter)
+}
+
+func (s *spyPropertyRepo) CreateRoomType(ctx context.Context, roomType domain.RoomType) (domain.RoomType, error) {
+	return s.stub.CreateRoomType(ctx, roomType)
+}
+
+func (s *spyPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.ID) ([]domain.RoomType, error) {
+	return s.stub.ListRoomTypes(ctx, propertyID)
+}
+
+func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	s.createdOffer = offer
+	return s.stub.CreateAgentOffer(ctx, offer)
+}
+
+func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
+	return s.stub.ListAgentOffers(ctx, roomTypeID)
+}
+
 func TestCreateAgentOfferRoomTypeNotFound(t *testing.T) {
 	app := testAppWithRepo()
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_kobo":35000000}`
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/11111111-1111-1111-1111-111111111111/agent-offers", strings.NewReader(body))
 	rr := httptest.NewRecorder()
 
@@ -634,7 +696,7 @@ func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 		AgentOffers []struct {
 			RoomTypeID string `json:"room_type_id"`
 			Title      string `json:"title"`
-			PriceKobo  int32  `json:"price_kobo"`
+			PriceNaira int32  `json:"price_naira"`
 		} `json:"agent_offers"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {

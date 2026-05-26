@@ -331,6 +331,72 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	roomTypeID := insertRoomType(t, ctx, pool, propertyID, "Self-contained")
+	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	repository := NewPropertyRepository(pool)
+
+	// Simulate what handler does: convert 350000 naira to 35000000 kobo
+	nairaInput := int32(350000)
+	koboStored := nairaInput * 100
+
+	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		RoomTypeID:  roomTypeID,
+		AgentID:     agentID,
+		Title:       "Fresh self-contained room",
+		Description: "Recently painted room with private bathroom.",
+		Price:       domain.Money{AmountKobo: koboStored},
+		Status:      domain.AgentOfferStatusAvailable,
+	})
+	if err != nil {
+		t.Fatalf("create agent offer: %v", err)
+	}
+
+	// Verify stored as kobo
+	if created.Price.AmountKobo != 35000000 {
+		t.Fatalf("stored price = %d kobo, want 35000000", created.Price.AmountKobo)
+	}
+
+	// Verify raw DB value is kobo
+	var rawPriceKobo int32
+	queryCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	err = pool.QueryRow(queryCtx, `
+		SELECT price_kobo FROM agent_offers WHERE id = $1
+	`, string(created.ID)).Scan(&rawPriceKobo)
+	if err != nil {
+		t.Fatalf("query raw price: %v", err)
+	}
+	if rawPriceKobo != 35000000 {
+		t.Fatalf("raw DB price = %d kobo, want 35000000", rawPriceKobo)
+	}
+
+	// Verify fetched back as kobo (handler converts to naira for display)
+	listed, err := repository.ListAgentOffers(ctx, roomTypeID)
+	if err != nil {
+		t.Fatalf("list agent offers: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(listed))
+	}
+	if listed[0].Price.AmountKobo != 35000000 {
+		t.Fatalf("fetched price = %d kobo, want 35000000", listed[0].Price.AmountKobo)
+	}
+}
+
 func TestPropertyRepositoryAgentOffersRoomTypeNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)

@@ -94,7 +94,7 @@ paths:
                         description: Gated lodge with multiple room categories near campus.
                         room_type_count: 3
                         available_offer_count: 5
-                        lowest_price_kobo: 25000000
+                        lowest_price_naira: 250000
                         created_at: "2026-05-01T10:00:00Z"
                         updated_at: "2026-05-01T10:00:00Z"
         "422":
@@ -273,7 +273,7 @@ paths:
                         agent_id: 550e8400-e29b-41d4-a716-446655440040
                         title: Fresh self-contained room
                         description: Recently painted room with private bathroom.
-                        price_kobo: 35000000
+                        price_naira: 350000
                         status: available
                         created_at: "2026-05-01T10:00:00Z"
                         updated_at: "2026-05-01T10:00:00Z"
@@ -309,7 +309,7 @@ paths:
                   agent_id: 550e8400-e29b-41d4-a716-446655440040
                   title: Fresh self-contained room
                   description: Recently painted room with private bathroom.
-                  price_kobo: 35000000
+                  price_naira: 350000
                   status: available
       responses:
         "201":
@@ -447,7 +447,7 @@ components:
         - description
         - room_type_count
         - available_offer_count
-        - lowest_price_kobo
+        - lowest_price_naira
         - created_at
         - updated_at
       properties:
@@ -475,10 +475,10 @@ components:
           type: integer
           minimum: 0
           description: Number of currently available agent offers across all room types.
-        lowest_price_kobo:
+        lowest_price_naira:
           type: integer
           minimum: 0
-          description: Lowest price among available offers. 0 when no offers exist.
+          description: Lowest price among available offers in whole Naira. 0 when no offers exist.
         created_at:
           type: string
           format: date-time
@@ -534,7 +534,7 @@ components:
       required:
         - agent_id
         - title
-        - price_kobo
+        - price_naira
       properties:
         agent_id:
           type: string
@@ -546,7 +546,7 @@ components:
         description:
           type: string
           maxLength: 1000
-        price_kobo:
+        price_naira:
           type: integer
           minimum: 1
         status:
@@ -565,7 +565,7 @@ components:
         - agent_id
         - title
         - description
-        - price_kobo
+        - price_naira
         - status
         - created_at
         - updated_at
@@ -584,7 +584,7 @@ components:
         description:
           type: string
           description: Agent-specific offer description. May be empty when unavailable.
-        price_kobo:
+        price_naira:
           type: integer
           minimum: 1
         status:

@@ -265,7 +265,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		AgentID     string `json:"agent_id"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
-		PriceKobo   int32  `json:"price_kobo"`
+		PriceNaira  int32  `json:"price_naira"`
 		Status      string `json:"status"`
 	}
 
@@ -286,7 +286,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	v.Check(validator.NotBlank(input.Title), "title", "Title is required")
 	v.Check(validator.MaxChars(input.Title, 255), "title", "Title must not exceed 255 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
-	v.Check(input.PriceKobo > 0, "price_kobo", "Price must be greater than 0")
+	v.Check(input.PriceNaira > 0, "price_naira", "Price must be greater than 0")
 	v.Check(validAgentOfferStatus(input.Status), "status", "Status must be available, unavailable, or paused")
 
 	if !v.Valid() {
@@ -299,7 +299,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		AgentID:     domain.ID(input.AgentID),
 		Title:       input.Title,
 		Description: input.Description,
-		Price:       domain.Money{AmountKobo: input.PriceKobo},
+		Price:       domain.Money{AmountKobo: input.PriceNaira * 100},
 		Status:      domain.AgentOfferStatus(input.Status),
 	})
 	if err != nil {
@@ -418,7 +418,7 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"description":           p.Description,
 		"room_type_count":       p.RoomTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
-		"lowest_price_kobo":     p.LowestPriceKobo,
+		"lowest_price_naira":    p.LowestPriceKobo / 100,
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
@@ -475,7 +475,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"agent_id":     string(offer.AgentID),
 		"title":        offer.Title,
 		"description":  offer.Description,
-		"price_kobo":   offer.Price.AmountKobo,
+		"price_naira":  offer.Price.AmountKobo / 100,
 		"status":       string(offer.Status),
 		"created_at":   offer.CreatedAt.Format(time.RFC3339),
 		"updated_at":   offer.UpdatedAt.Format(time.RFC3339),
