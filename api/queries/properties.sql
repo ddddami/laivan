@@ -16,18 +16,18 @@ ORDER BY created_at DESC, id DESC
 LIMIT $2;
 
 -- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, name, description)
-VALUES ($1, $2, $3)
-RETURNING id, property_id, name, description, created_at, updated_at;
+INSERT INTO property_unit_types (property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type;
 
 -- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC;
 
 -- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
 FROM property_unit_types
 WHERE id = $1;
 

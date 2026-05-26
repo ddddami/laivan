@@ -219,8 +219,13 @@ paths:
                     unit_types:
                       - id: 550e8400-e29b-41d4-a716-446655440020
                         property_id: 550e8400-e29b-41d4-a716-446655440010
+                        category: self_contained
                         name: Self-contained
                         description: Private room with bathroom and kitchenette.
+                        bedroom_count: 1
+                        has_parlour: false
+                        bathroom_type: private
+                        kitchen_type: private
                         created_at: "2026-05-01T10:00:00Z"
                         updated_at: "2026-05-01T10:00:00Z"
         "404":
@@ -252,8 +257,13 @@ paths:
             examples:
               unitType:
                 value:
+                  category: self_contained
                   name: Self-contained
                   description: Private room with bathroom and kitchenette.
+                  bedroom_count: 1
+                  has_parlour: false
+                  bathroom_type: private
+                  kitchen_type: private
       responses:
         "201":
           description: Unit type created successfully.
@@ -518,8 +528,11 @@ components:
       type: object
       additionalProperties: false
       required:
+        - category
         - name
       properties:
+        category:
+          $ref: "#/components/schemas/UnitCategory"
         name:
           type: string
           minLength: 1
@@ -527,14 +540,54 @@ components:
         description:
           type: string
           maxLength: 1000
+        bedroom_count:
+          type: integer
+          minimum: 0
+        has_parlour:
+          type: boolean
+        bathroom_type:
+          $ref: "#/components/schemas/BathroomType"
+        kitchen_type:
+          $ref: "#/components/schemas/KitchenType"
+
+    UnitCategory:
+      type: string
+      enum:
+        - single_room
+        - self_contained
+        - room_and_parlour
+        - one_bedroom_flat
+        - two_bedroom_flat
+        - three_bedroom_flat
+        - other
+
+    BathroomType:
+      type: string
+      enum:
+        - private
+        - shared
+        - unknown
+
+    KitchenType:
+      type: string
+      enum:
+        - private
+        - shared
+        - none
+        - unknown
 
     UnitType:
       type: object
       required:
         - id
         - property_id
+        - category
         - name
         - description
+        - bedroom_count
+        - has_parlour
+        - bathroom_type
+        - kitchen_type
         - created_at
         - updated_at
       properties:
@@ -544,11 +597,30 @@ components:
         property_id:
           type: string
           format: uuid
+        category:
+          $ref: "#/components/schemas/UnitCategory"
         name:
           type: string
         description:
           type: string
           description: Unit type description. May be empty when unavailable.
+        bedroom_count:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        has_parlour:
+          type:
+            - boolean
+            - "null"
+        bathroom_type:
+          anyOf:
+            - $ref: "#/components/schemas/BathroomType"
+            - type: "null"
+        kitchen_type:
+          anyOf:
+            - $ref: "#/components/schemas/KitchenType"
+            - type: "null"
         created_at:
           type: string
           format: date-time
@@ -633,8 +705,13 @@ components:
       required:
         - id
         - property_id
+        - category
         - name
         - description
+        - bedroom_count
+        - has_parlour
+        - bathroom_type
+        - kitchen_type
         - agent_offers
         - created_at
         - updated_at
@@ -645,11 +722,30 @@ components:
         property_id:
           type: string
           format: uuid
+        category:
+          $ref: "#/components/schemas/UnitCategory"
         name:
           type: string
         description:
           type: string
           description: Unit type description. May be empty when unavailable.
+        bedroom_count:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        has_parlour:
+          type:
+            - boolean
+            - "null"
+        bathroom_type:
+          anyOf:
+            - $ref: "#/components/schemas/BathroomType"
+            - type: "null"
+        kitchen_type:
+          anyOf:
+            - $ref: "#/components/schemas/KitchenType"
+            - type: "null"
         agent_offers:
           type: array
           items:

@@ -63,10 +63,15 @@ type Property struct {
 }
 
 type PropertyUnitType struct {
-	ID          pgtype.UUID
-	PropertyID  pgtype.UUID
-	Name        string
-	Description pgtype.Text
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID           pgtype.UUID
+	PropertyID   pgtype.UUID
+	Name         string
+	Description  pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Category     string
+	BedroomCount pgtype.Int4
+	HasParlour   pgtype.Bool
+	BathroomType pgtype.Text
+	KitchenType  pgtype.Text
 }

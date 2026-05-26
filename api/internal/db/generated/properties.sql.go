@@ -87,19 +87,33 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 }
 
 const createPropertyUnitType = `-- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, name, description)
-VALUES ($1, $2, $3)
-RETURNING id, property_id, name, description, created_at, updated_at
+INSERT INTO property_unit_types (property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
 `
 
 type CreatePropertyUnitTypeParams struct {
-	PropertyID  pgtype.UUID
-	Name        string
-	Description pgtype.Text
+	PropertyID   pgtype.UUID
+	Category     string
+	Name         string
+	Description  pgtype.Text
+	BedroomCount pgtype.Int4
+	HasParlour   pgtype.Bool
+	BathroomType pgtype.Text
+	KitchenType  pgtype.Text
 }
 
 func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreatePropertyUnitTypeParams) (PropertyUnitType, error) {
-	row := q.db.QueryRow(ctx, createPropertyUnitType, arg.PropertyID, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createPropertyUnitType,
+		arg.PropertyID,
+		arg.Category,
+		arg.Name,
+		arg.Description,
+		arg.BedroomCount,
+		arg.HasParlour,
+		arg.BathroomType,
+		arg.KitchenType,
+	)
 	var i PropertyUnitType
 	err := row.Scan(
 		&i.ID,
@@ -108,6 +122,11 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Category,
+		&i.BedroomCount,
+		&i.HasParlour,
+		&i.BathroomType,
+		&i.KitchenType,
 	)
 	return i, err
 }
@@ -135,7 +154,7 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 }
 
 const getPropertyUnitType = `-- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
 FROM property_unit_types
 WHERE id = $1
 `
@@ -150,6 +169,11 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Category,
+		&i.BedroomCount,
+		&i.HasParlour,
+		&i.BathroomType,
+		&i.KitchenType,
 	)
 	return i, err
 }
@@ -300,7 +324,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 }
 
 const listPropertyUnitTypesByProperty = `-- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC
@@ -322,6 +346,11 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Category,
+			&i.BedroomCount,
+			&i.HasParlour,
+			&i.BathroomType,
+			&i.KitchenType,
 		); err != nil {
 			return nil, err
 		}
