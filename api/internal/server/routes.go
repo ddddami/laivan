@@ -16,6 +16,9 @@ func (app *app) routes() http.Handler {
 	r.MethodNotAllowed(app.methodNotAllowedResponse)
 
 	r.Get("/healthz", app.healthz)
+	r.Get("/docs", app.docs)
+	r.Get("/docs/", app.docs)
+	r.Get("/openapi.yaml", app.openapi)
 
 	r.Route("/v1/properties", func(r chi.Router) {
 		r.Get("/", app.listProperties)
