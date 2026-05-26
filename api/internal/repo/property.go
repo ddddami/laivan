@@ -153,6 +153,68 @@ func (r *PropertyRepository) ListRoomTypes(ctx context.Context, propertyID domai
 	return roomTypes, nil
 }
 
+func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	roomTypeUUID, err := uuidParam(offer.RoomTypeID)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+	agentUUID, err := uuidParam(offer.AgentID)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+
+	row, err := r.queries.CreateAgentOffer(ctx, generateddb.CreateAgentOfferParams{
+		RoomTypeID:  roomTypeUUID,
+		AgentID:     agentUUID,
+		Title:       offer.Title,
+		Description: textParam(offer.Description),
+		PriceKobo:   offer.Price.AmountKobo,
+		Status:      string(offer.Status),
+	})
+	if err != nil {
+		if isForeignKeyViolation(err) {
+			return domain.AgentOffer{}, ErrNotFound
+		}
+
+		return domain.AgentOffer{}, fmt.Errorf("create agent offer: %w", err)
+	}
+
+	return agentOfferFromRow(row), nil
+}
+
+func (r *PropertyRepository) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	roomTypeUUID, err := uuidParam(roomTypeID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := r.queries.GetRoomType(ctx, roomTypeUUID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get room type for agent offers: %w", err)
+	}
+
+	rows, err := r.queries.ListAgentOffersByRoomType(ctx, roomTypeUUID)
+	if err != nil {
+		return nil, fmt.Errorf("list agent offers: %w", err)
+	}
+
+	offers := make([]domain.AgentOffer, 0, len(rows))
+	for _, row := range rows {
+		offers = append(offers, agentOfferFromRow(row))
+	}
+
+	return offers, nil
+}
+
 func propertyFromRow(row generateddb.Property) domain.Property {
 	return domain.Property{
 		ID:       domain.ID(uuidString(row.ID)),
@@ -176,6 +238,22 @@ func roomTypeFromRow(row generateddb.RoomType) domain.RoomType {
 		PropertyID:  domain.ID(uuidString(row.PropertyID)),
 		Name:        row.Name,
 		Description: textString(row.Description),
+		Timestamps: domain.Timestamps{
+			CreatedAt: row.CreatedAt.Time,
+			UpdatedAt: row.UpdatedAt.Time,
+		},
+	}
+}
+
+func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
+	return domain.AgentOffer{
+		ID:          domain.ID(uuidString(row.ID)),
+		RoomTypeID:  domain.ID(uuidString(row.RoomTypeID)),
+		AgentID:     domain.ID(uuidString(row.AgentID)),
+		Title:       row.Title,
+		Description: textString(row.Description),
+		Price:       domain.Money{AmountKobo: row.PriceKobo},
+		Status:      domain.AgentOfferStatus(row.Status),
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,

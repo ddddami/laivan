@@ -41,7 +41,7 @@ func (s *stubPropertyRepo) List(ctx context.Context, filter repo.PropertyListFil
 			CampusID:    filter.CampusID,
 			Name:        "Alice Lodge",
 			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
-			Description: "Self-contained rooms close to FUTA.",
+			Description: "Gated lodge with multiple room categories near campus.",
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -72,6 +72,39 @@ func (s *stubPropertyRepo) ListRoomTypes(ctx context.Context, propertyID domain.
 			PropertyID:  propertyID,
 			Name:        "Self-contained",
 			Description: "Private room with bathroom and kitchenette.",
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}, nil
+}
+
+func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	if string(offer.RoomTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+		return domain.AgentOffer{}, repo.ErrNotFound
+	}
+
+	offer.ID = domain.ID("550e8400-e29b-41d4-a716-446655440030")
+	offer.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	offer.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return offer, nil
+}
+
+func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, roomTypeID domain.ID) ([]domain.AgentOffer, error) {
+	if string(roomTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+		return nil, repo.ErrNotFound
+	}
+
+	return []domain.AgentOffer{
+		{
+			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+			RoomTypeID:  roomTypeID,
+			AgentID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+			Title:       "Fresh self-contained room",
+			Description: "Recently painted room with private bathroom.",
+			Price:       domain.Money{AmountKobo: 35000000},
+			Status:      domain.AgentOfferStatusAvailable,
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -375,6 +408,122 @@ func TestListRoomTypesReturnsRoomTypes(t *testing.T) {
 func TestListRoomTypesPropertyNotFound(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/properties/11111111-1111-1111-1111-111111111111/room-types", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestCreateAgentOfferValidationErrors(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"agent_id":"","title":"","price_kobo":0,"status":"gone"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/not-a-uuid/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Code   string            `json:"code"`
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	for _, field := range []string{"id", "agent_id", "title", "price_kobo", "status"} {
+		if bodyDecoded.Error.Fields[field] == "" {
+			t.Fatalf("%s validation error missing", field)
+		}
+	}
+}
+
+func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_kobo":35000000}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	var bodyDecoded struct {
+		AgentOffer struct {
+			RoomTypeID string `json:"room_type_id"`
+			AgentID    string `json:"agent_id"`
+			Title      string `json:"title"`
+			PriceKobo  int32  `json:"price_kobo"`
+			Status     string `json:"status"`
+		} `json:"agent_offer"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if bodyDecoded.AgentOffer.Title != "Fresh self-contained room" {
+		t.Fatalf("title = %q, want Fresh self-contained room", bodyDecoded.AgentOffer.Title)
+	}
+	if bodyDecoded.AgentOffer.PriceKobo != 35000000 {
+		t.Fatalf("price_kobo = %d, want 35000000", bodyDecoded.AgentOffer.PriceKobo)
+	}
+	if bodyDecoded.AgentOffer.Status != "available" {
+		t.Fatalf("status = %q, want available", bodyDecoded.AgentOffer.Status)
+	}
+}
+
+func TestCreateAgentOfferRoomTypeNotFound(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_kobo":35000000}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/room-types/11111111-1111-1111-1111-111111111111/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/room-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body struct {
+		AgentOffers []struct {
+			RoomTypeID string `json:"room_type_id"`
+			Title      string `json:"title"`
+			PriceKobo  int32  `json:"price_kobo"`
+		} `json:"agent_offers"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+
+	if len(body.AgentOffers) != 1 {
+		t.Fatalf("agent offers length = %d, want 1", len(body.AgentOffers))
+	}
+	if body.AgentOffers[0].Title != "Fresh self-contained room" {
+		t.Fatalf("title = %q, want Fresh self-contained room", body.AgentOffers[0].Title)
+	}
+}
+
+func TestListAgentOffersRoomTypeNotFound(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/room-types/11111111-1111-1111-1111-111111111111/agent-offers", nil)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
