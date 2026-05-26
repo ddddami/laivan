@@ -14,6 +14,7 @@ type AgentOffer struct {
 	AgentID            ID
 	Title              string
 	Description        string
+	Notes              string
 	Price              Money
 	Status             AgentOfferStatus
 	Timestamps

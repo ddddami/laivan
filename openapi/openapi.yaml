@@ -222,6 +222,7 @@ paths:
                         category: self_contained
                         name: Self-contained
                         description: Private room with bathroom and kitchenette.
+                        notes: Top floor corner unit with better ventilation.
                         bedroom_count: 1
                         has_parlour: false
                         bathroom_type: private
@@ -260,6 +261,7 @@ paths:
                   category: self_contained
                   name: Self-contained
                   description: Private room with bathroom and kitchenette.
+                  notes: Top floor corner unit with better ventilation.
                   bedroom_count: 1
                   has_parlour: false
                   bathroom_type: private
@@ -311,6 +313,7 @@ paths:
                         agent_id: 550e8400-e29b-41d4-a716-446655440040
                         title: Fresh self-contained room
                         description: Recently painted room with private bathroom.
+                        notes: 2 left. Inspection tomorrow only.
                         price_naira: 350000
                         status: available
                         created_at: "2026-05-01T10:00:00Z"
@@ -347,6 +350,7 @@ paths:
                   agent_id: 550e8400-e29b-41d4-a716-446655440040
                   title: Fresh self-contained room
                   description: Recently painted room with private bathroom.
+                  notes: 2 left. Inspection tomorrow only.
                   price_naira: 350000
                   status: available
       responses:
@@ -540,6 +544,10 @@ components:
         description:
           type: string
           maxLength: 1000
+        notes:
+          type: string
+          maxLength: 2000
+          description: Structural notes about the unit. Examples include "Kitchen is outside but private" or "Top floor corner unit."
         bedroom_count:
           type: integer
           minimum: 0
@@ -604,6 +612,12 @@ components:
         description:
           type: string
           description: Unit type description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+          description: Structural notes about the unit. Examples include "Kitchen is outside but private" or "Top floor corner unit."
         bedroom_count:
           type:
             - integer
@@ -646,6 +660,10 @@ components:
         description:
           type: string
           maxLength: 1000
+        notes:
+          type: string
+          maxLength: 2000
+          description: Operational notes about the offer. Examples include "2 left" or "Inspection tomorrow only."
         price_naira:
           type: integer
           minimum: 1
@@ -684,6 +702,12 @@ components:
         description:
           type: string
           description: Agent-specific offer description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+          description: Operational notes about the offer. Examples include "2 left" or "Inspection tomorrow only."
         price_naira:
           type: integer
           minimum: 1

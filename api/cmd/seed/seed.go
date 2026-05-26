@@ -97,20 +97,21 @@ func seedProperties(ctx context.Context, tx pgx.Tx, campusID string) error {
 func seedPropertyUnitTypes(ctx context.Context, tx pgx.Tx) error {
 	for _, unitType := range unitTypes {
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO property_unit_types (id, property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+			INSERT INTO property_unit_types (id, property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
 			ON CONFLICT (id) DO UPDATE SET
 			  property_id = EXCLUDED.property_id,
 			  category = EXCLUDED.category,
 			  name = EXCLUDED.name,
 			  description = EXCLUDED.description,
+			  notes = EXCLUDED.notes,
 			  bedroom_count = EXCLUDED.bedroom_count,
 			  has_parlour = EXCLUDED.has_parlour,
 			  bathroom_type = EXCLUDED.bathroom_type,
 			  kitchen_type = EXCLUDED.kitchen_type,
 			  created_at = EXCLUDED.created_at,
 			  updated_at = now()
-		`, unitType.ID, unitType.PropertyID, unitType.Category, unitType.Name, unitType.Description, unitType.BedroomCount, unitType.HasParlour, unitType.BathroomType, unitType.KitchenType, unitType.CreatedAt); err != nil {
+		`, unitType.ID, unitType.PropertyID, unitType.Category, unitType.Name, unitType.Description, unitType.Notes, unitType.BedroomCount, unitType.HasParlour, unitType.BathroomType, unitType.KitchenType, unitType.CreatedAt); err != nil {
 			return fmt.Errorf("seed property unit type %s: %w", unitType.ID, err)
 		}
 	}
@@ -121,16 +122,17 @@ func seedPropertyUnitTypes(ctx context.Context, tx pgx.Tx) error {
 func seedAgentOffers(ctx context.Context, tx pgx.Tx) error {
 	for _, offer := range agentOffers {
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO agent_offers (id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+			INSERT INTO agent_offers (id, property_unit_type_id, agent_id, title, description, notes, price_kobo, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
 			ON CONFLICT (property_unit_type_id, agent_id) DO UPDATE SET
 			  title = EXCLUDED.title,
 			  description = EXCLUDED.description,
+			  notes = EXCLUDED.notes,
 			  price_kobo = EXCLUDED.price_kobo,
 			  status = EXCLUDED.status,
 			  created_at = EXCLUDED.created_at,
 			  updated_at = now()
-		`, offer.ID, offer.UnitTypeID, offer.AgentID, offer.Title, offer.Description, offer.PriceKobo, offer.Status, offer.CreatedAt); err != nil {
+		`, offer.ID, offer.UnitTypeID, offer.AgentID, offer.Title, offer.Description, offer.Notes, offer.PriceKobo, offer.Status, offer.CreatedAt); err != nil {
 			return fmt.Errorf("seed agent offer %s: %w", offer.ID, err)
 		}
 	}

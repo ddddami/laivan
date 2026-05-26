@@ -18,6 +18,7 @@ type PropertyUnitType struct {
 	Category    UnitCategory
 	Name        string
 	Description string
+	Notes       string
 	Structure   UnitStructure
 	Timestamps
 }

@@ -12,9 +12,9 @@ import (
 )
 
 const createAgentOffer = `-- name: CreateAgentOffer :one
-INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, price_kobo, status)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at
+INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
 `
 
 type CreateAgentOfferParams struct {
@@ -22,6 +22,7 @@ type CreateAgentOfferParams struct {
 	AgentID            pgtype.UUID
 	Title              string
 	Description        pgtype.Text
+	Notes              pgtype.Text
 	PriceKobo          int
 	Status             string
 }
@@ -32,6 +33,7 @@ func (q *Queries) CreateAgentOffer(ctx context.Context, arg CreateAgentOfferPara
 		arg.AgentID,
 		arg.Title,
 		arg.Description,
+		arg.Notes,
 		arg.PriceKobo,
 		arg.Status,
 	)
@@ -46,6 +48,7 @@ func (q *Queries) CreateAgentOffer(ctx context.Context, arg CreateAgentOfferPara
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Notes,
 	)
 	return i, err
 }
@@ -87,9 +90,9 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 }
 
 const createPropertyUnitType = `-- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
+INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
 `
 
 type CreatePropertyUnitTypeParams struct {
@@ -97,6 +100,7 @@ type CreatePropertyUnitTypeParams struct {
 	Category     string
 	Name         string
 	Description  pgtype.Text
+	Notes        pgtype.Text
 	BedroomCount pgtype.Int4
 	HasParlour   pgtype.Bool
 	BathroomType pgtype.Text
@@ -109,6 +113,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		arg.Category,
 		arg.Name,
 		arg.Description,
+		arg.Notes,
 		arg.BedroomCount,
 		arg.HasParlour,
 		arg.BathroomType,
@@ -127,6 +132,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		&i.HasParlour,
 		&i.BathroomType,
 		&i.KitchenType,
+		&i.Notes,
 	)
 	return i, err
 }
@@ -154,7 +160,7 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 }
 
 const getPropertyUnitType = `-- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
 FROM property_unit_types
 WHERE id = $1
 `
@@ -174,12 +180,13 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 		&i.HasParlour,
 		&i.BathroomType,
 		&i.KitchenType,
+		&i.Notes,
 	)
 	return i, err
 }
 
 const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC
@@ -204,6 +211,7 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Notes,
 		); err != nil {
 			return nil, err
 		}
@@ -324,7 +332,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 }
 
 const listPropertyUnitTypesByProperty = `-- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC
@@ -351,6 +359,7 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 			&i.HasParlour,
 			&i.BathroomType,
 			&i.KitchenType,
+			&i.Notes,
 		); err != nil {
 			return nil, err
 		}

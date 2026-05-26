@@ -207,6 +207,7 @@ func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitTyp
 		Category:     string(unitType.Category),
 		Name:         unitType.Name,
 		Description:  textParam(unitType.Description),
+		Notes:        textParam(unitType.Notes),
 		BedroomCount: intParam(unitType.Structure.BedroomCount),
 		HasParlour:   boolParam(unitType.Structure.HasParlour),
 		BathroomType: textParam(unitType.Structure.BathroomType),
@@ -271,6 +272,7 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 		AgentID:            agentUUID,
 		Title:              offer.Title,
 		Description:        textParam(offer.Description),
+		Notes:              textParam(offer.Notes),
 		PriceKobo:          offer.Price.AmountKobo,
 		Status:             string(offer.Status),
 	})
@@ -339,6 +341,7 @@ func propertyUnitTypeFromRow(row generateddb.PropertyUnitType) domain.PropertyUn
 		Category:    domain.UnitCategory(row.Category),
 		Name:        row.Name,
 		Description: textString(row.Description),
+		Notes:       textString(row.Notes),
 		Structure: domain.UnitStructure{
 			BedroomCount: intPointer(row.BedroomCount),
 			HasParlour:   boolPointer(row.HasParlour),
@@ -359,6 +362,7 @@ func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
 		AgentID:            domain.ID(uuidString(row.AgentID)),
 		Title:              row.Title,
 		Description:        textString(row.Description),
+		Notes:              textString(row.Notes),
 		Price:              domain.Money{AmountKobo: row.PriceKobo},
 		Status:             domain.AgentOfferStatus(row.Status),
 		Timestamps: domain.Timestamps{

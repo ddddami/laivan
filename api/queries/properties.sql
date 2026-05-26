@@ -16,28 +16,28 @@ ORDER BY created_at DESC, id DESC
 LIMIT $2;
 
 -- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, category, name, description, bedroom_count, has_parlour, bathroom_type, kitchen_type)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type;
+INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes;
 
 -- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC;
 
 -- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
 FROM property_unit_types
 WHERE id = $1;
 
 -- name: CreateAgentOffer :one
-INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, price_kobo, status)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at;
+INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes;
 
 -- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC;
