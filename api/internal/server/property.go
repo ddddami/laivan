@@ -19,7 +19,7 @@ const (
 )
 
 func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -73,7 +73,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 		filter.MaxPrice = &maxPrice
 	}
 
-	properties, totalRecords, err := app.propertyRepo.ListWithSummary(r.Context(), filter)
+	properties, totalRecords, err := app.marketplaceRepo.ListWithSummary(r.Context(), filter)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("list properties: %w", err))
 		return
@@ -90,7 +90,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -133,7 +133,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		Description: input.Description,
 	}
 
-	created, err := app.propertyRepo.Create(r.Context(), property)
+	created, err := app.marketplaceRepo.Create(r.Context(), property)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("create property: %w", err))
 		return
@@ -149,7 +149,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -164,7 +164,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	property, err := app.propertyRepo.GetWithDetails(r.Context(), domain.ID(id))
+	property, err := app.marketplaceRepo.GetWithDetails(r.Context(), domain.ID(id))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
@@ -185,7 +185,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -230,7 +230,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := app.propertyRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
+	created, err := app.marketplaceRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
 		PropertyID:  domain.ID(propertyID),
 		Category:    domain.UnitCategory(input.Category),
 		Name:        input.Name,
@@ -263,7 +263,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -278,7 +278,7 @@ func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unitTypes, err := app.propertyRepo.ListPropertyUnitTypes(r.Context(), domain.ID(propertyID))
+	unitTypes, err := app.marketplaceRepo.ListPropertyUnitTypes(r.Context(), domain.ID(propertyID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
@@ -299,7 +299,7 @@ func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -341,7 +341,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := app.propertyRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
+	created, err := app.marketplaceRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
 		PropertyUnitTypeID: domain.ID(unitTypeID),
 		AgentID:            domain.ID(input.AgentID),
 		Title:              input.Title,
@@ -370,7 +370,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -385,7 +385,7 @@ func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offers, err := app.propertyRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
+	offers, err := app.marketplaceRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)
@@ -615,7 +615,7 @@ func unitTypeDisplayNameFromResult(r domain.DiscoveryResult) string {
 }
 
 func (app *app) discover(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
+	if app.marketplaceRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -674,7 +674,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 		filter.MaxPrice = &maxPrice
 	}
 
-	results, totalRecords, err := app.propertyRepo.Discover(r.Context(), filter)
+	results, totalRecords, err := app.marketplaceRepo.Discover(r.Context(), filter)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("discover: %w", err))
 		return
