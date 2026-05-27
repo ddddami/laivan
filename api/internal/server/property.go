@@ -184,10 +184,6 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func propertiesResponse(properties []domain.Property) []map[string]any {
-	return mapItems(properties, propertyResponse)
-}
-
 func propertyResponse(p domain.Property) map[string]any {
 	return map[string]any{
 		"id":          string(p.ID),
