@@ -1,0 +1,133 @@
+name: API
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Download Go modules
+        run: go mod download
+        working-directory: api
+
+      - name: Check gofmt
+        run: |
+          unformatted="$(gofmt -l ./cmd ./internal)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+        working-directory: api
+
+      - name: Check go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+        working-directory: api
+
+      - name: Run unit tests with coverage
+        run: go test ./... -coverpkg=./... -coverprofile=coverage.txt -covermode=atomic
+        working-directory: api
+
+      - name: Upload coverage
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: ./api/coverage.txt
+          flags: api-unit
+          disable_search: true
+          disable_telem: true
+          fail_ci_if_error: true
+
+  generated:
+    name: Generated Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup sqlc
+        uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: 1.31.1
+
+      - name: Generate database code
+        run: sqlc generate
+        working-directory: api
+
+      - name: Check generated code drift
+        run: git diff --exit-code -- internal/db/generated
+        working-directory: api
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: laivan
+          POSTGRES_PASSWORD: laivan
+          POSTGRES_DB: laivan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U laivan -d laivan_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LAIVAN_TEST_DB_URL: postgres://laivan:laivan@localhost:5432/laivan_test?sslmode=disable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
+
+      - name: Reset test database
+        run: |
+          goose -dir migrations postgres "$LAIVAN_TEST_DB_URL" up
+          goose -dir migrations postgres "$LAIVAN_TEST_DB_URL" reset
+          goose -dir migrations postgres "$LAIVAN_TEST_DB_URL" up
+        working-directory: api
+
+      - name: Run integration tests
+        run: go test -tags=integration ./...
+        working-directory: api
