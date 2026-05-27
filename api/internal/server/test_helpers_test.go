@@ -1,0 +1,258 @@
+package server
+
+import (
+	"context"
+	"time"
+
+	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
+)
+
+type stubPropertyRepo struct{}
+
+func (s *stubPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+	property.ID = domain.ID("550e8400-e29b-41d4-a716-446655440001")
+	property.CreatedAt = time.Now()
+	property.UpdatedAt = time.Now()
+	return property, nil
+}
+
+func (s *stubPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
+	if string(id) == "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.Property{
+			ID:       id,
+			CampusID: domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+			Name:     "Alice Lodge",
+			Location: domain.ApproxLocation{Area: "Obanla"},
+		}, nil
+	}
+	return domain.Property{}, repo.ErrNotFound
+}
+
+func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	if string(id) != "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.PropertyDetail{}, repo.ErrNotFound
+	}
+
+	return domain.PropertyDetail{
+		Property: domain.Property{
+			ID:          id,
+			CampusID:    domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+			Name:        "Alice Lodge",
+			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
+			Description: "Gated lodge with multiple room categories near campus.",
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+		UnitTypes: []domain.PropertyUnitTypeDetail{
+			{
+				PropertyUnitType: domain.PropertyUnitType{
+					ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+					PropertyID:  id,
+					Category:    domain.UnitCategorySelfContained,
+					Name:        "Self-contained",
+					Description: "Private room with bathroom and kitchenette.",
+					Structure: domain.UnitStructure{
+						BedroomCount: intPointer(1),
+						HasParlour:   boolPointer(false),
+						BathroomType: "private",
+						KitchenType:  "private",
+					},
+					Timestamps: domain.Timestamps{
+						CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+					},
+				},
+				AgentOffers: []domain.AgentOffer{
+					{
+						ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+						PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+						AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+						Title:              "Fresh self-contained room",
+						Description:        "Recently painted room with private bathroom.",
+						Price:              domain.Money{AmountKobo: 35000000},
+						Status:             domain.AgentOfferStatusAvailable,
+						Timestamps: domain.Timestamps{
+							CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+							UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						},
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
+	return []domain.PropertySummary{
+		{
+			Property: domain.Property{
+				ID:          domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+				CampusID:    filter.CampusID,
+				Name:        "Alice Lodge",
+				Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
+				Description: "Gated lodge with multiple room categories near campus.",
+				Timestamps: domain.Timestamps{
+					CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+					UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				},
+			},
+			UnitTypeCount:       3,
+			AvailableOfferCount: 5,
+			LowestPrice:         domain.Money{AmountKobo: 25000000},
+		},
+	}, 1, nil
+}
+
+func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return []domain.DiscoveryResult{
+		{
+			PropertyID:       domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+			PropertyName:     "Alice Lodge",
+			PropertyArea:     "Obanla",
+			PropertyLandmark: "Near South Gate",
+			UnitTypeID:       domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+			UnitTypeCategory: domain.UnitCategorySelfContained,
+			UnitTypeName:     "Self-contained",
+			Structure: domain.UnitStructure{
+				BedroomCount: intPointer(1),
+				HasParlour:   boolPointer(false),
+				BathroomType: "private",
+				KitchenType:  "private",
+			},
+			LowestPrice:         domain.Money{AmountKobo: 35000000},
+			AvailableOfferCount: 2,
+			CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+		},
+	}, 1, nil
+}
+
+func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
+		return domain.PropertyUnitType{}, repo.ErrNotFound
+	}
+
+	unitType.ID = domain.ID("550e8400-e29b-41d4-a716-446655440020")
+	unitType.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	unitType.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return unitType, nil
+}
+
+func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
+	if string(propertyID) != "550e8400-e29b-41d4-a716-446655440000" {
+		return nil, repo.ErrNotFound
+	}
+
+	return []domain.PropertyUnitType{
+		{
+			ID:          domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+			PropertyID:  propertyID,
+			Category:    domain.UnitCategorySelfContained,
+			Name:        "Self-contained",
+			Description: "Private room with bathroom and kitchenette.",
+			Structure: domain.UnitStructure{
+				BedroomCount: intPointer(1),
+				HasParlour:   boolPointer(false),
+				BathroomType: "private",
+				KitchenType:  "private",
+			},
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}, nil
+}
+
+func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	if string(offer.PropertyUnitTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+		return domain.AgentOffer{}, repo.ErrNotFound
+	}
+
+	offer.ID = domain.ID("550e8400-e29b-41d4-a716-446655440030")
+	offer.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	offer.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return offer, nil
+}
+
+func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	if string(unitTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
+		return nil, repo.ErrNotFound
+	}
+
+	return []domain.AgentOffer{
+		{
+			ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+			PropertyUnitTypeID: domain.ID(unitTypeID),
+			AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+			Title:              "Fresh self-contained room",
+			Description:        "Recently painted room with private bathroom.",
+			Price:              domain.Money{AmountKobo: 35000000},
+			Status:             domain.AgentOfferStatusAvailable,
+			Timestamps: domain.Timestamps{
+				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}, nil
+}
+
+func testAppWithRepo() *app {
+	a := testApp()
+	a.propertyRepo = &stubPropertyRepo{}
+	return a
+}
+
+type spyPropertyRepo struct {
+	stub            *stubPropertyRepo
+	createdUnitType domain.PropertyUnitType
+	createdOffer    domain.AgentOffer
+}
+
+func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+	return s.stub.Create(ctx, property)
+}
+
+func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
+	return s.stub.Get(ctx, id)
+}
+
+func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	return s.stub.GetWithDetails(ctx, id)
+}
+
+func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
+	return s.stub.ListWithSummary(ctx, filter)
+}
+
+func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return s.stub.Discover(ctx, filter)
+}
+
+func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	s.createdUnitType = unitType
+	return s.stub.CreatePropertyUnitType(ctx, unitType)
+}
+
+func (s *spyPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
+	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
+}
+
+func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	s.createdOffer = offer
+	return s.stub.CreateAgentOffer(ctx, offer)
+}
+
+func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	return s.stub.ListAgentOffers(ctx, unitTypeID)
+}
+
+func intPointer(value int) *int {
+	return &value
+}
+
+func boolPointer(value bool) *bool {
+	return &value
+}
