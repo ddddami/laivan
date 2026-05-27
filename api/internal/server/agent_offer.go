@@ -1,0 +1,148 @@
+package server
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
+	"github.com/ddddami/laivan/internal/validator"
+	"github.com/go-chi/chi/v5"
+)
+
+func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
+	if app.marketplaceRepo == nil {
+		app.serverErrorResponse(w, r, errors.New("database not available"))
+		return
+	}
+
+	unitTypeID := chi.URLParam(r, "id")
+
+	var input struct {
+		AgentID     string `json:"agent_id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Notes       string `json:"notes"`
+		PriceNaira  int    `json:"price_naira"`
+		Status      string `json:"status"`
+	}
+
+	if err := readJSON(w, r, &input); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Status == "" {
+		input.Status = string(domain.AgentOfferStatusAvailable)
+	}
+
+	v := validator.New()
+	v.Check(validator.NotBlank(unitTypeID), "id", "ID is required")
+	v.Check(validator.ValidUUID(unitTypeID), "id", "ID must be a valid UUID")
+	v.Check(validator.NotBlank(input.AgentID), "agent_id", "Agent ID is required")
+	v.Check(validator.ValidUUID(input.AgentID), "agent_id", "Agent ID must be a valid UUID")
+	v.Check(validator.NotBlank(input.Title), "title", "Title is required")
+	v.Check(validator.MaxChars(input.Title, 255), "title", "Title must not exceed 255 characters")
+	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
+	v.Check(validator.MaxChars(input.Notes, 2000), "notes", "Notes must not exceed 2000 characters")
+	v.Check(input.PriceNaira > 0, "price_naira", "Price must be greater than 0")
+	v.Check(validAgentOfferStatus(input.Status), "status", "Status must be available, unavailable, or paused")
+
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	created, err := app.marketplaceRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
+		PropertyUnitTypeID: domain.ID(unitTypeID),
+		AgentID:            domain.ID(input.AgentID),
+		Title:              input.Title,
+		Description:        input.Description,
+		Notes:              input.Notes,
+		Price:              domain.Money{AmountKobo: domain.Kobo(input.PriceNaira)},
+		Status:             domain.AgentOfferStatus(input.Status),
+	})
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+
+		app.serverErrorResponse(w, r, fmt.Errorf("create agent offer: %w", err))
+		return
+	}
+
+	data := envelope{
+		"agent_offer": agentOfferResponse(created),
+	}
+
+	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
+		app.logger.Error("write agent offer response", "error", err)
+	}
+}
+
+func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
+	if app.marketplaceRepo == nil {
+		app.serverErrorResponse(w, r, errors.New("database not available"))
+		return
+	}
+
+	unitTypeID := chi.URLParam(r, "id")
+
+	v := validator.New()
+	v.Check(validator.NotBlank(unitTypeID), "id", "ID is required")
+	v.Check(validator.ValidUUID(unitTypeID), "id", "ID must be a valid UUID")
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	offers, err := app.marketplaceRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+
+		app.serverErrorResponse(w, r, fmt.Errorf("list agent offers: %w", err))
+		return
+	}
+
+	data := envelope{
+		"agent_offers": agentOffersResponse(offers),
+	}
+
+	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
+		app.logger.Error("write agent offers response", "error", err)
+	}
+}
+
+func agentOffersResponse(offers []domain.AgentOffer) []map[string]any {
+	return mapItems(offers, agentOfferResponse)
+}
+
+func agentOfferResponse(offer domain.AgentOffer) map[string]any {
+	return map[string]any{
+		"id":                    string(offer.ID),
+		"property_unit_type_id": string(offer.PropertyUnitTypeID),
+		"agent_id":              string(offer.AgentID),
+		"title":                 offer.Title,
+		"description":           offer.Description,
+		"notes":                 nullableString(offer.Notes),
+		"price_naira":           offer.Price.Naira(),
+		"status":                string(offer.Status),
+		"created_at":            offer.CreatedAt.Format(time.RFC3339),
+		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func validAgentOfferStatus(status string) bool {
+	switch domain.AgentOfferStatus(status) {
+	case domain.AgentOfferStatusAvailable, domain.AgentOfferStatusUnavailable, domain.AgentOfferStatusPaused:
+		return true
+	default:
+		return false
+	}
+}
