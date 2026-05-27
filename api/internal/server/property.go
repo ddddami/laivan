@@ -19,7 +19,7 @@ const (
 )
 
 func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -73,7 +73,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 		filter.MaxPrice = &maxPrice
 	}
 
-	properties, totalRecords, err := app.marketplaceRepo.ListWithSummary(r.Context(), filter)
+	properties, totalRecords, err := app.propertyRepo.ListWithSummary(r.Context(), filter)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("list properties: %w", err))
 		return
@@ -90,7 +90,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -133,7 +133,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		Description: input.Description,
 	}
 
-	created, err := app.marketplaceRepo.Create(r.Context(), property)
+	created, err := app.propertyRepo.Create(r.Context(), property)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("create property: %w", err))
 		return
@@ -149,7 +149,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -164,7 +164,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	property, err := app.marketplaceRepo.GetWithDetails(r.Context(), domain.ID(id))
+	property, err := app.propertyRepo.GetWithDetails(r.Context(), domain.ID(id))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)

@@ -76,7 +76,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
 	app := testApp()
-	app.marketplaceRepo = spy
+	app.propertyRepo = spy
 
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
