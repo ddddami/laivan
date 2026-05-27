@@ -41,7 +41,7 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
 	app := testApp()
-	app.marketplaceRepo = spy
+	app.propertyRepo = spy
 
 	body := `{"category":"self_contained","bedroom_count":1,"bathroom_type":"private","kitchen_type":"private"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))

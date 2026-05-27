@@ -12,13 +12,13 @@ import (
 )
 
 type app struct {
-	cfg             config.Config
-	logger          *slog.Logger
-	version         string
-	marketplaceRepo MarketplaceRepository
+	cfg          config.Config
+	logger       *slog.Logger
+	version      string
+	propertyRepo PropertyStore
 }
 
-type MarketplaceRepository interface {
+type PropertyStore interface {
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
@@ -30,12 +30,12 @@ type MarketplaceRepository interface {
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string, marketplaceRepo MarketplaceRepository) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore) *http.Server {
 	app := &app{
-		cfg:             cfg,
-		logger:          logger,
-		version:         version,
-		marketplaceRepo: marketplaceRepo,
+		cfg:          cfg,
+		logger:       logger,
+		version:      version,
+		propertyRepo: propertyRepo,
 	}
 
 	return &http.Server{

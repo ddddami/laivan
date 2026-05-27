@@ -13,7 +13,7 @@ import (
 )
 
 func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -55,7 +55,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := app.marketplaceRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
+	created, err := app.propertyRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
 		PropertyUnitTypeID: domain.ID(unitTypeID),
 		AgentID:            domain.ID(input.AgentID),
 		Title:              input.Title,
@@ -84,7 +84,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -99,7 +99,7 @@ func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offers, err := app.marketplaceRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
+	offers, err := app.propertyRepo.ListAgentOffers(r.Context(), domain.ID(unitTypeID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)

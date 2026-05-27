@@ -13,7 +13,7 @@ import (
 )
 
 func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -58,7 +58,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := app.marketplaceRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
+	created, err := app.propertyRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
 		PropertyID:  domain.ID(propertyID),
 		Category:    domain.UnitCategory(input.Category),
 		Name:        input.Name,
@@ -91,7 +91,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -106,7 +106,7 @@ func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unitTypes, err := app.marketplaceRepo.ListPropertyUnitTypes(r.Context(), domain.ID(propertyID))
+	unitTypes, err := app.propertyRepo.ListPropertyUnitTypes(r.Context(), domain.ID(propertyID))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)

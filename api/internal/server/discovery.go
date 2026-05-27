@@ -13,7 +13,7 @@ import (
 )
 
 func (app *app) discover(w http.ResponseWriter, r *http.Request) {
-	if app.marketplaceRepo == nil {
+	if app.propertyRepo == nil {
 		app.serverErrorResponse(w, r, errors.New("database not available"))
 		return
 	}
@@ -72,7 +72,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 		filter.MaxPrice = &maxPrice
 	}
 
-	results, totalRecords, err := app.marketplaceRepo.Discover(r.Context(), filter)
+	results, totalRecords, err := app.propertyRepo.Discover(r.Context(), filter)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("discover: %w", err))
 		return

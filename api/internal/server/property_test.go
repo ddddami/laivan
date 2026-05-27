@@ -206,7 +206,7 @@ func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domai
 
 func testAppWithRepo() *app {
 	a := testApp()
-	a.marketplaceRepo = &stubPropertyRepo{}
+	a.propertyRepo = &stubPropertyRepo{}
 	return a
 }
 
