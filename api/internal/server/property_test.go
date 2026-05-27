@@ -206,7 +206,7 @@ func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domai
 
 func testAppWithRepo() *app {
 	a := testApp()
-	a.propertyRepo = &stubPropertyRepo{}
+	a.marketplaceRepo = &stubPropertyRepo{}
 	return a
 }
 
@@ -507,7 +507,7 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
 	app := testApp()
-	app.propertyRepo = spy
+	app.marketplaceRepo = spy
 
 	body := `{"category":"self_contained","bedroom_count":1,"bathroom_type":"private","kitchen_type":"private"}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
@@ -692,7 +692,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
 	app := testApp()
-	app.propertyRepo = spy
+	app.marketplaceRepo = spy
 
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
 	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))

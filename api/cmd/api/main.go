@@ -27,7 +27,7 @@ func main() {
 
 	logger := newLogger(cfg)
 
-	var propertyRepo server.PropertyStore
+	var marketplaceRepo server.MarketplaceRepository
 	if cfg.DatabaseURL != "" {
 		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
 		if err != nil {
@@ -37,10 +37,10 @@ func main() {
 		defer pool.Close()
 
 		logger.Info("database connection pool ready")
-		propertyRepo = repo.NewPropertyRepository(pool)
+		marketplaceRepo = repo.NewPropertyRepository(pool)
 	}
 
-	srv := server.New(cfg, logger, version, propertyRepo)
+	srv := server.New(cfg, logger, version, marketplaceRepo)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 
