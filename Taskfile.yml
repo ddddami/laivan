@@ -36,17 +36,50 @@ tasks:
     cmds:
       - gofmt -w ./cmd ./internal
 
+  api:fmt:check:
+    desc: Check API Go formatting without mutating files
+    dir: "{{.API_DIR}}"
+    cmds:
+      - |
+        unformatted="$(gofmt -l ./cmd ./internal)"
+        if [ -n "$unformatted" ]; then
+          printf '%s\n' "$unformatted"
+          exit 1
+        fi
+
   api:tidy:
     desc: Tidy API Go modules
     dir: "{{.API_DIR}}"
     cmds:
       - go mod tidy
 
+  api:tidy:check:
+    desc: Check API Go modules are tidy
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go mod tidy
+      - git diff --exit-code -- go.mod go.sum
+
+  api:lint:
+    desc: Run golangci-lint on API code
+    dir: "{{.API_DIR}}"
+    cmds:
+      - golangci-lint run --timeout=5m --config=../.golangci.yml
+
   api:check:
-    desc: Run API formatting, module tidy, and tests
+    desc: Run API formatting, module tidy, lint, and tests
     cmds:
       - task: api:fmt
       - task: api:tidy
+      - task: api:lint
+      - task: api:test
+
+  api:verify:
+    desc: Run all non-mutating API checks (matches CI)
+    cmds:
+      - task: api:fmt:check
+      - task: api:tidy:check
+      - task: api:lint
       - task: api:test
 
   infra:up:
@@ -106,6 +139,13 @@ tasks:
     dir: "{{.API_DIR}}"
     cmds:
       - sqlc generate
+
+  sqlc:check:
+    desc: Check sqlc generated code has no drift
+    dir: "{{.API_DIR}}"
+    cmds:
+      - sqlc generate
+      - git diff --exit-code -- internal/db/generated
 
   api:docs:validate:
     desc: Validate the OpenAPI contract
