@@ -298,6 +298,65 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryCreateAndListMedia(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	repository := NewPropertyRepository(pool)
+
+	created, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID:        propertyID,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/alice/front.jpg",
+		ObjectKey:         "media/property/alice/front.jpg",
+		Kind:              domain.MediaKindImage,
+		Caption:           "Front view",
+		ContentType:       "image/jpeg",
+		SizeBytes:         2048,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+
+	if created.ID == "" {
+		t.Fatal("created media ID is empty")
+	}
+	if created.PropertyID != propertyID {
+		t.Fatalf("property ID = %q, want %q", created.PropertyID, propertyID)
+	}
+	if created.Caption != "Front view" {
+		t.Fatalf("caption = %q, want Front view", created.Caption)
+	}
+	if created.ContentType != "image/jpeg" {
+		t.Fatalf("content type = %q, want image/jpeg", created.ContentType)
+	}
+	if created.SizeBytes != 2048 {
+		t.Fatalf("size bytes = %d, want 2048", created.SizeBytes)
+	}
+
+	items, err := repository.ListMediaByProperty(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("list media by property: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("media length = %d, want 1", len(items))
+	}
+	if items[0].URL != "https://media.example.test/alice/front.jpg" {
+		t.Fatalf("media URL = %q, want original URL", items[0].URL)
+	}
+}
+
 func TestPropertyRepositoryPropertyUnitTypesPropertyNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
