@@ -80,7 +80,7 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := envelope{
-		"properties": propertiesSummaryResponse(properties),
+		"properties": app.propertiesSummaryResponse(properties),
 		"metadata":   data.CalculateMetadata(totalRecords, filters.Page, filters.PageSize),
 	}
 
@@ -176,7 +176,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := envelope{
-		"property": propertyDetailResponse(property),
+		"property": app.propertyDetailResponse(property),
 	}
 
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
@@ -197,11 +197,15 @@ func propertyResponse(p domain.Property) map[string]any {
 	}
 }
 
-func propertiesSummaryResponse(properties []domain.PropertySummary) []map[string]any {
-	return mapItems(properties, propertySummaryResponse)
+func (app *app) propertiesSummaryResponse(properties []domain.PropertySummary) []map[string]any {
+	result := make([]map[string]any, 0, len(properties))
+	for _, property := range properties {
+		result = append(result, app.propertySummaryResponse(property))
+	}
+	return result
 }
 
-func propertySummaryResponse(p domain.PropertySummary) map[string]any {
+func (app *app) propertySummaryResponse(p domain.PropertySummary) map[string]any {
 	return map[string]any{
 		"id":                    string(p.ID),
 		"campus_id":             string(p.CampusID),
@@ -212,12 +216,13 @@ func propertySummaryResponse(p domain.PropertySummary) map[string]any {
 		"unit_type_count":       p.UnitTypeCount,
 		"available_offer_count": p.AvailableOfferCount,
 		"lowest_price_naira":    p.LowestPrice.Naira(),
+		"thumbnail_url":         app.thumbnailURL(p.ThumbnailURL),
 		"created_at":            p.CreatedAt.Format(time.RFC3339),
 		"updated_at":            p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func propertyDetailResponse(p domain.PropertyDetail) map[string]any {
+func (app *app) propertyDetailResponse(p domain.PropertyDetail) map[string]any {
 	return map[string]any{
 		"id":          string(p.ID),
 		"campus_id":   string(p.CampusID),
@@ -225,17 +230,22 @@ func propertyDetailResponse(p domain.PropertyDetail) map[string]any {
 		"area":        p.Location.Area,
 		"landmark":    p.Location.Landmark,
 		"description": p.Description,
-		"unit_types":  propertyUnitTypeDetailsResponse(p.UnitTypes),
+		"media":       app.mediaListResponse(p.Media),
+		"unit_types":  app.propertyUnitTypeDetailsResponse(p.UnitTypes),
 		"created_at":  p.CreatedAt.Format(time.RFC3339),
 		"updated_at":  p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) []map[string]any {
-	return mapItems(unitTypes, propertyUnitTypeDetailResponse)
+func (app *app) propertyUnitTypeDetailsResponse(unitTypes []domain.PropertyUnitTypeDetail) []map[string]any {
+	result := make([]map[string]any, 0, len(unitTypes))
+	for _, unitType := range unitTypes {
+		result = append(result, app.propertyUnitTypeDetailResponse(unitType))
+	}
+	return result
 }
 
-func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
+func (app *app) propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string]any {
 	return map[string]any{
 		"id":            string(ut.ID),
 		"property_id":   string(ut.PropertyID),
@@ -247,10 +257,21 @@ func propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail) map[string
 		"has_parlour":   ut.Structure.HasParlour,
 		"bathroom_type": nullableString(ut.Structure.BathroomType),
 		"kitchen_type":  nullableString(ut.Structure.KitchenType),
+		"media":         app.mediaListResponse(ut.Media),
 		"agent_offers":  agentOffersResponse(ut.AgentOffers),
 		"created_at":    ut.CreatedAt.Format(time.RFC3339),
 		"updated_at":    ut.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+func (app *app) thumbnailURL(sourceURL string) any {
+	if sourceURL == "" {
+		return nil
+	}
+	if app.mediaURLs == nil {
+		return sourceURL
+	}
+	return app.mediaURLs.ThumbnailURL(sourceURL)
 }
 
 func nullableString(value string) any {
