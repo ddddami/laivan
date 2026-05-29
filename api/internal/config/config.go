@@ -23,6 +23,27 @@ type Config struct {
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
+	Media           MediaConfig
+}
+
+type MediaConfig struct {
+	Enabled        bool
+	S3Endpoint     string
+	S3Bucket       string
+	S3Region       string
+	S3AccessKeyID  string
+	S3SecretKey    string
+	S3UseSSL       bool
+	PublicBaseURL  string
+	MaxUploadBytes int64
+	Imgproxy       ImgproxyConfig
+}
+
+type ImgproxyConfig struct {
+	BaseURL       string
+	SourceBaseURL string
+	Key           string
+	Salt          string
 }
 
 func Load() (Config, error) {
@@ -33,6 +54,10 @@ func Load() (Config, error) {
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     time.Minute,
 		ShutdownTimeout: 10 * time.Second,
+		Media: MediaConfig{
+			S3Region:       "us-east-1",
+			MaxUploadBytes: 10 << 20,
+		},
 	}
 
 	var err error
@@ -40,6 +65,26 @@ func Load() (Config, error) {
 	cfg.Env = stringEnv("LAIVAN_ENV", cfg.Env)
 	cfg.DatabaseURL = stringEnv("LAIVAN_DB_URL", cfg.DatabaseURL)
 	cfg.AllowedOrigins = stringsEnv("LAIVAN_ALLOWED_ORIGINS", []string{"http://localhost:5173"})
+	cfg.Media.S3Endpoint = stringEnv("LAIVAN_S3_ENDPOINT", cfg.Media.S3Endpoint)
+	cfg.Media.S3Bucket = stringEnv("LAIVAN_S3_BUCKET", cfg.Media.S3Bucket)
+	cfg.Media.S3Region = stringEnv("LAIVAN_S3_REGION", cfg.Media.S3Region)
+	cfg.Media.S3AccessKeyID = stringEnv("LAIVAN_S3_ACCESS_KEY_ID", cfg.Media.S3AccessKeyID)
+	cfg.Media.S3SecretKey = stringEnv("LAIVAN_S3_SECRET_ACCESS_KEY", cfg.Media.S3SecretKey)
+	cfg.Media.PublicBaseURL = stringEnv("LAIVAN_MEDIA_PUBLIC_BASE_URL", cfg.Media.PublicBaseURL)
+	cfg.Media.Imgproxy.BaseURL = stringEnv("LAIVAN_IMGPROXY_BASE_URL", cfg.Media.Imgproxy.BaseURL)
+	cfg.Media.Imgproxy.SourceBaseURL = stringEnv("LAIVAN_IMGPROXY_SOURCE_BASE_URL", cfg.Media.Imgproxy.SourceBaseURL)
+	cfg.Media.Imgproxy.Key = stringEnv("LAIVAN_IMGPROXY_KEY", cfg.Media.Imgproxy.Key)
+	cfg.Media.Imgproxy.Salt = stringEnv("LAIVAN_IMGPROXY_SALT", cfg.Media.Imgproxy.Salt)
+
+	cfg.Media.Enabled, err = boolEnv("LAIVAN_MEDIA_ENABLED", cfg.Media.Enabled)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Media.S3UseSSL, err = boolEnv("LAIVAN_S3_USE_SSL", cfg.Media.S3UseSSL)
+	if err != nil {
+		return Config{}, err
+	}
 
 	cfg.Port, err = intEnv("LAIVAN_PORT", cfg.Port)
 	if err != nil {
@@ -62,6 +107,11 @@ func Load() (Config, error) {
 	}
 
 	cfg.ShutdownTimeout, err = durationEnv("LAIVAN_SHUTDOWN_TIMEOUT", cfg.ShutdownTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Media.MaxUploadBytes, err = int64Env("LAIVAN_MEDIA_MAX_UPLOAD_BYTES", cfg.Media.MaxUploadBytes)
 	if err != nil {
 		return Config{}, err
 	}
@@ -106,6 +156,40 @@ func (c Config) Validate() error {
 
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("LAIVAN_SHUTDOWN_TIMEOUT must be greater than zero")
+	}
+
+	if c.Media.MaxUploadBytes <= 0 {
+		return fmt.Errorf("LAIVAN_MEDIA_MAX_UPLOAD_BYTES must be greater than zero")
+	}
+
+	if c.Media.Enabled {
+		if c.Media.S3Endpoint == "" {
+			return fmt.Errorf("LAIVAN_S3_ENDPOINT is required when media is enabled")
+		}
+		if c.Media.S3Bucket == "" {
+			return fmt.Errorf("LAIVAN_S3_BUCKET is required when media is enabled")
+		}
+		if c.Media.S3Region == "" {
+			return fmt.Errorf("LAIVAN_S3_REGION is required when media is enabled")
+		}
+		if c.Media.S3AccessKeyID == "" {
+			return fmt.Errorf("LAIVAN_S3_ACCESS_KEY_ID is required when media is enabled")
+		}
+		if c.Media.S3SecretKey == "" {
+			return fmt.Errorf("LAIVAN_S3_SECRET_ACCESS_KEY is required when media is enabled")
+		}
+		if c.Media.PublicBaseURL == "" {
+			return fmt.Errorf("LAIVAN_MEDIA_PUBLIC_BASE_URL is required when media is enabled")
+		}
+		if c.Media.Imgproxy.BaseURL == "" {
+			return fmt.Errorf("LAIVAN_IMGPROXY_BASE_URL is required when media is enabled")
+		}
+		if c.Media.Imgproxy.Key == "" {
+			return fmt.Errorf("LAIVAN_IMGPROXY_KEY is required when media is enabled")
+		}
+		if c.Media.Imgproxy.Salt == "" {
+			return fmt.Errorf("LAIVAN_IMGPROXY_SALT is required when media is enabled")
+		}
 	}
 
 	return nil
@@ -159,6 +243,34 @@ func intEnv(key string, fallback int) (int, error) {
 	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer", key)
+	}
+
+	return parsed, nil
+}
+
+func int64Env(key string, fallback int64) (int64, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer", key)
+	}
+
+	return parsed, nil
+}
+
+func boolEnv(key string, fallback bool) (bool, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	if err != nil {
+		return false, fmt.Errorf("%s must be a boolean", key)
 	}
 
 	return parsed, nil
