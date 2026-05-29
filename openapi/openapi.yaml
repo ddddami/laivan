@@ -25,6 +25,8 @@ tags:
     description: Property-level rentable unit types that agents can later offer.
   - name: Agent Offers
     description: Agent-specific availability, pricing, and presentation for unit types.
+  - name: Media
+    description: Image uploads and media metadata for properties, unit types, and agent offers.
 paths:
   /healthz:
     get:
@@ -532,6 +534,66 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /v1/media:
+    post:
+      operationId: uploadMedia
+      tags:
+        - Media
+      summary: Upload media for a marketplace entity.
+      description: |
+        Uploads one or more image files for exactly one target: property, property unit type, or agent offer.
+        Images are stored as originals and delivery variants are generated through Imgproxy URLs.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - uploaded_by_agent_id
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more JPEG, PNG, or WebP image files.
+                property_id:
+                  type: string
+                  format: uuid
+                  description: Property target ID. Use exactly one target field.
+                property_unit_type_id:
+                  type: string
+                  format: uuid
+                  description: Property unit type target ID. Use exactly one target field.
+                agent_offer_id:
+                  type: string
+                  format: uuid
+                  description: Agent offer target ID. Use exactly one target field.
+                uploaded_by_agent_id:
+                  type: string
+                  format: uuid
+                  description: Uploading agent ID. This is explicit until authenticated agent context exists.
+                caption:
+                  type: string
+                  maxLength: 500
+      responses:
+        "201":
+          description: Media uploaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaUploadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   responses:
     BadRequest:
@@ -684,6 +746,12 @@ components:
           type: integer
           minimum: 0
           description: Lowest price among available offers in whole Naira. 0 when no offers exist.
+        thumbnail_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Imgproxy-generated thumbnail URL for the first available image, when present.
         created_at:
           type: string
           format: date-time
@@ -937,6 +1005,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AgentOffer"
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/Media"
         created_at:
           type: string
           format: date-time
@@ -977,6 +1049,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UnitTypeDetail"
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/Media"
         created_at:
           type: string
           format: date-time
@@ -1095,9 +1171,93 @@ components:
             available_offer_count:
               type: integer
               minimum: 0
+        thumbnail_url:
+          type:
+            - string
+            - "null"
+          format: uri
         created_at:
           type: string
           format: date-time
+
+    Media:
+      type: object
+      required:
+        - id
+        - url
+        - thumbnail_url
+        - medium_url
+        - kind
+        - size_bytes
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        property_unit_type_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        agent_offer_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        uploaded_by_agent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        url:
+          type: string
+          format: uri
+          description: Public URL for the original stored object.
+        thumbnail_url:
+          type: string
+          format: uri
+          description: Imgproxy-generated thumbnail URL.
+        medium_url:
+          type: string
+          format: uri
+          description: Imgproxy-generated medium-size URL.
+        kind:
+          type: string
+          enum:
+            - image
+            - video
+        caption:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+        content_type:
+          type:
+            - string
+            - "null"
+          examples:
+            - image/jpeg
+        size_bytes:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+
+    MediaUploadResponse:
+      type: object
+      required:
+        - media
+      properties:
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/Media"
 
     PropertiesResponse:
       type: object
