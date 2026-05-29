@@ -16,5 +16,6 @@ type DiscoveryResult struct {
 	Structure           UnitStructure
 	LowestPrice         Money
 	AvailableOfferCount int
+	ThumbnailURL        string
 	CreatedAt           time.Time
 }
