@@ -37,7 +37,7 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, app.cfg.Media.MaxUploadBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, app.cfg.Media.MaxUploadBytes+(1<<20))
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		app.badRequestResponse(w, r, fmt.Errorf("request body must be multipart form-data within %d MB", app.cfg.Media.MaxUploadBytes/(1<<20)))
 		return
