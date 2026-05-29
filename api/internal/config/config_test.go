@@ -45,6 +45,18 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Fatalf("ShutdownTimeout = %s, want 10s", cfg.ShutdownTimeout)
 	}
+
+	if cfg.Media.Enabled {
+		t.Fatal("Media.Enabled = true, want false")
+	}
+
+	if cfg.Media.S3Region != "us-east-1" {
+		t.Fatalf("Media.S3Region = %q, want us-east-1", cfg.Media.S3Region)
+	}
+
+	if cfg.Media.MaxUploadBytes != 10<<20 {
+		t.Fatalf("Media.MaxUploadBytes = %d, want %d", cfg.Media.MaxUploadBytes, 10<<20)
+	}
 }
 
 func TestLoadUsesEnvironmentOverrides(t *testing.T) {
@@ -58,6 +70,19 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "4s")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "5s")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "http://localhost:5173, http://localhost:4173")
+	t.Setenv("LAIVAN_MEDIA_ENABLED", "true")
+	t.Setenv("LAIVAN_S3_ENDPOINT", "http://localhost:9000")
+	t.Setenv("LAIVAN_S3_BUCKET", "laivan-dev")
+	t.Setenv("LAIVAN_S3_REGION", "auto")
+	t.Setenv("LAIVAN_S3_ACCESS_KEY_ID", "access-key")
+	t.Setenv("LAIVAN_S3_SECRET_ACCESS_KEY", "secret-key")
+	t.Setenv("LAIVAN_S3_USE_SSL", "true")
+	t.Setenv("LAIVAN_MEDIA_PUBLIC_BASE_URL", "https://media.example.test")
+	t.Setenv("LAIVAN_MEDIA_MAX_UPLOAD_BYTES", "1024")
+	t.Setenv("LAIVAN_IMGPROXY_BASE_URL", "https://images.example.test")
+	t.Setenv("LAIVAN_IMGPROXY_SOURCE_BASE_URL", "https://media-internal.example.test")
+	t.Setenv("LAIVAN_IMGPROXY_KEY", "abcd")
+	t.Setenv("LAIVAN_IMGPROXY_SALT", "1234")
 
 	cfg, err := Load()
 	if err != nil {
@@ -95,6 +120,64 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 
 	if cfg.ShutdownTimeout != 5*time.Second {
 		t.Fatalf("ShutdownTimeout = %s, want 5s", cfg.ShutdownTimeout)
+	}
+
+	if !cfg.Media.Enabled {
+		t.Fatal("Media.Enabled = false, want true")
+	}
+	if cfg.Media.S3Endpoint != "http://localhost:9000" {
+		t.Fatalf("Media.S3Endpoint = %q, want http://localhost:9000", cfg.Media.S3Endpoint)
+	}
+	if cfg.Media.S3Bucket != "laivan-dev" {
+		t.Fatalf("Media.S3Bucket = %q, want laivan-dev", cfg.Media.S3Bucket)
+	}
+	if !cfg.Media.S3UseSSL {
+		t.Fatal("Media.S3UseSSL = false, want true")
+	}
+	if cfg.Media.MaxUploadBytes != 1024 {
+		t.Fatalf("Media.MaxUploadBytes = %d, want 1024", cfg.Media.MaxUploadBytes)
+	}
+	if cfg.Media.Imgproxy.BaseURL != "https://images.example.test" {
+		t.Fatalf("Media.Imgproxy.BaseURL = %q, want https://images.example.test", cfg.Media.Imgproxy.BaseURL)
+	}
+	if cfg.Media.Imgproxy.SourceBaseURL != "https://media-internal.example.test" {
+		t.Fatalf("Media.Imgproxy.SourceBaseURL = %q, want https://media-internal.example.test", cfg.Media.Imgproxy.SourceBaseURL)
+	}
+}
+
+func TestLoadRejectsEnabledMediaWithoutRequiredConfig(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("LAIVAN_MEDIA_ENABLED", "true")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load returned nil error")
+	}
+}
+
+func TestLoadRejectsInvalidMediaBooleans(t *testing.T) {
+	tests := []string{"LAIVAN_MEDIA_ENABLED", "LAIVAN_S3_USE_SSL"}
+
+	for _, key := range tests {
+		t.Run(key, func(t *testing.T) {
+			clearConfigEnv(t)
+			t.Setenv(key, "maybe")
+
+			_, err := Load()
+			if err == nil {
+				t.Fatal("Load returned nil error")
+			}
+		})
+	}
+}
+
+func TestLoadRejectsInvalidMediaUploadLimit(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("LAIVAN_MEDIA_MAX_UPLOAD_BYTES", "0")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load returned nil error")
 	}
 }
 
@@ -260,4 +343,17 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "")
+	t.Setenv("LAIVAN_MEDIA_ENABLED", "")
+	t.Setenv("LAIVAN_S3_ENDPOINT", "")
+	t.Setenv("LAIVAN_S3_BUCKET", "")
+	t.Setenv("LAIVAN_S3_REGION", "")
+	t.Setenv("LAIVAN_S3_ACCESS_KEY_ID", "")
+	t.Setenv("LAIVAN_S3_SECRET_ACCESS_KEY", "")
+	t.Setenv("LAIVAN_S3_USE_SSL", "")
+	t.Setenv("LAIVAN_MEDIA_PUBLIC_BASE_URL", "")
+	t.Setenv("LAIVAN_MEDIA_MAX_UPLOAD_BYTES", "")
+	t.Setenv("LAIVAN_IMGPROXY_BASE_URL", "")
+	t.Setenv("LAIVAN_IMGPROXY_SOURCE_BASE_URL", "")
+	t.Setenv("LAIVAN_IMGPROXY_KEY", "")
+	t.Setenv("LAIVAN_IMGPROXY_SALT", "")
 }
