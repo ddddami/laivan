@@ -116,8 +116,26 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 		return domain.PropertyDetail{}, fmt.Errorf("list property unit types: %w", err)
 	}
 
+	propertyMediaRows, err := r.queries.ListMediaByProperty(ctx, propertyUUID)
+	if err != nil {
+		return domain.PropertyDetail{}, fmt.Errorf("list property media: %w", err)
+	}
+	propertyMedia := make([]domain.Media, 0, len(propertyMediaRows))
+	for _, mediaRow := range propertyMediaRows {
+		propertyMedia = append(propertyMedia, mediaFromPropertyRow(mediaRow))
+	}
+
 	unitTypes := make([]domain.PropertyUnitTypeDetail, 0, len(unitTypeRows))
 	for _, utRow := range unitTypeRows {
+		mediaRows, err := r.queries.ListMediaByPropertyUnitType(ctx, utRow.ID)
+		if err != nil {
+			return domain.PropertyDetail{}, fmt.Errorf("list property unit type media: %w", err)
+		}
+		unitTypeMedia := make([]domain.Media, 0, len(mediaRows))
+		for _, mediaRow := range mediaRows {
+			unitTypeMedia = append(unitTypeMedia, mediaFromPropertyUnitTypeRow(mediaRow))
+		}
+
 		offerRows, err := r.queries.ListAgentOffersByPropertyUnitType(ctx, utRow.ID)
 		if err != nil {
 			return domain.PropertyDetail{}, fmt.Errorf("list agent offers: %w", err)
@@ -130,12 +148,14 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 
 		unitTypes = append(unitTypes, domain.PropertyUnitTypeDetail{
 			PropertyUnitType: propertyUnitTypeFromRow(utRow),
+			Media:            unitTypeMedia,
 			AgentOffers:      offers,
 		})
 	}
 
 	return domain.PropertyDetail{
 		Property:  propertyFromRow(propertyRow),
+		Media:     propertyMedia,
 		UnitTypes: unitTypes,
 	}, nil
 }
@@ -193,7 +213,8 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
 		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
 		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-		    COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo
+		    COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
 		  FROM properties p
 		  WHERE %s
 		) sub
@@ -213,6 +234,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	var summaries []domain.PropertySummary
 	for rows.Next() {
 		var row generateddb.ListPropertiesWithSummaryRow
+		var thumbnailURL pgtype.Text
 		if err := rows.Scan(
 			&row.ID,
 			&row.CampusID,
@@ -225,12 +247,15 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 			&row.UnitTypeCount,
 			&row.AvailableOfferCount,
 			&row.LowestPriceKobo,
+			&thumbnailURL,
 			&row.TotalCount,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan property summary: %w", err)
 		}
 		totalCount = row.TotalCount
-		summaries = append(summaries, propertySummaryFromRow(row))
+		summary := propertySummaryFromRow(row)
+		summary.ThumbnailURL = textString(thumbnailURL)
+		summaries = append(summaries, summary)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iterate property summaries: %w", err)
@@ -306,6 +331,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		    put.bedroom_count, put.has_parlour, put.bathroom_type, put.kitchen_type,
 		    COALESCE(MIN(ao.price_kobo), 0)::integer AS lowest_price_kobo,
 		    COALESCE(COUNT(ao.id), 0)::integer AS available_offer_count,
+		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id = put.id OR m.agent_offer_id IN (SELECT id FROM agent_offers WHERE property_unit_type_id = put.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url,
 		    p.created_at
 		  FROM properties p
 		  JOIN property_unit_types put ON p.id = put.property_id
@@ -344,6 +370,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			kitchenType         pgtype.Text
 			lowestPriceKobo     int
 			availableOfferCount int
+			thumbnailURL        pgtype.Text
 			createdAt           pgtype.Timestamptz
 			totalCountScan      int64
 		)
@@ -351,7 +378,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			&propertyID, &propertyName, &propertyArea, &propertyLandmark,
 			&unitTypeID, &category, &unitTypeName, &description, &notes,
 			&bedroomCount, &hasParlour, &bathroomType, &kitchenType,
-			&lowestPriceKobo, &availableOfferCount, &createdAt, &totalCountScan,
+			&lowestPriceKobo, &availableOfferCount, &thumbnailURL, &createdAt, &totalCountScan,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan discovery result: %w", err)
 		}
@@ -374,6 +401,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			},
 			LowestPrice:         domain.Money{AmountKobo: lowestPriceKobo},
 			AvailableOfferCount: availableOfferCount,
+			ThumbnailURL:        textString(thumbnailURL),
 			CreatedAt:           createdAt.Time,
 		})
 	}
