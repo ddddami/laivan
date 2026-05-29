@@ -11,8 +11,10 @@ import (
 
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/db"
+	"github.com/ddddami/laivan/internal/media"
 	"github.com/ddddami/laivan/internal/repo"
 	"github.com/ddddami/laivan/internal/server"
+	"github.com/ddddami/laivan/internal/storage"
 )
 
 var version = "dev"
@@ -28,6 +30,8 @@ func main() {
 	logger := newLogger(cfg)
 
 	var propertyRepo server.PropertyStore
+	var mediaUploader storage.Uploader
+	var mediaURLs server.MediaURLBuilder
 	if cfg.DatabaseURL != "" {
 		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
 		if err != nil {
@@ -39,8 +43,22 @@ func main() {
 		logger.Info("database connection pool ready")
 		propertyRepo = repo.NewPropertyRepository(pool)
 	}
+	if cfg.Media.Enabled {
+		uploader, err := storage.NewS3Uploader(context.Background(), cfg.Media)
+		if err != nil {
+			logger.Error("create media uploader", "error", err)
+			os.Exit(1)
+		}
+		urlBuilder, err := media.NewURLBuilder(cfg.Media)
+		if err != nil {
+			logger.Error("create media url builder", "error", err)
+			os.Exit(1)
+		}
+		mediaUploader = uploader
+		mediaURLs = urlBuilder
+	}
 
-	srv := server.New(cfg, logger, version, propertyRepo)
+	srv := server.New(cfg, logger, version, propertyRepo, mediaUploader, mediaURLs)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 

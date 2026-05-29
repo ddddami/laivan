@@ -114,6 +114,9 @@ func testApp() *app {
 			WriteTimeout:    10 * time.Second,
 			IdleTimeout:     time.Minute,
 			ShutdownTimeout: 10 * time.Second,
+			Media: config.MediaConfig{
+				MaxUploadBytes: 10 << 20,
+			},
 		},
 		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		version: "test-version",

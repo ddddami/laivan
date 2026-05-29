@@ -129,6 +129,33 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 	}, 1, nil
 }
 
+func (s *stubPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	media.ID = domain.ID("550e8400-e29b-41d4-a716-446655440050")
+	media.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
+	return media, nil
+}
+
+func (s *stubPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
+	return []domain.Media{{
+		ID:                domain.ID("550e8400-e29b-41d4-a716-446655440050"),
+		PropertyID:        propertyID,
+		UploadedByAgentID: domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+		URL:               "https://media.example.test/alice.jpg",
+		Kind:              domain.MediaKindImage,
+		ContentType:       "image/jpeg",
+		SizeBytes:         512,
+		CreatedAt:         time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+	}}, nil
+}
+
+func (s *stubPropertyRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
+	return nil, nil
+}
+
+func (s *stubPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
+	return nil, nil
+}
+
 func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
 	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return domain.PropertyUnitType{}, repo.ErrNotFound
@@ -229,6 +256,22 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
 	return s.stub.Discover(ctx, filter)
+}
+
+func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	return s.stub.CreateMedia(ctx, media)
+}
+
+func (s *spyPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByProperty(ctx, propertyID)
+}
+
+func (s *spyPropertyRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
+}
+
+func (s *spyPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
 }
 
 func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
