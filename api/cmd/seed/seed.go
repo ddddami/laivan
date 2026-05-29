@@ -38,6 +38,9 @@ func run(ctx context.Context, databaseURL string) error {
 	if err := seedAgentOffers(ctx, tx); err != nil {
 		return err
 	}
+	if err := seedMedia(ctx, tx); err != nil {
+		return err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit seed transaction: %w", err)
@@ -134,6 +137,31 @@ func seedAgentOffers(ctx context.Context, tx pgx.Tx) error {
 			  updated_at = now()
 		`, offer.ID, offer.UnitTypeID, offer.AgentID, offer.Title, offer.Description, offer.Notes, offer.PriceKobo, offer.Status, offer.CreatedAt); err != nil {
 			return fmt.Errorf("seed agent offer %s: %w", offer.ID, err)
+		}
+	}
+
+	return nil
+}
+
+func seedMedia(ctx context.Context, tx pgx.Tx) error {
+	for _, media := range mediaItems {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO media (id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at)
+			VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, $5, $6, $7, $8, $9, $10, $11, $12)
+			ON CONFLICT (id) DO UPDATE SET
+			  property_id = EXCLUDED.property_id,
+			  property_unit_type_id = EXCLUDED.property_unit_type_id,
+			  agent_offer_id = EXCLUDED.agent_offer_id,
+			  uploaded_by_agent_id = EXCLUDED.uploaded_by_agent_id,
+			  url = EXCLUDED.url,
+			  object_key = EXCLUDED.object_key,
+			  kind = EXCLUDED.kind,
+			  caption = EXCLUDED.caption,
+			  content_type = EXCLUDED.content_type,
+			  size_bytes = EXCLUDED.size_bytes,
+			  created_at = EXCLUDED.created_at
+		`, media.ID, media.PropertyID, media.UnitTypeID, media.AgentOfferID, media.UploadedByAgentID, media.URL, media.ObjectKey, media.Kind, media.Caption, media.ContentType, media.SizeBytes, media.CreatedAt); err != nil {
+			return fmt.Errorf("seed media %s: %w", media.ID, err)
 		}
 	}
 

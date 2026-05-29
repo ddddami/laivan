@@ -44,6 +44,21 @@ type agentOfferSeed struct {
 	CreatedAt   time.Time
 }
 
+type mediaSeed struct {
+	ID                string
+	PropertyID        string
+	UnitTypeID        string
+	AgentOfferID      string
+	UploadedByAgentID string
+	URL               string
+	ObjectKey         string
+	Kind              string
+	Caption           string
+	ContentType       string
+	SizeBytes         int
+	CreatedAt         time.Time
+}
+
 var seedBaseTime = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 
 var agents = []agentSeed{
@@ -102,4 +117,43 @@ var agentOffers = []agentOfferSeed{
 	{"99999999-9999-4999-8999-999999999993", "77777777-7777-4777-8777-777777777771", "11111111-1111-4111-8111-111111111111", "Room and parlour in Aule", "Spacious unit with flexible inspection timing.", "1 left. Agent is out of town until Friday.", 50000000, "available", seedBaseTime.Add(20 * time.Minute)},
 	{"99999999-9999-4999-8999-999999999994", "77777777-7777-4777-8777-777777777772", "22222222-2222-4222-8222-222222222222", "Quiet Aule self-contained", "Availability needs reconfirmation before inspection.", "Paused while landlord decides on renovation.", 32000000, "paused", seedBaseTime.Add(30 * time.Minute)},
 	{"99999999-9999-4999-8999-999999999995", "88888888-8888-4888-8888-888888888881", "11111111-1111-4111-8111-111111111111", "Budget South Gate room", "Lower-priced option near student movement routes.", "3 available. First come, no reservation.", 15000000, "available", seedBaseTime.Add(40 * time.Minute)},
+}
+
+var mediaItems = []mediaSeed{
+	{
+		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+		PropertyID:        "33333333-3333-4333-8333-333333333333",
+		UploadedByAgentID: "11111111-1111-4111-8111-111111111111",
+		URL:               "http://localhost:9000/laivan-dev/seed/alice-lodge/front.jpg",
+		ObjectKey:         "seed/alice-lodge/front.jpg",
+		Kind:              "image",
+		Caption:           "Front view of Alice Lodge compound",
+		ContentType:       "image/jpeg",
+		SizeBytes:         245000,
+		CreatedAt:         seedBaseTime.Add(50 * time.Minute),
+	},
+	{
+		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+		UnitTypeID:        "66666666-6666-4666-8666-666666666662",
+		UploadedByAgentID: "22222222-2222-4222-8222-222222222222",
+		URL:               "http://localhost:9000/laivan-dev/seed/alice-lodge/self-contained-room.jpg",
+		ObjectKey:         "seed/alice-lodge/self-contained-room.jpg",
+		Kind:              "image",
+		Caption:           "Self-contained room interior",
+		ContentType:       "image/jpeg",
+		SizeBytes:         312000,
+		CreatedAt:         seedBaseTime.Add(55 * time.Minute),
+	},
+	{
+		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+		PropertyID:        "44444444-4444-4444-8444-444444444444",
+		UploadedByAgentID: "22222222-2222-4222-8222-222222222222",
+		URL:               "http://localhost:9000/laivan-dev/seed/blue-roof/compound.jpg",
+		ObjectKey:         "seed/blue-roof/compound.jpg",
+		Kind:              "image",
+		Caption:           "Blue Roof compound entrance",
+		ContentType:       "image/jpeg",
+		SizeBytes:         280000,
+		CreatedAt:         seedBaseTime.Add(time.Hour),
+	},
 }

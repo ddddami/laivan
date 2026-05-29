@@ -155,7 +155,7 @@ func readMediaFile(fileHeader *multipart.FileHeader, maxBytes int64) ([]byte, st
 	if err != nil {
 		return nil, "", fmt.Errorf("open uploaded file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
 	if err != nil {
