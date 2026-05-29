@@ -50,6 +50,9 @@ type Medium struct {
 	Kind               string
 	Caption            pgtype.Text
 	CreatedAt          pgtype.Timestamptz
+	ObjectKey          pgtype.Text
+	ContentType        pgtype.Text
+	SizeBytes          pgtype.Int4
 }
 
 type Property struct {
