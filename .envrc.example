@@ -3,3 +3,16 @@ export LAIVAN_PORT=4000
 export LAIVAN_DB_URL=postgres://laivan:laivan@localhost:5433/laivan?sslmode=disable
 export LAIVAN_TEST_DB_URL=postgres://laivan:laivan@localhost:5433/laivan_test?sslmode=disable
 export LAIVAN_ALLOWED_ORIGINS=http://localhost:3000
+export LAIVAN_MEDIA_ENABLED=true
+export LAIVAN_S3_ENDPOINT=http://localhost:9000
+export LAIVAN_S3_BUCKET=laivan-dev
+export LAIVAN_S3_REGION=us-east-1
+export LAIVAN_S3_ACCESS_KEY_ID=laivan
+export LAIVAN_S3_SECRET_ACCESS_KEY=laivan123
+export LAIVAN_S3_USE_SSL=false
+export LAIVAN_MEDIA_PUBLIC_BASE_URL=http://localhost:9000/laivan-dev
+export LAIVAN_MEDIA_MAX_UPLOAD_BYTES=10485760
+export LAIVAN_IMGPROXY_BASE_URL=http://localhost:8080
+export LAIVAN_IMGPROXY_SOURCE_BASE_URL=http://minio:9000/laivan-dev
+export LAIVAN_IMGPROXY_KEY=6c616976616e2d6465762d696d6770726f78792d6b65792d31323334
+export LAIVAN_IMGPROXY_SALT=6c616976616e2d6465762d696d6770726f78792d73616c742d3132
