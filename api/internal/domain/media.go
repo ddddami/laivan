@@ -16,7 +16,10 @@ type Media struct {
 	AgentOfferID       ID
 	UploadedByAgentID  ID
 	URL                string
+	ObjectKey          string
 	Kind               MediaKind
 	Caption            string
+	ContentType        string
+	SizeBytes          int64
 	CreatedAt          time.Time
 }

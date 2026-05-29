@@ -14,14 +14,17 @@ type PropertySummary struct {
 	UnitTypeCount       int
 	AvailableOfferCount int
 	LowestPrice         Money
+	ThumbnailURL        string
 }
 
 type PropertyDetail struct {
 	Property
+	Media     []Media
 	UnitTypes []PropertyUnitTypeDetail
 }
 
 type PropertyUnitTypeDetail struct {
 	PropertyUnitType
+	Media       []Media
 	AgentOffers []AgentOffer
 }
