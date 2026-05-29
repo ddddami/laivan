@@ -79,7 +79,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := envelope{
-		"results":  discoveryResultsResponse(results),
+		"results":  app.discoveryResultsResponse(results),
 		"metadata": data.CalculateMetadata(totalRecords, filters.Page, filters.PageSize),
 	}
 
@@ -88,11 +88,15 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func discoveryResultsResponse(results []domain.DiscoveryResult) []map[string]any {
-	return mapItems(results, discoveryResultResponse)
+func (app *app) discoveryResultsResponse(results []domain.DiscoveryResult) []map[string]any {
+	result := make([]map[string]any, 0, len(results))
+	for _, item := range results {
+		result = append(result, app.discoveryResultResponse(item))
+	}
+	return result
 }
 
-func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
+func (app *app) discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 	return map[string]any{
 		"property": map[string]any{
 			"id":       string(r.PropertyID),
@@ -117,7 +121,8 @@ func discoveryResultResponse(r domain.DiscoveryResult) map[string]any {
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,
 		},
-		"created_at": r.CreatedAt.Format(time.RFC3339),
+		"thumbnail_url": app.thumbnailURL(r.ThumbnailURL),
+		"created_at":    r.CreatedAt.Format(time.RFC3339),
 	}
 }
 
