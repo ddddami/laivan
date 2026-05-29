@@ -53,6 +53,48 @@ func TestURLBuilderUsesInternalSourceBaseURL(t *testing.T) {
 	}
 }
 
+func TestURLBuilderMediumURL(t *testing.T) {
+	builder, err := NewURLBuilder(config.MediaConfig{
+		Imgproxy: config.ImgproxyConfig{
+			BaseURL: "https://images.example.test/",
+			Key:     "00112233445566778899aabbccddeeff",
+			Salt:    "ffeeddccbbaa99887766554433221100",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewURLBuilder returned error: %v", err)
+	}
+
+	got := builder.MediumURL("https://media.example.test/alice.jpg")
+
+	if !strings.Contains(got, "/rs:fit:900:700/plain/") {
+		t.Fatalf("medium URL = %q, want medium resize options", got)
+	}
+	if !strings.HasSuffix(got, "@webp") {
+		t.Fatalf("medium URL = %q, want webp extension", got)
+	}
+}
+
+func TestURLBuilderReturnsEmptyForEmptySource(t *testing.T) {
+	builder, err := NewURLBuilder(config.MediaConfig{
+		Imgproxy: config.ImgproxyConfig{
+			BaseURL: "https://images.example.test/",
+			Key:     "00112233445566778899aabbccddeeff",
+			Salt:    "ffeeddccbbaa99887766554433221100",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewURLBuilder returned error: %v", err)
+	}
+
+	if got := builder.ThumbnailURL(""); got != "" {
+		t.Fatalf("thumbnail URL = %q, want empty string", got)
+	}
+	if got := builder.MediumURL(""); got != "" {
+		t.Fatalf("medium URL = %q, want empty string", got)
+	}
+}
+
 func TestURLBuilderRejectsInvalidSigningConfig(t *testing.T) {
 	tests := []struct {
 		name string
