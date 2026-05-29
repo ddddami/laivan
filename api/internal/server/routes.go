@@ -34,6 +34,7 @@ func (app *app) routes() http.Handler {
 	})
 
 	r.Get("/v1/discovery", app.discover)
+	r.Post("/v1/media", app.uploadMedia)
 
 	return r
 }
