@@ -2,16 +2,35 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
+func (app *app) logRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		next.ServeHTTP(ww, r)
+
+		app.logger.Info("request completed",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", ww.Status(),
+			"duration", time.Since(start),
+			"request_id", middleware.GetReqID(r.Context()),
+		)
+	})
+}
+
 func (app *app) routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
+	r.Use(app.logRequest)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   app.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
