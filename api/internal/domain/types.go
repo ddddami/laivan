@@ -2,6 +2,10 @@ package domain
 
 import "time"
 
+// MaxNaira is the maximum price in naira that can be safely stored
+// as kobo in a 32-bit signed integer column (price_kobo).
+const MaxNaira = 21_474_836
+
 type ID string
 
 type Money struct {
