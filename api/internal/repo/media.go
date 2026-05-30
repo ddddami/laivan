@@ -42,7 +42,7 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 		Kind:               string(media.Kind),
 		Caption:            textParam(media.Caption),
 		ContentType:        textParam(media.ContentType),
-		SizeBytes:          int32Param(media.SizeBytes),
+		SizeBytes:          int64Param(media.SizeBytes),
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
@@ -138,18 +138,18 @@ func optionalUUIDParam(id domain.ID) (pgtype.UUID, error) {
 	return uuidParam(id)
 }
 
-func int32Param(value int64) pgtype.Int4 {
+func int64Param(value int64) pgtype.Int8 {
 	if value == 0 {
-		return pgtype.Int4{}
+		return pgtype.Int8{}
 	}
-	return pgtype.Int4{Int32: int32(value), Valid: true}
+	return pgtype.Int8{Int64: value, Valid: true}
 }
 
-func int64String(value pgtype.Int4) int64 {
+func int64String(value pgtype.Int8) int64 {
 	if !value.Valid {
 		return 0
 	}
-	return int64(value.Int32)
+	return value.Int64
 }
 
 func mediaFromCreateRow(row generateddb.CreateMediaRow) domain.Media {
@@ -168,7 +168,7 @@ func mediaFromAgentOfferRow(row generateddb.ListMediaByAgentOfferRow) domain.Med
 	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
 }
 
-func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedByAgentID pgtype.UUID, url string, objectKey pgtype.Text, kind string, caption pgtype.Text, contentType pgtype.Text, sizeBytes pgtype.Int4, createdAt pgtype.Timestamptz) domain.Media {
+func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedByAgentID pgtype.UUID, url string, objectKey pgtype.Text, kind string, caption pgtype.Text, contentType pgtype.Text, sizeBytes pgtype.Int8, createdAt pgtype.Timestamptz) domain.Media {
 	return domain.Media{
 		ID:                 domain.ID(uuidString(id)),
 		PropertyID:         domain.ID(uuidString(propertyID)),
