@@ -21,8 +21,8 @@ func (h *capturingHandler) Handle(_ context.Context, r slog.Record) error {
 	h.records = append(h.records, r)
 	return nil
 }
-func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler   { return h }
-func (h *capturingHandler) WithGroup(_ string) slog.Handler        { return h }
+func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *capturingHandler) WithGroup(_ string) slog.Handler      { return h }
 
 func TestLogRequestCapturesStatusAndDuration(t *testing.T) {
 	handler := &capturingHandler{}
