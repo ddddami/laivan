@@ -296,6 +296,100 @@ func TestUnitTypeDisplayName(t *testing.T) {
 	}
 }
 
+func TestThumbnailURLNilMediaURLs(t *testing.T) {
+	app := testApp()
+	if got := app.thumbnailURL("https://example.com/img.jpg"); got != "https://example.com/img.jpg" {
+		t.Fatalf("thumbnailURL with nil mediaURLs = %v, want %q", got, "https://example.com/img.jpg")
+	}
+}
+
+func TestValidUnitCategory(t *testing.T) {
+	categories := []struct {
+		value string
+		valid bool
+	}{
+		{"single_room", true},
+		{"self_contained", true},
+		{"room_and_parlour", true},
+		{"one_bedroom_flat", true},
+		{"two_bedroom_flat", true},
+		{"three_bedroom_flat", true},
+		{"other", true},
+		{"invalid", false},
+		{"", false},
+	}
+	for _, tc := range categories {
+		t.Run(tc.value, func(t *testing.T) {
+			if got := validUnitCategory(tc.value); got != tc.valid {
+				t.Fatalf("validUnitCategory(%q) = %v, want %v", tc.value, got, tc.valid)
+			}
+		})
+	}
+}
+
+func TestValidBathroomType(t *testing.T) {
+	values := []struct {
+		value string
+		valid bool
+	}{
+		{"private", true},
+		{"shared", true},
+		{"unknown", true},
+		{"invalid", false},
+		{"", false},
+	}
+	for _, tc := range values {
+		t.Run(tc.value, func(t *testing.T) {
+			if got := validBathroomType(tc.value); got != tc.valid {
+				t.Fatalf("validBathroomType(%q) = %v, want %v", tc.value, got, tc.valid)
+			}
+		})
+	}
+}
+
+func TestValidKitchenType(t *testing.T) {
+	values := []struct {
+		value string
+		valid bool
+	}{
+		{"private", true},
+		{"shared", true},
+		{"none", true},
+		{"unknown", true},
+		{"invalid", false},
+		{"", false},
+	}
+	for _, tc := range values {
+		t.Run(tc.value, func(t *testing.T) {
+			if got := validKitchenType(tc.value); got != tc.valid {
+				t.Fatalf("validKitchenType(%q) = %v, want %v", tc.value, got, tc.valid)
+			}
+		})
+	}
+}
+
+func TestUnitCategoryDisplayName(t *testing.T) {
+	tests := []struct {
+		category domain.UnitCategory
+		want     string
+	}{
+		{domain.UnitCategorySingleRoom, "Single Room"},
+		{domain.UnitCategorySelfContained, "Self-contained"},
+		{domain.UnitCategoryRoomAndParlour, "Room and Parlour"},
+		{domain.UnitCategoryOneBedroomFlat, "One-bedroom Flat"},
+		{domain.UnitCategoryTwoBedroomFlat, "Two-bedroom Flat"},
+		{domain.UnitCategoryThreeBedroomFlat, "Three-bedroom Flat"},
+		{domain.UnitCategoryOther, "Other"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.category), func(t *testing.T) {
+			if got := unitCategoryDisplayName(tt.category); got != tt.want {
+				t.Fatalf("unitCategoryDisplayName(%q) = %q, want %q", tt.category, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNairaConversion(t *testing.T) {
 	m := domain.Money{AmountKobo: 35000000}
 	if got := m.Naira(); got != 350000 {
