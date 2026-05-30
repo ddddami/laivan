@@ -42,6 +42,53 @@ func TestValidatorKeepsFirstFieldError(t *testing.T) {
 	}
 }
 
+func TestValidUUID(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"valid lowercase", "550e8400-e29b-41d4-a716-446655440000", true},
+		{"valid uppercase", "550E8400-E29B-41D4-A716-446655440000", true},
+		{"valid mixed case", "550e8400-e29b-41d4-A716-446655440000", true},
+		{"empty string", "", false},
+		{"too short", "550e8400-e29b-41d4-a716-44665544", false},
+		{"too long", "550e8400-e29b-41d4-a716-44665544000000", false},
+		{"invalid hex char", "550e8400-e29b-41d4-a716-44665544000g", false},
+		{"missing dashes", "550e8400e29b41d4a716446655440000", false},
+		{"wrong dash position", "550e8400e-29b-41d4-a716-446655440000", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidUUID(tt.value); got != tt.want {
+				t.Fatalf("ValidUUID(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermittedValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		permitted []string
+		want     bool
+	}{
+		{"value found", "private", []string{"private", "shared", "none"}, true},
+		{"value not found", "unknown", []string{"private", "shared"}, false},
+		{"empty permitted list", "private", []string{}, false},
+		{"single element match", "private", []string{"private"}, true},
+		{"no match from multiple", "unknown", []string{"private", "shared", "none"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := PermittedValue(tt.value, tt.permitted...); got != tt.want {
+				t.Fatalf("PermittedValue(%q, %v) = %v, want %v", tt.value, tt.permitted, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidationHelpers(t *testing.T) {
 	tests := []struct {
 		name string
