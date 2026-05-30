@@ -82,6 +82,10 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			if errors.Is(err, repo.ErrForeignKeyViolation) {
+				app.badRequestResponse(w, r, fmt.Errorf("referenced resource does not exist"))
+				return
+			}
 			if errors.Is(err, repo.ErrNotFound) {
 				app.notFoundResponse(w, r)
 				return

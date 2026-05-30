@@ -46,7 +46,7 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
-			return domain.Media{}, ErrNotFound
+			return domain.Media{}, ErrForeignKeyViolation
 		}
 		return domain.Media{}, fmt.Errorf("create media: %w", err)
 	}
