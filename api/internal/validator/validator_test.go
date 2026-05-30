@@ -138,6 +138,8 @@ func TestValidationHelpers(t *testing.T) {
 		{name: "positive accepts positive", ok: Positive(1)},
 		{name: "positive rejects zero", ok: !Positive(0)},
 		{name: "positive rejects negative", ok: !Positive(-1)},
+		{name: "max value accepts equal", ok: MaxValue(5, 5)},
+		{name: "max value rejects over", ok: !MaxValue(6, 5)},
 	}
 
 	for _, tt := range tests {

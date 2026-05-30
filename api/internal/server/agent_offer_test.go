@@ -104,6 +104,51 @@ func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
+func TestCreateAgentOfferRejectsPriceOverflow(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Premium room","price_naira":21474837}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if bodyDecoded.Error.Fields["price_naira"] == "" {
+		t.Fatal("price_naira validation error missing")
+	}
+}
+
+func TestCreateAgentOfferAcceptsMaxPrice(t *testing.T) {
+	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Premium room","price_naira":21474836}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	if spy.createdOffer.Price.AmountKobo != 2147483600 {
+		t.Fatalf("stored price = %d kobo, want 2147483600", spy.createdOffer.Price.AmountKobo)
+	}
+}
+
 func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)
