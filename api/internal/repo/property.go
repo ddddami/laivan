@@ -499,6 +499,9 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 		if isForeignKeyViolation(err) {
 			return domain.AgentOffer{}, ErrNotFound
 		}
+		if isUniqueViolation(err) {
+			return domain.AgentOffer{}, ErrDuplicate
+		}
 
 		return domain.AgentOffer{}, fmt.Errorf("create agent offer: %w", err)
 	}
@@ -668,6 +671,11 @@ func uuidString(uuid pgtype.UUID) string {
 func isForeignKeyViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain.PropertySummary {

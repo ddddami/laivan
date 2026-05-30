@@ -70,6 +70,10 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 			app.notFoundResponse(w, r)
 			return
 		}
+		if errors.Is(err, repo.ErrDuplicate) {
+			app.conflictResponse(w, r)
+			return
+		}
 
 		app.serverErrorResponse(w, r, fmt.Errorf("create agent offer: %w", err))
 		return
