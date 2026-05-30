@@ -93,6 +93,20 @@ func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 	}
 }
 
+func TestCreateAgentOfferDuplicateReturnsConflict(t *testing.T) {
+	dupRepo := &duplicateAgentOfferRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = dupRepo
+
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Duplicate offer","price_naira":350000}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusConflict, "conflict", "The resource already exists")
+}
+
 func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`

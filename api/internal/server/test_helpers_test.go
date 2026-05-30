@@ -292,6 +292,50 @@ func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain
 	return s.stub.ListAgentOffers(ctx, unitTypeID)
 }
 
+type duplicateAgentOfferRepo struct {
+	stub *stubPropertyRepo
+}
+
+func (s *duplicateAgentOfferRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+	return s.stub.Create(ctx, property)
+}
+func (s *duplicateAgentOfferRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
+	return s.stub.Get(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	return s.stub.GetWithDetails(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
+	return s.stub.ListWithSummary(ctx, filter)
+}
+func (s *duplicateAgentOfferRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return s.stub.Discover(ctx, filter)
+}
+func (s *duplicateAgentOfferRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	return s.stub.CreateMedia(ctx, media)
+}
+func (s *duplicateAgentOfferRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByProperty(ctx, propertyID)
+}
+func (s *duplicateAgentOfferRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
+}
+func (s *duplicateAgentOfferRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
+}
+func (s *duplicateAgentOfferRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	return s.stub.CreatePropertyUnitType(ctx, unitType)
+}
+func (s *duplicateAgentOfferRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
+	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
+}
+func (s *duplicateAgentOfferRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	return domain.AgentOffer{}, repo.ErrDuplicate
+}
+func (s *duplicateAgentOfferRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	return s.stub.ListAgentOffers(ctx, unitTypeID)
+}
+
 func intPointer(value int) *int {
 	return &value
 }

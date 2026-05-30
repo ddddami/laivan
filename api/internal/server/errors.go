@@ -38,6 +38,10 @@ func (app *app) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
+func (app *app) conflictResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusConflict, "conflict", "The resource already exists")
+}
+
 func (app *app) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "The request method is not supported for this resource")
 }
