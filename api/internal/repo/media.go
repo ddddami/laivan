@@ -15,15 +15,27 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
+	propertyID, err := optionalUUIDParam(media.PropertyID)
+	if err != nil {
+		return domain.Media{}, fmt.Errorf("invalid property id: %w", err)
+	}
+	propertyUnitTypeID, err := optionalUUIDParam(media.PropertyUnitTypeID)
+	if err != nil {
+		return domain.Media{}, fmt.Errorf("invalid property unit type id: %w", err)
+	}
+	agentOfferID, err := optionalUUIDParam(media.AgentOfferID)
+	if err != nil {
+		return domain.Media{}, fmt.Errorf("invalid agent offer id: %w", err)
+	}
 	uploadedByAgentID, err := uuidParam(media.UploadedByAgentID)
 	if err != nil {
 		return domain.Media{}, err
 	}
 
 	row, err := r.queries.CreateMedia(ctx, generateddb.CreateMediaParams{
-		PropertyID:         optionalUUIDParam(media.PropertyID),
-		PropertyUnitTypeID: optionalUUIDParam(media.PropertyUnitTypeID),
-		AgentOfferID:       optionalUUIDParam(media.AgentOfferID),
+		PropertyID:         propertyID,
+		PropertyUnitTypeID: propertyUnitTypeID,
+		AgentOfferID:       agentOfferID,
 		UploadedByAgentID:  uploadedByAgentID,
 		Url:                media.URL,
 		ObjectKey:          textParam(media.ObjectKey),
@@ -119,15 +131,11 @@ func (r *PropertyRepository) ListMediaByAgentOffer(ctx context.Context, agentOff
 	return media, nil
 }
 
-func optionalUUIDParam(id domain.ID) pgtype.UUID {
+func optionalUUIDParam(id domain.ID) (pgtype.UUID, error) {
 	if id == "" {
-		return pgtype.UUID{}
+		return pgtype.UUID{}, nil
 	}
-	uuid, err := uuidParam(id)
-	if err != nil {
-		return pgtype.UUID{}
-	}
-	return uuid
+	return uuidParam(id)
 }
 
 func int32Param(value int64) pgtype.Int4 {

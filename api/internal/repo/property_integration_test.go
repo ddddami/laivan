@@ -972,6 +972,24 @@ func TestPropertyRepositoryAgentPhoneNumberUnique(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryCreateMediaRejectsInvalidOptionalUUID(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	repository := NewPropertyRepository(pool)
+
+	_, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID:        domain.ID("not-a-uuid"),
+		UploadedByAgentID: domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+		URL:               "https://example.test/image.jpg",
+		Kind:              domain.MediaKindImage,
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid optional UUID, got nil")
+	}
+}
+
 func intPtr(value int) *int {
 	return &value
 }
