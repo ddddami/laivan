@@ -52,7 +52,7 @@ type Medium struct {
 	CreatedAt          pgtype.Timestamptz
 	ObjectKey          pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 }
 
 type Property struct {

@@ -27,7 +27,7 @@ type CreateMediaParams struct {
 	Kind               string
 	Caption            pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 }
 
 type CreateMediaRow struct {
@@ -41,7 +41,7 @@ type CreateMediaRow struct {
 	Kind               string
 	Caption            pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 	CreatedAt          pgtype.Timestamptz
 }
 
@@ -94,7 +94,7 @@ type ListMediaByAgentOfferRow struct {
 	Kind               string
 	Caption            pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 	CreatedAt          pgtype.Timestamptz
 }
 
@@ -149,7 +149,7 @@ type ListMediaByPropertyRow struct {
 	Kind               string
 	Caption            pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 	CreatedAt          pgtype.Timestamptz
 }
 
@@ -204,7 +204,7 @@ type ListMediaByPropertyUnitTypeRow struct {
 	Kind               string
 	Caption            pgtype.Text
 	ContentType        pgtype.Text
-	SizeBytes          pgtype.Int4
+	SizeBytes          pgtype.Int8
 	CreatedAt          pgtype.Timestamptz
 }
 
