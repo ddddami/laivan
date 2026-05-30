@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 	"github.com/ddddami/laivan/internal/storage"
 )
 
@@ -261,6 +263,24 @@ func TestUploadMediaRejectsCaptionTooLong(t *testing.T) {
 	}
 }
 
+func TestUploadMediaReturnsBadRequestOnForeignKeyViolation(t *testing.T) {
+	app := testApp()
+	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
+	app.mediaUploader = &stubUploader{}
+
+	body, contentType := multipartBody(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, "room.jpg", tinyJPEG())
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusBadRequest, "bad_request", "referenced resource does not exist")
+}
+
 func TestUploadMediaRejectsInvalidTargetUUID(t *testing.T) {
 	app := testAppWithRepo()
 	app.mediaUploader = &stubUploader{}
@@ -298,6 +318,50 @@ type failUploader struct {
 
 func (f *failUploader) Upload(ctx context.Context, input storage.UploadInput) (string, error) {
 	return "", f.err
+}
+
+type fkViolationRepo struct {
+	stub *stubPropertyRepo
+}
+
+func (s *fkViolationRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+	return s.stub.Create(ctx, property)
+}
+func (s *fkViolationRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
+	return s.stub.Get(ctx, id)
+}
+func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
+	return s.stub.GetWithDetails(ctx, id)
+}
+func (s *fkViolationRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
+	return s.stub.ListWithSummary(ctx, filter)
+}
+func (s *fkViolationRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	return s.stub.Discover(ctx, filter)
+}
+func (s *fkViolationRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	return domain.Media{}, repo.ErrForeignKeyViolation
+}
+func (s *fkViolationRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByProperty(ctx, propertyID)
+}
+func (s *fkViolationRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
+}
+func (s *fkViolationRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
+	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
+}
+func (s *fkViolationRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+	return s.stub.CreatePropertyUnitType(ctx, unitType)
+}
+func (s *fkViolationRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
+	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
+}
+func (s *fkViolationRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
+	return s.stub.CreateAgentOffer(ctx, offer)
+}
+func (s *fkViolationRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
+	return s.stub.ListAgentOffers(ctx, unitTypeID)
 }
 
 func multipartBody(t *testing.T, fields map[string]string, filename string, file []byte) (*bytes.Buffer, string) {
