@@ -48,6 +48,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
 	v.Check(validator.MaxChars(input.Notes, 2000), "notes", "Notes must not exceed 2000 characters")
 	v.Check(input.PriceNaira > 0, "price_naira", "Price must be greater than 0")
+	v.Check(validator.MaxValue(input.PriceNaira, domain.MaxNaira), "price_naira", "Price exceeds maximum allowed value")
 	v.Check(validAgentOfferStatus(input.Status), "status", "Status must be available, unavailable, or paused")
 
 	if !v.Valid() {

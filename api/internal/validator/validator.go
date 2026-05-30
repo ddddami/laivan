@@ -42,6 +42,10 @@ func Positive(value int) bool {
 	return value > 0
 }
 
+func MaxValue(value, max int) bool {
+	return value <= max
+}
+
 func ValidUUID(value string) bool {
 	if len(value) != 36 {
 		return false
