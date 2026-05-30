@@ -12,6 +12,7 @@ import (
 	"github.com/ddddami/laivan/internal/data"
 	appdb "github.com/ddddami/laivan/internal/db"
 	"github.com/ddddami/laivan/internal/domain"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -946,6 +947,28 @@ func TestRepositoryListPropertiesWithFilters(t *testing.T) {
 	}
 	if summaries[0].Name != "Alice Lodge" {
 		t.Fatalf("name = %q, want Alice Lodge", summaries[0].Name)
+	}
+}
+
+func TestPropertyRepositoryAgentPhoneNumberUnique(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() { truncateAgents(t, ctx, pool) })
+
+	insertAgent(t, ctx, pool, "First Agent")
+
+	// Attempt to insert a second agent with the same phone number.
+	_, err := pool.Exec(ctx, `
+		INSERT INTO agents (display_name, phone_number)
+		VALUES ($1, '+2348012345678')
+	`, "Second Agent")
+
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		t.Fatalf("expected unique violation (23505), got: %v", err)
 	}
 }
 
