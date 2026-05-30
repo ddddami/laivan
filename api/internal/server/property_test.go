@@ -10,6 +10,78 @@ import (
 	"github.com/ddddami/laivan/internal/domain"
 )
 
+func TestHandlerNilRepo(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"listProperties", http.MethodGet, "/v1/properties", ""},
+		{"createProperty", http.MethodPost, "/v1/properties", `{}`},
+		{"getProperty", http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", ""},
+		{"listPropertyUnitTypes", http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", ""},
+		{"createPropertyUnitType", http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", `{}`},
+		{"listAgentOffers", http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440000/agent-offers", ""},
+		{"createAgentOffer", http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440000/agent-offers", `{}`},
+		{"discover", http.MethodGet, "/v1/discovery", ""},
+		{"uploadMedia", http.MethodPost, "/v1/media", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := testApp()
+			var req *http.Request
+			if tt.body != "" {
+				req = httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			} else {
+				req = httptest.NewRequest(tt.method, tt.path, nil)
+			}
+			rr := httptest.NewRecorder()
+			app.routes().ServeHTTP(rr, req)
+			assertErrorResponse(t, rr, http.StatusInternalServerError, "internal_server_error", "The server encountered a problem and could not process your request")
+		})
+	}
+}
+
+func TestCreatePropertyReturnsProperty(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440000","name":"Alice Lodge","area":"Obanla","landmark":"South Gate","description":"A nice lodge"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	var bodyDecoded struct {
+		Property struct {
+			ID        string `json:"id"`
+			CampusID  string `json:"campus_id"`
+			Name      string `json:"name"`
+			Area      string `json:"area"`
+			Landmark  string `json:"landmark"`
+			CreatedAt string `json:"created_at"`
+		} `json:"property"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if bodyDecoded.Property.ID == "" {
+		t.Fatal("property ID is empty")
+	}
+	if bodyDecoded.Property.Name != "Alice Lodge" {
+		t.Fatalf("property name = %q, want Alice Lodge", bodyDecoded.Property.Name)
+	}
+	if bodyDecoded.Property.Area != "Obanla" {
+		t.Fatalf("property area = %q, want Obanla", bodyDecoded.Property.Area)
+	}
+	if bodyDecoded.Property.CampusID != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.Property.CampusID)
+	}
+}
+
 func TestCreatePropertyUnknownField(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440000","name":"Alice Lodge","area":"Obanla","unknown":"field"}`
