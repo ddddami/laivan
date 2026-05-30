@@ -1,6 +1,10 @@
 package validator
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ddddami/laivan/internal/phone"
+)
 
 type Validator struct {
 	FieldErrors map[string]string
@@ -59,6 +63,11 @@ func ValidUUID(value string) bool {
 		}
 	}
 	return true
+}
+
+func ValidPhone(value string) bool {
+	_, err := phone.Normalize(value)
+	return err == nil
 }
 
 func PermittedValue[T comparable](value T, permittedValues ...T) bool {
