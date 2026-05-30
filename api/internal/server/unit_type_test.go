@@ -8,6 +8,56 @@ import (
 	"testing"
 )
 
+func TestCreatePropertyUnitTypeInvalidBathroomType(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"category":"self_contained","bathroom_type":"invalid"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if bodyDecoded.Error.Fields["bathroom_type"] == "" {
+		t.Fatal("bathroom_type validation error missing")
+	}
+}
+
+func TestCreatePropertyUnitTypeInvalidKitchenType(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"category":"self_contained","kitchen_type":"invalid"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if bodyDecoded.Error.Fields["kitchen_type"] == "" {
+		t.Fatal("kitchen_type validation error missing")
+	}
+}
+
 func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"category":"self_contained"}`
