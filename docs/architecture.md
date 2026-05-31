@@ -215,7 +215,7 @@ Goal is reduce marketplace chaos, reduce duplicate confusion, preserve operation
 
 # Tooling
 
-**Decision:** pnpm workspaces + mise + Taskfile
+**Decision:** pnpm workspaces + mise (tools, env, tasks)
 
 **Why:** Provides lightweight orchestration, pinned tooling versions, clean local setup, modern developer experience without introducing heavy monorepo infrastructure. Want to avoid excessive orchestration tooling, enterprise-style build systems, unnecessary complexity.
 
