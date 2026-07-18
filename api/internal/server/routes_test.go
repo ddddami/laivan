@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ddddami/laivan/internal/config"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 // capturingHandler is a slog.Handler that stores all records for inspection.
@@ -77,5 +78,35 @@ func TestLogRequestCapturesStatusAndDuration(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("request completed log not found")
+	}
+}
+
+func TestRecoverPanicReturnsJSONServerError(t *testing.T) {
+	handler := &capturingHandler{}
+	app := testApp()
+	app.logger = slog.New(handler)
+
+	panickingHandler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	})
+	recoveredHandler := middleware.RequestID(app.recoverPanic(panickingHandler))
+	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	rr := httptest.NewRecorder()
+
+	recoveredHandler.ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusInternalServerError, "internal_server_error", "The server encountered a problem and could not process your request")
+	if rr.Header().Get("Connection") != "close" {
+		t.Fatalf("Connection header = %q, want close", rr.Header().Get("Connection"))
+	}
+
+	var found bool
+	for _, record := range handler.records {
+		if record.Message == "panic recovered" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("panic recovery log not found")
 	}
 }
