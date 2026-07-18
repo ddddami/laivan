@@ -214,6 +214,42 @@ func TestUploadMediaRejectsMissingFilesField(t *testing.T) {
 	}
 }
 
+func TestUploadMediaRejectsTooManyFiles(t *testing.T) {
+	app := testAppWithRepo()
+	app.mediaUploader = &stubUploader{}
+
+	files := make([]multipartTestFile, 11)
+	for i := range files {
+		files[i] = multipartTestFile{filename: "room.jpg", data: tinyJPEG()}
+	}
+	body, contentType := multipartBodyFiles(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, files)
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var decoded struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	want := "At most 10 image files are allowed per upload"
+	if decoded.Error.Fields[mediaFilesFormKey] != want {
+		t.Fatalf("files error = %q, want %q", decoded.Error.Fields[mediaFilesFormKey], want)
+	}
+}
+
 func TestUploadMediaRejectsMissingAgentID(t *testing.T) {
 	app := testAppWithRepo()
 	app.mediaUploader = &stubUploader{}

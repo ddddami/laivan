@@ -19,7 +19,10 @@ import (
 	"github.com/ddddami/laivan/internal/validator"
 )
 
-const mediaFilesFormKey = "files"
+const (
+	mediaFilesFormKey      = "files"
+	maxMediaFilesPerUpload = 10
+)
 
 var allowedImageContentTypes = map[string]bool{
 	"image/jpeg": true,
@@ -33,9 +36,15 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, app.cfg.Media.MaxUploadBytes+(1<<20))
+	maxBodyBytes := int64(maxMediaFilesPerUpload)*app.cfg.Media.MaxUploadBytes + (1 << 20)
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		app.badRequestResponse(w, r, fmt.Errorf("request body must be multipart form-data within %d MB", app.cfg.Media.MaxUploadBytes/(1<<20)))
+		app.badRequestResponse(w, r, fmt.Errorf(
+			"request body must be multipart form-data with at most %d image files, each no larger than %d bytes, and total size no larger than %d bytes",
+			maxMediaFilesPerUpload,
+			app.cfg.Media.MaxUploadBytes,
+			maxBodyBytes,
+		))
 		return
 	}
 
@@ -53,6 +62,7 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 
 	files := r.MultipartForm.File[mediaFilesFormKey]
 	v.Check(len(files) > 0, mediaFilesFormKey, "At least one image file is required")
+	v.Check(len(files) <= maxMediaFilesPerUpload, mediaFilesFormKey, fmt.Sprintf("At most %d image files are allowed per upload", maxMediaFilesPerUpload))
 
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
