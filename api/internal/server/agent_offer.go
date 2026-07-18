@@ -61,17 +61,23 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 		Status:             domain.AgentOfferStatus(input.Status),
 	})
 	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
+		switch {
+		case errors.Is(err, repo.ErrUnitTypeNotFound):
 			app.notFoundResponse(w, r)
 			return
-		}
-		if errors.Is(err, repo.ErrDuplicate) {
+		case errors.Is(err, repo.ErrAgentNotFound):
+			app.validationFailedResponse(w, r, map[string]string{"agent_id": "Agent does not exist"})
+			return
+		case errors.Is(err, repo.ErrNotFound):
+			app.notFoundResponse(w, r)
+			return
+		case errors.Is(err, repo.ErrDuplicate):
 			app.conflictResponse(w, r)
 			return
+		default:
+			app.serverErrorResponse(w, r, fmt.Errorf("create agent offer: %w", err))
+			return
 		}
-
-		app.serverErrorResponse(w, r, fmt.Errorf("create agent offer: %w", err))
-		return
 	}
 
 	data := envelope{
