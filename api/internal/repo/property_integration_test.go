@@ -531,13 +531,42 @@ func TestPropertyRepositoryAgentOffersUnitTypeNotFound(t *testing.T) {
 		Price:              domain.Money{AmountKobo: 35000000},
 		Status:             domain.AgentOfferStatusAvailable,
 	})
-	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("create error = %v, want %v", err, ErrNotFound)
+	if !errors.Is(err, ErrUnitTypeNotFound) {
+		t.Fatalf("create error = %v, want %v", err, ErrUnitTypeNotFound)
 	}
 
 	_, err = repository.ListAgentOffers(ctx, missingUnitTypeID)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("list error = %v, want %v", err, ErrNotFound)
+	}
+}
+
+func TestPropertyRepositoryAgentOffersAgentNotFound(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	repository := NewPropertyRepository(pool)
+
+	_, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+		Title:              "Fresh self-contained room",
+		Price:              domain.Money{AmountKobo: 35000000},
+		Status:             domain.AgentOfferStatusAvailable,
+	})
+	if !errors.Is(err, ErrAgentNotFound) {
+		t.Fatalf("create error = %v, want %v", err, ErrAgentNotFound)
 	}
 }
 
