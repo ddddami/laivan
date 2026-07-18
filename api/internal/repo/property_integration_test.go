@@ -790,6 +790,10 @@ func TestRepositoryDiscover(t *testing.T) {
 	quietSingle := insertPropertyUnitTypeFull(t, ctx, pool, quiet, "single_room", "", 1, false, "shared", "shared", "Shared kitchen")
 	insertAgentOffer(t, ctx, pool, quietSingle, agentID, "Quiet single", 15000000)
 
+	// Property D: an available unit type with no agent offers yet
+	empty := insertPropertyWithArea(t, ctx, pool, campusID, "Empty Lodge", "Obanla", time.Date(2026, time.April, 30, 12, 0, 0, 0, time.UTC))
+	insertPropertyUnitTypeFull(t, ctx, pool, empty, "single_room", "", 1, false, "shared", "shared", "No offers yet")
+
 	repository := NewPropertyRepository(pool)
 	baseFilter := data.Filters{Page: 1, PageSize: 10, Sort: "-created_at", SortSafelist: []string{"created_at", "-created_at"}}
 
@@ -798,11 +802,11 @@ func TestRepositoryDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover all: %v", err)
 	}
-	if total != 5 {
-		t.Fatalf("total = %d, want 5", total)
+	if total != 6 {
+		t.Fatalf("total = %d, want 6", total)
 	}
-	if len(results) != 5 {
-		t.Fatalf("results length = %d, want 5", len(results))
+	if len(results) != 6 {
+		t.Fatalf("results length = %d, want 6", len(results))
 	}
 
 	// Filter by single category
@@ -819,8 +823,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover by categories: %v", err)
 	}
-	if total != 4 {
-		t.Fatalf("multi-category total = %d, want 4", total)
+	if total != 5 {
+		t.Fatalf("multi-category total = %d, want 5", total)
 	}
 
 	// Filter by area partial match
@@ -828,8 +832,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover by area: %v", err)
 	}
-	if total != 2 {
-		t.Fatalf("Obanla total = %d, want 2", total)
+	if total != 3 {
+		t.Fatalf("Obanla total = %d, want 3", total)
 	}
 
 	// Filter by min price (naira converted to kobo internally)
@@ -850,6 +854,35 @@ func TestRepositoryDiscover(t *testing.T) {
 	}
 	if total != 2 {
 		t.Fatalf("max_price=200000 total = %d, want 2", total)
+	}
+
+	priceSort := data.Filters{
+		Page:          1,
+		PageSize:      10,
+		Sort:          "lowest_price_kobo",
+		SortSafelist:  []string{"lowest_price_kobo", "-lowest_price_kobo"},
+		SortColumnMap: map[string]string{"lowest_price_kobo": "lowest_price_kobo"},
+	}
+	results, _, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: priceSort})
+	if err != nil {
+		t.Fatalf("discover sorted by price: %v", err)
+	}
+	if results[0].PropertyName != "Quiet Place" {
+		t.Fatalf("first price-sorted property = %q, want Quiet Place", results[0].PropertyName)
+	}
+	if results[len(results)-1].PropertyName != "Empty Lodge" {
+		t.Fatalf("last price-sorted property = %q, want Empty Lodge", results[len(results)-1].PropertyName)
+	}
+	priceSort.Sort = "-lowest_price_kobo"
+	results, _, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: priceSort})
+	if err != nil {
+		t.Fatalf("discover sorted by descending price: %v", err)
+	}
+	if results[0].PropertyName != "Blue Roof" || results[0].LowestPrice.AmountKobo != 50000000 {
+		t.Fatalf("first descending price result = %#v", results[0])
+	}
+	if results[len(results)-1].PropertyName != "Empty Lodge" {
+		t.Fatalf("last descending price property = %q, want Empty Lodge", results[len(results)-1].PropertyName)
 	}
 
 	// Filter by bathroom_type
@@ -964,10 +997,9 @@ func TestRepositoryListPropertiesWithFilters(t *testing.T) {
 		t.Fatalf("name = %q, want Premium Lodge", summaries[0].Name)
 	}
 
-	// Filter by max price with has_offers to exclude properties with no pricing
+	// Filter by max price excludes properties with no pricing
 	maxPrice := 300000
-	hasOffers = true
-	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, HasOffers: &hasOffers, MaxPrice: &maxPrice, Filters: baseFilter})
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, MaxPrice: &maxPrice, Filters: baseFilter})
 	if err != nil {
 		t.Fatalf("list max_price=300000: %v", err)
 	}
@@ -976,6 +1008,35 @@ func TestRepositoryListPropertiesWithFilters(t *testing.T) {
 	}
 	if summaries[0].Name != "Alice Lodge" {
 		t.Fatalf("name = %q, want Alice Lodge", summaries[0].Name)
+	}
+
+	priceSort := data.Filters{
+		Page:          1,
+		PageSize:      10,
+		Sort:          "lowest_price_kobo",
+		SortSafelist:  []string{"lowest_price_kobo", "-lowest_price_kobo"},
+		SortColumnMap: map[string]string{"lowest_price_kobo": "lowest_price_kobo"},
+	}
+	summaries, _, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Filters: priceSort})
+	if err != nil {
+		t.Fatalf("list sorted by price: %v", err)
+	}
+	if summaries[0].Name != "Alice Lodge" {
+		t.Fatalf("first price-sorted property = %q, want Alice Lodge", summaries[0].Name)
+	}
+	if summaries[len(summaries)-1].Name != "Empty Lodge" {
+		t.Fatalf("last price-sorted property = %q, want Empty Lodge", summaries[len(summaries)-1].Name)
+	}
+	priceSort.Sort = "-lowest_price_kobo"
+	summaries, _, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Filters: priceSort})
+	if err != nil {
+		t.Fatalf("list sorted by descending price: %v", err)
+	}
+	if summaries[0].Name != "Premium Lodge" {
+		t.Fatalf("first descending price property = %q, want Premium Lodge", summaries[0].Name)
+	}
+	if summaries[len(summaries)-1].Name != "Empty Lodge" {
+		t.Fatalf("last descending price property = %q, want Empty Lodge", summaries[len(summaries)-1].Name)
 	}
 }
 
