@@ -206,6 +206,12 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		argPos++
 	}
 
+	sortColumn := filter.Filters.SortColumn()
+	nullsOrder := ""
+	if sortColumn == "lowest_price_kobo" {
+		nullsOrder = " NULLS LAST"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT *, COUNT(*) OVER() AS total_count
 		FROM (
@@ -213,14 +219,14 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
 		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
 		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-		    COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+		    ((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'))::integer AS lowest_price_kobo,
 		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
 		  FROM properties p
 		  WHERE %s
 		) sub
 		WHERE TRUE %s
-		ORDER BY %s %s, id ASC
-		LIMIT $%d OFFSET $%d`, propertyWhere, havingConditions, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
+		ORDER BY %s %s%s, id ASC
+		LIMIT $%d OFFSET $%d`, propertyWhere, havingConditions, sortColumn, filter.Filters.SortDirection(), nullsOrder, argPos, argPos+1)
 
 	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
 
@@ -235,6 +241,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	for rows.Next() {
 		var row generateddb.ListPropertiesWithSummaryRow
 		var thumbnailURL pgtype.Text
+		var lowestPriceKobo pgtype.Int4
 		if err := rows.Scan(
 			&row.ID,
 			&row.CampusID,
@@ -246,13 +253,16 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 			&row.UpdatedAt,
 			&row.UnitTypeCount,
 			&row.AvailableOfferCount,
-			&row.LowestPriceKobo,
+			&lowestPriceKobo,
 			&thumbnailURL,
 			&row.TotalCount,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan property summary: %w", err)
 		}
 		totalCount = row.TotalCount
+		if lowestPriceKobo.Valid {
+			row.LowestPriceKobo = int(lowestPriceKobo.Int32)
+		}
 		summary := propertySummaryFromRow(row)
 		summary.ThumbnailURL = textString(thumbnailURL)
 		summaries = append(summaries, summary)
@@ -322,6 +332,12 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		argPos++
 	}
 
+	sortColumn := filter.Filters.SortColumn()
+	nullsOrder := ""
+	if sortColumn == "lowest_price_kobo" {
+		nullsOrder = " NULLS LAST"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT *, COUNT(*) OVER() AS total_count
 		FROM (
@@ -329,7 +345,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		    p.id AS property_id, p.name AS property_name, p.area AS property_area, p.landmark AS property_landmark,
 		    put.id AS unit_type_id, put.category, put.name AS unit_type_name, put.description, put.notes,
 		    put.bedroom_count, put.has_parlour, put.bathroom_type, put.kitchen_type,
-		    COALESCE(MIN(ao.price_kobo), 0)::integer AS lowest_price_kobo,
+		    MIN(ao.price_kobo)::integer AS lowest_price_kobo,
 		    COALESCE(COUNT(ao.id), 0)::integer AS available_offer_count,
 		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id = put.id OR m.agent_offer_id IN (SELECT id FROM agent_offers WHERE property_unit_type_id = put.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url,
 		    p.created_at
@@ -340,8 +356,8 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		  GROUP BY p.id, put.id
 		) sub
 		WHERE %s
-		ORDER BY %s %s, unit_type_id ASC
-		LIMIT $%d OFFSET $%d`, whereClause, havingClause, filter.Filters.SortColumn(), filter.Filters.SortDirection(), argPos, argPos+1)
+		ORDER BY %s %s%s, unit_type_id ASC
+		LIMIT $%d OFFSET $%d`, whereClause, havingClause, sortColumn, filter.Filters.SortDirection(), nullsOrder, argPos, argPos+1)
 
 	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
 
@@ -368,7 +384,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			hasParlour          pgtype.Bool
 			bathroomType        pgtype.Text
 			kitchenType         pgtype.Text
-			lowestPriceKobo     int
+			lowestPriceKobo     pgtype.Int4
 			availableOfferCount int
 			thumbnailURL        pgtype.Text
 			createdAt           pgtype.Timestamptz
@@ -399,7 +415,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 				BathroomType: textString(bathroomType),
 				KitchenType:  textString(kitchenType),
 			},
-			LowestPrice:         domain.Money{AmountKobo: lowestPriceKobo},
+			LowestPrice:         domain.Money{AmountKobo: int(lowestPriceKobo.Int32)},
 			AvailableOfferCount: availableOfferCount,
 			ThumbnailURL:        textString(thumbnailURL),
 			CreatedAt:           createdAt.Time,
