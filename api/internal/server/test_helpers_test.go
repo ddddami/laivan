@@ -239,6 +239,7 @@ type spyPropertyRepo struct {
 	stub            *stubPropertyRepo
 	createdUnitType domain.PropertyUnitType
 	createdOffer    domain.AgentOffer
+	createdMedia    []domain.Media
 }
 
 func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
@@ -262,6 +263,7 @@ func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFil
 }
 
 func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	s.createdMedia = append(s.createdMedia, media)
 	return s.stub.CreateMedia(ctx, media)
 }
 

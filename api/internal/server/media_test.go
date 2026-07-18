@@ -17,11 +17,13 @@ import (
 )
 
 type stubUploader struct {
-	input storage.UploadInput
+	input  storage.UploadInput
+	inputs []storage.UploadInput
 }
 
 func (s *stubUploader) Upload(ctx context.Context, input storage.UploadInput) (string, error) {
 	s.input = input
+	s.inputs = append(s.inputs, input)
 	return "https://media.example.test/" + input.Key, nil
 }
 
@@ -73,6 +75,37 @@ func TestUploadMediaRejectsUnsupportedFileType(t *testing.T) {
 
 	if rr.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestUploadMediaValidatesAllFilesBeforeUploading(t *testing.T) {
+	uploader := &stubUploader{}
+	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = repository
+	app.mediaUploader = uploader
+
+	body, contentType := multipartBodyFiles(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, []multipartTestFile{
+		{filename: "room.jpg", data: tinyJPEG()},
+		{filename: "room.gif", data: []byte("GIF89a")},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+	if len(uploader.inputs) != 0 {
+		t.Fatalf("uploads = %d, want 0", len(uploader.inputs))
+	}
+	if len(repository.createdMedia) != 0 {
+		t.Fatalf("created media = %d, want 0", len(repository.createdMedia))
 	}
 }
 
@@ -367,6 +400,21 @@ func (s *fkViolationRepo) ListAgentOffers(ctx context.Context, unitTypeID domain
 func multipartBody(t *testing.T, fields map[string]string, filename string, file []byte) (*bytes.Buffer, string) {
 	t.Helper()
 
+	files := []multipartTestFile(nil)
+	if filename != "" || file != nil {
+		files = append(files, multipartTestFile{filename: filename, data: file})
+	}
+	return multipartBodyFiles(t, fields, files)
+}
+
+type multipartTestFile struct {
+	filename string
+	data     []byte
+}
+
+func multipartBodyFiles(t *testing.T, fields map[string]string, files []multipartTestFile) (*bytes.Buffer, string) {
+	t.Helper()
+
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	for key, value := range fields {
@@ -374,12 +422,12 @@ func multipartBody(t *testing.T, fields map[string]string, filename string, file
 			t.Fatalf("write field: %v", err)
 		}
 	}
-	if filename != "" || file != nil {
-		part, err := writer.CreateFormFile(mediaFilesFormKey, filename)
+	for _, file := range files {
+		part, err := writer.CreateFormFile(mediaFilesFormKey, file.filename)
 		if err != nil {
 			t.Fatalf("create form file: %v", err)
 		}
-		if _, err := part.Write(file); err != nil {
+		if _, err := part.Write(file.data); err != nil {
 			t.Fatalf("write file: %v", err)
 		}
 	}
