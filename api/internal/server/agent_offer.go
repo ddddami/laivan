@@ -13,11 +13,6 @@ import (
 )
 
 func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	unitTypeID := chi.URLParam(r, "id")
 
 	var input struct {
@@ -89,11 +84,6 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	unitTypeID := chi.URLParam(r, "id")
 
 	v := validator.New()

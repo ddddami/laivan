@@ -29,20 +29,17 @@ func main() {
 
 	logger := newLogger(cfg)
 
-	var propertyRepo server.PropertyStore
 	var mediaUploader storage.Uploader
 	var mediaURLs server.MediaURLBuilder
-	if cfg.DatabaseURL != "" {
-		pool, err := db.Open(context.Background(), cfg.DatabaseURL)
-		if err != nil {
-			logger.Error("open database", "error", err)
-			os.Exit(1)
-		}
-		defer pool.Close()
-
-		logger.Info("database connection pool ready")
-		propertyRepo = repo.NewPropertyRepository(pool)
+	pool, err := db.Open(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("open database", "error", err)
+		os.Exit(1)
 	}
+	defer pool.Close()
+
+	logger.Info("database connection pool ready")
+	propertyRepo := repo.NewPropertyRepository(pool)
 	if cfg.Media.Enabled {
 		uploader, err := storage.NewS3Uploader(context.Background(), cfg.Media)
 		if err != nil {

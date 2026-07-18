@@ -28,10 +28,6 @@ var allowedImageContentTypes = map[string]bool{
 }
 
 func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
 	if app.mediaUploader == nil {
 		app.serverErrorResponse(w, r, errors.New("media storage not available"))
 		return
