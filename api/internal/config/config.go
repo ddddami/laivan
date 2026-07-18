@@ -18,6 +18,7 @@ type Config struct {
 	Env             string
 	Port            int
 	DatabaseURL     string
+	DBMaxConns      int32
 	AllowedOrigins  []string
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -50,6 +51,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Env:             EnvDevelopment,
 		Port:            4000,
+		DBMaxConns:      25,
 		ReadTimeout:     5 * time.Second,
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     time.Minute,
@@ -87,6 +89,11 @@ func Load() (Config, error) {
 	}
 
 	cfg.Port, err = intEnv("LAIVAN_PORT", cfg.Port)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.DBMaxConns, err = int32Env("LAIVAN_DB_MAX_CONNS", cfg.DBMaxConns)
 	if err != nil {
 		return Config{}, err
 	}
@@ -136,6 +143,9 @@ func (c Config) Validate() error {
 
 	if c.DatabaseURL == "" {
 		return fmt.Errorf("LAIVAN_DB_URL is required")
+	}
+	if c.DBMaxConns <= 0 {
+		return fmt.Errorf("LAIVAN_DB_MAX_CONNS must be greater than zero")
 	}
 
 	if len(c.AllowedOrigins) == 0 {
@@ -246,6 +256,20 @@ func intEnv(key string, fallback int) (int, error) {
 	}
 
 	return parsed, nil
+}
+
+func int32Env(key string, fallback int32) (int32, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer", key)
+	}
+
+	return int32(parsed), nil
 }
 
 func int64Env(key string, fallback int64) (int64, error) {

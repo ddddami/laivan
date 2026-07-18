@@ -31,7 +31,7 @@ func main() {
 
 	var mediaUploader storage.Uploader
 	var mediaURLs server.MediaURLBuilder
-	pool, err := db.Open(context.Background(), cfg.DatabaseURL)
+	pool, err := db.Open(context.Background(), cfg.DatabaseURL, cfg.DBMaxConns)
 	if err != nil {
 		logger.Error("open database", "error", err)
 		os.Exit(1)

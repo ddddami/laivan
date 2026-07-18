@@ -12,7 +12,7 @@ import (
 
 const pingTimeout = 5 * time.Second
 
-func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+func Open(ctx context.Context, databaseURL string, maxConns int32) (*pgxpool.Pool, error) {
 	if strings.TrimSpace(databaseURL) == "" {
 		return nil, errors.New("database URL is required")
 	}
@@ -22,7 +22,7 @@ func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("parse database config: %w", err)
 	}
 
-	cfg.MaxConns = 25
+	cfg.MaxConns = maxConns
 	cfg.MinConns = 0
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 15 * time.Minute

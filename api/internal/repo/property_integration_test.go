@@ -606,7 +606,7 @@ func openIntegrationDB(t *testing.T, ctx context.Context) *pgxpool.Pool {
 		t.Fatal("LAIVAN_TEST_DB_URL is required for integration tests")
 	}
 
-	pool, err := appdb.Open(ctx, databaseURL)
+	pool, err := appdb.Open(ctx, databaseURL, 25)
 	if err != nil {
 		t.Fatalf("open integration database: %v", err)
 	}
