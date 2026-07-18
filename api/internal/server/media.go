@@ -151,7 +151,7 @@ func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, t
 		return domain.Media{}, fmt.Errorf("upload object: %w", err)
 	}
 
-	return app.propertyRepo.CreateMedia(ctx, domain.Media{
+	media, err := app.propertyRepo.CreateMedia(ctx, domain.Media{
 		PropertyID:         domain.ID(target.PropertyID),
 		PropertyUnitTypeID: domain.ID(target.PropertyUnitTypeID),
 		AgentOfferID:       domain.ID(target.AgentOfferID),
@@ -163,6 +163,17 @@ func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, t
 		ContentType:        file.ContentType,
 		SizeBytes:          int64(len(file.Data)),
 	})
+	if err != nil {
+		app.logger.Error("media object orphaned after database insert failed",
+			"object_key", objectKey,
+			"target_type", target.TargetType,
+			"target_id", target.TargetID,
+			"error", err,
+		)
+		return domain.Media{}, err
+	}
+
+	return media, nil
 }
 
 func readMediaFile(fileHeader *multipart.FileHeader, maxBytes int64) ([]byte, string, error) {
