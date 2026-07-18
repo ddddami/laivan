@@ -223,6 +223,44 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 	return items, nil
 }
 
+const listAgentOffersByPropertyUnitTypeIDs = `-- name: ListAgentOffersByPropertyUnitTypeIDs :many
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
+FROM agent_offers
+WHERE property_unit_type_id = ANY($1::uuid[])
+ORDER BY property_unit_type_id, created_at DESC, id DESC
+`
+
+func (q *Queries) ListAgentOffersByPropertyUnitTypeIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]AgentOffer, error) {
+	rows, err := q.db.Query(ctx, listAgentOffersByPropertyUnitTypeIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AgentOffer
+	for rows.Next() {
+		var i AgentOffer
+		if err := rows.Scan(
+			&i.ID,
+			&i.PropertyUnitTypeID,
+			&i.AgentID,
+			&i.Title,
+			&i.Description,
+			&i.PriceKobo,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Notes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProperties = `-- name: ListProperties :many
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties

@@ -104,6 +104,22 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	insertAgentOffer(t, ctx, pool, unitType2, agentID, "Single room offer", 15000000)
 
 	repository := NewPropertyRepository(pool)
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: unitType1,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/self-contained.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create self-contained media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: unitType2,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/single-room.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create single-room media: %v", err)
+	}
 
 	detail, err := repository.GetWithDetails(ctx, propertyID)
 	if err != nil {
@@ -124,6 +140,18 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	}
 	if detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo != 25000000 {
 		t.Fatalf("price = %d, want 25000000", detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo)
+	}
+	if len(detail.UnitTypes[0].Media) != 1 || detail.UnitTypes[0].Media[0].URL != "https://media.example.test/self-contained.jpg" {
+		t.Fatalf("self-contained media = %#v", detail.UnitTypes[0].Media)
+	}
+	if detail.UnitTypes[1].Name != "Single room" {
+		t.Fatalf("unit type name = %q, want Single room", detail.UnitTypes[1].Name)
+	}
+	if len(detail.UnitTypes[1].AgentOffers) != 1 || detail.UnitTypes[1].AgentOffers[0].Price.AmountKobo != 15000000 {
+		t.Fatalf("single-room offers = %#v", detail.UnitTypes[1].AgentOffers)
+	}
+	if len(detail.UnitTypes[1].Media) != 1 || detail.UnitTypes[1].Media[0].URL != "https://media.example.test/single-room.jpg" {
+		t.Fatalf("single-room media = %#v", detail.UnitTypes[1].Media)
 	}
 
 	// Test not found

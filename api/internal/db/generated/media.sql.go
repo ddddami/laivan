@@ -240,3 +240,58 @@ func (q *Queries) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitT
 	}
 	return items, nil
 }
+
+const listMediaByPropertyUnitTypeIDs = `-- name: ListMediaByPropertyUnitTypeIDs :many
+SELECT id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at
+FROM media
+WHERE property_unit_type_id = ANY($1::uuid[])
+ORDER BY property_unit_type_id, created_at ASC, id ASC
+`
+
+type ListMediaByPropertyUnitTypeIDsRow struct {
+	ID                 pgtype.UUID
+	PropertyID         pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentOfferID       pgtype.UUID
+	UploadedByAgentID  pgtype.UUID
+	Url                string
+	ObjectKey          pgtype.Text
+	Kind               string
+	Caption            pgtype.Text
+	ContentType        pgtype.Text
+	SizeBytes          pgtype.Int8
+	CreatedAt          pgtype.Timestamptz
+}
+
+func (q *Queries) ListMediaByPropertyUnitTypeIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListMediaByPropertyUnitTypeIDsRow, error) {
+	rows, err := q.db.Query(ctx, listMediaByPropertyUnitTypeIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMediaByPropertyUnitTypeIDsRow
+	for rows.Next() {
+		var i ListMediaByPropertyUnitTypeIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PropertyID,
+			&i.PropertyUnitTypeID,
+			&i.AgentOfferID,
+			&i.UploadedByAgentID,
+			&i.Url,
+			&i.ObjectKey,
+			&i.Kind,
+			&i.Caption,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
