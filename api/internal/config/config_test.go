@@ -25,6 +25,9 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.DatabaseURL == "" {
 		t.Fatal("DatabaseURL is empty")
 	}
+	if cfg.DBMaxConns != 25 {
+		t.Fatalf("DBMaxConns = %d, want 25", cfg.DBMaxConns)
+	}
 
 	if !slices.Equal(cfg.AllowedOrigins, []string{"http://localhost:5173"}) {
 		t.Fatalf("AllowedOrigins = %v, want [http://localhost:5173]", cfg.AllowedOrigins)
@@ -65,6 +68,7 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("LAIVAN_ENV", EnvTest)
 	t.Setenv("LAIVAN_PORT", "8080")
 	t.Setenv("LAIVAN_DB_URL", "postgres://laivan:laivan@localhost:5432/laivan?sslmode=disable")
+	t.Setenv("LAIVAN_DB_MAX_CONNS", "10")
 	t.Setenv("LAIVAN_READ_TIMEOUT", "2s")
 	t.Setenv("LAIVAN_WRITE_TIMEOUT", "3s")
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "4s")
@@ -99,6 +103,9 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 
 	if cfg.DatabaseURL == "" {
 		t.Fatal("DatabaseURL is empty")
+	}
+	if cfg.DBMaxConns != 10 {
+		t.Fatalf("DBMaxConns = %d, want 10", cfg.DBMaxConns)
 	}
 
 	wantOrigins := []string{"http://localhost:5173", "http://localhost:4173"}
@@ -300,6 +307,20 @@ func TestLoadRejectsInvalidPort(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInvalidDatabaseMaxConnections(t *testing.T) {
+	for _, value := range []string{"invalid", "0", "-1"} {
+		t.Run(value, func(t *testing.T) {
+			clearConfigEnv(t)
+			t.Setenv("LAIVAN_DB_MAX_CONNS", value)
+
+			_, err := Load()
+			if err == nil {
+				t.Fatal("Load returned nil error")
+			}
+		})
+	}
+}
+
 func TestLoadRejectsInvalidTimeouts(t *testing.T) {
 	tests := []struct {
 		name string
@@ -342,6 +363,7 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("LAIVAN_ENV", "")
 	t.Setenv("LAIVAN_PORT", "")
 	t.Setenv("LAIVAN_DB_URL", "postgres://laivan:laivan@localhost:5432/laivan?sslmode=disable")
+	t.Setenv("LAIVAN_DB_MAX_CONNS", "")
 	t.Setenv("LAIVAN_READ_TIMEOUT", "")
 	t.Setenv("LAIVAN_WRITE_TIMEOUT", "")
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "")

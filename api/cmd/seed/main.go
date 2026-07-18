@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
+
+	"github.com/ddddami/laivan/internal/config"
 )
 
 func main() {
-	databaseURL := os.Getenv("LAIVAN_DB_URL")
-	if databaseURL == "" {
-		fatal(errors.New("LAIVAN_DB_URL is required"))
+	cfg, err := config.Load()
+	if err != nil {
+		fatal(fmt.Errorf("load config: %w", err))
 	}
 
-	if err := run(context.Background(), databaseURL); err != nil {
+	if err := run(context.Background(), cfg.DatabaseURL, cfg.DBMaxConns); err != nil {
 		fatal(err)
 	}
 

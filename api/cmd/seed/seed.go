@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func run(ctx context.Context, databaseURL string) error {
-	db, err := appdb.Open(ctx, databaseURL)
+func run(ctx context.Context, databaseURL string, maxConns int32) error {
+	db, err := appdb.Open(ctx, databaseURL, maxConns)
 	if err != nil {
 		return err
 	}
