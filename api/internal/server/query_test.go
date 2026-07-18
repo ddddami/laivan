@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/url"
+	"slices"
 	"testing"
 
 	"github.com/ddddami/laivan/internal/validator"
@@ -20,12 +21,27 @@ func TestReadString(t *testing.T) {
 }
 
 func TestReadCSV(t *testing.T) {
-	qs := url.Values{}
-	qs.Set("tags", "a,b,c")
-
-	if got := readCSV(qs, "tags", nil); len(got) != 3 || got[0] != "a" {
-		t.Fatalf("readCSV = %v, want [a b c]", got)
+	tests := []struct {
+		name  string
+		value string
+		want  []string
+	}{
+		{name: "no spaces", value: "a,b,c", want: []string{"a", "b", "c"}},
+		{name: "spaces after commas", value: "a, b, c", want: []string{"a", "b", "c"}},
+		{name: "surrounding whitespace", value: " a,b ", want: []string{"a", "b"}},
+		{name: "empty segments", value: "a,,b", want: []string{"a", "b"}},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qs := url.Values{"tags": []string{tt.value}}
+			if got := readCSV(qs, "tags", nil); !slices.Equal(got, tt.want) {
+				t.Fatalf("readCSV = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	qs := url.Values{}
 	if got := readCSV(qs, "missing", []string{"x"}); len(got) != 1 || got[0] != "x" {
 		t.Fatalf("readCSV default = %v, want [x]", got)
 	}

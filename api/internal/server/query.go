@@ -23,7 +23,16 @@ func readCSV(qs url.Values, key string, defaultValue []string) []string {
 		return defaultValue
 	}
 
-	return strings.Split(csv, ",")
+	parts := strings.Split(csv, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+
+	return values
 }
 
 func readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
