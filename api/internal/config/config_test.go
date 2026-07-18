@@ -22,8 +22,8 @@ func TestLoadUsesDefaults(t *testing.T) {
 		t.Fatalf("Port = %d, want 4000", cfg.Port)
 	}
 
-	if cfg.DatabaseURL != "" {
-		t.Fatalf("DatabaseURL = %q, want empty", cfg.DatabaseURL)
+	if cfg.DatabaseURL == "" {
+		t.Fatal("DatabaseURL is empty")
 	}
 
 	if !slices.Equal(cfg.AllowedOrigins, []string{"http://localhost:5173"}) {
@@ -211,14 +211,18 @@ func TestConfigEnvironmentHelpers(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresDatabaseURLInProduction(t *testing.T) {
-	clearConfigEnv(t)
+func TestLoadRequiresDatabaseURLInAllEnvironments(t *testing.T) {
+	for _, environment := range []string{EnvDevelopment, EnvTest, EnvProduction} {
+		t.Run(environment, func(t *testing.T) {
+			clearConfigEnv(t)
+			t.Setenv("LAIVAN_ENV", environment)
+			t.Setenv("LAIVAN_DB_URL", "")
 
-	t.Setenv("LAIVAN_ENV", EnvProduction)
-
-	_, err := Load()
-	if err == nil {
-		t.Fatal("Load returned nil error")
+			_, err := Load()
+			if err == nil {
+				t.Fatal("Load returned nil error")
+			}
+		})
 	}
 }
 
@@ -337,7 +341,7 @@ func clearConfigEnv(t *testing.T) {
 
 	t.Setenv("LAIVAN_ENV", "")
 	t.Setenv("LAIVAN_PORT", "")
-	t.Setenv("LAIVAN_DB_URL", "")
+	t.Setenv("LAIVAN_DB_URL", "postgres://laivan:laivan@localhost:5432/laivan?sslmode=disable")
 	t.Setenv("LAIVAN_READ_TIMEOUT", "")
 	t.Setenv("LAIVAN_WRITE_TIMEOUT", "")
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "")
