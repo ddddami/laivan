@@ -60,9 +60,29 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targetType, targetID := mediaTarget(propertyID, propertyUnitTypeID, agentOfferID)
-	created := make([]domain.Media, 0, len(files))
+	validatedFiles := make([]validatedMediaFile, 0, len(files))
 	for _, fileHeader := range files {
-		media, err := app.processMediaFile(r.Context(), fileHeader, mediaUploadTarget{
+		data, contentType, err := readMediaFile(fileHeader, app.cfg.Media.MaxUploadBytes)
+		if err != nil {
+			var validationErr mediaValidationError
+			if errors.As(err, &validationErr) {
+				app.validationFailedResponse(w, r, map[string]string{mediaFilesFormKey: validationErr.Error()})
+				return
+			}
+
+			app.serverErrorResponse(w, r, fmt.Errorf("read media file: %w", err))
+			return
+		}
+		validatedFiles = append(validatedFiles, validatedMediaFile{
+			Filename:    fileHeader.Filename,
+			Data:        data,
+			ContentType: contentType,
+		})
+	}
+
+	created := make([]domain.Media, 0, len(files))
+	for _, file := range validatedFiles {
+		media, err := app.processMediaFile(r.Context(), file, mediaUploadTarget{
 			TargetType:         targetType,
 			TargetID:           targetID,
 			PropertyID:         propertyID,
@@ -72,12 +92,6 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			Caption:            caption,
 		})
 		if err != nil {
-			var validationErr mediaValidationError
-			if errors.As(err, &validationErr) {
-				app.validationFailedResponse(w, r, map[string]string{mediaFilesFormKey: validationErr.Error()})
-				return
-			}
-
 			if errors.Is(err, repo.ErrForeignKeyViolation) {
 				app.badRequestResponse(w, r, fmt.Errorf("referenced resource does not exist"))
 				return
@@ -115,22 +129,23 @@ func (e mediaValidationError) Error() string {
 	return string(e)
 }
 
-func (app *app) processMediaFile(ctx context.Context, fileHeader *multipart.FileHeader, target mediaUploadTarget) (domain.Media, error) {
-	data, contentType, err := readMediaFile(fileHeader, app.cfg.Media.MaxUploadBytes)
-	if err != nil {
-		return domain.Media{}, err
-	}
+type validatedMediaFile struct {
+	Filename    string
+	Data        []byte
+	ContentType string
+}
 
+func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, target mediaUploadTarget) (domain.Media, error) {
 	objectID, err := randomUUIDString()
 	if err != nil {
 		return domain.Media{}, fmt.Errorf("generate media object id: %w", err)
 	}
-	objectKey := storage.MediaObjectKey(target.TargetType, target.TargetID, objectID, fileHeader.Filename)
+	objectKey := storage.MediaObjectKey(target.TargetType, target.TargetID, objectID, file.Filename)
 
 	url, err := app.mediaUploader.Upload(ctx, storage.UploadInput{
 		Key:         objectKey,
-		Body:        bytes.NewReader(data),
-		ContentType: contentType,
+		Body:        bytes.NewReader(file.Data),
+		ContentType: file.ContentType,
 	})
 	if err != nil {
 		return domain.Media{}, fmt.Errorf("upload object: %w", err)
@@ -145,8 +160,8 @@ func (app *app) processMediaFile(ctx context.Context, fileHeader *multipart.File
 		ObjectKey:          objectKey,
 		Kind:               domain.MediaKindImage,
 		Caption:            target.Caption,
-		ContentType:        contentType,
-		SizeBytes:          int64(len(data)),
+		ContentType:        file.ContentType,
+		SizeBytes:          int64(len(file.Data)),
 	})
 }
 
