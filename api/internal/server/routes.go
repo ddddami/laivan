@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -26,6 +28,27 @@ func (app *app) logRequest(next http.Handler) http.Handler {
 	})
 }
 
+func (app *app) recoverPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				requestID := middleware.GetReqID(r.Context())
+				app.logger.Error("panic recovered",
+					"panic", recovered,
+					"stack", string(debug.Stack()),
+					"method", r.Method,
+					"path", r.URL.Path,
+					"request_id", requestID,
+				)
+				w.Header().Set("Connection", "close")
+				app.serverErrorResponse(w, r, fmt.Errorf("panic: %v", recovered))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (app *app) routes() http.Handler {
 	r := chi.NewRouter()
 
@@ -38,7 +61,7 @@ func (app *app) routes() http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	r.Use(middleware.Recoverer)
+	r.Use(app.recoverPanic)
 	r.NotFound(app.notFoundResponse)
 	r.MethodNotAllowed(app.methodNotAllowedResponse)
 
