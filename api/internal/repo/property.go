@@ -125,31 +125,40 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 		propertyMedia = append(propertyMedia, mediaFromPropertyRow(mediaRow))
 	}
 
-	unitTypes := make([]domain.PropertyUnitTypeDetail, 0, len(unitTypeRows))
-	for _, utRow := range unitTypeRows {
-		mediaRows, err := r.queries.ListMediaByPropertyUnitType(ctx, utRow.ID)
+	mediaByUnitType := make(map[domain.ID][]domain.Media, len(unitTypeRows))
+	offersByUnitType := make(map[domain.ID][]domain.AgentOffer, len(unitTypeRows))
+	if len(unitTypeRows) > 0 {
+		unitTypeIDs := make([]pgtype.UUID, 0, len(unitTypeRows))
+		for _, unitTypeRow := range unitTypeRows {
+			unitTypeIDs = append(unitTypeIDs, unitTypeRow.ID)
+		}
+
+		mediaRows, err := r.queries.ListMediaByPropertyUnitTypeIDs(ctx, unitTypeIDs)
 		if err != nil {
 			return domain.PropertyDetail{}, fmt.Errorf("list property unit type media: %w", err)
 		}
-		unitTypeMedia := make([]domain.Media, 0, len(mediaRows))
 		for _, mediaRow := range mediaRows {
-			unitTypeMedia = append(unitTypeMedia, mediaFromPropertyUnitTypeRow(mediaRow))
+			media := mediaFromPropertyUnitTypeIDsRow(mediaRow)
+			mediaByUnitType[media.PropertyUnitTypeID] = append(mediaByUnitType[media.PropertyUnitTypeID], media)
 		}
 
-		offerRows, err := r.queries.ListAgentOffersByPropertyUnitType(ctx, utRow.ID)
+		offerRows, err := r.queries.ListAgentOffersByPropertyUnitTypeIDs(ctx, unitTypeIDs)
 		if err != nil {
 			return domain.PropertyDetail{}, fmt.Errorf("list agent offers: %w", err)
 		}
-
-		offers := make([]domain.AgentOffer, 0, len(offerRows))
 		for _, offerRow := range offerRows {
-			offers = append(offers, agentOfferFromRow(offerRow))
+			offer := agentOfferFromRow(offerRow)
+			offersByUnitType[offer.PropertyUnitTypeID] = append(offersByUnitType[offer.PropertyUnitTypeID], offer)
 		}
+	}
 
+	unitTypes := make([]domain.PropertyUnitTypeDetail, 0, len(unitTypeRows))
+	for _, utRow := range unitTypeRows {
+		unitTypeID := domain.ID(uuidString(utRow.ID))
 		unitTypes = append(unitTypes, domain.PropertyUnitTypeDetail{
 			PropertyUnitType: propertyUnitTypeFromRow(utRow),
-			Media:            unitTypeMedia,
-			AgentOffers:      offers,
+			Media:            mediaByUnitType[unitTypeID],
+			AgentOffers:      offersByUnitType[unitTypeID],
 		})
 	}
 
