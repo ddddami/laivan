@@ -134,8 +134,8 @@ func (c Config) Validate() error {
 		return fmt.Errorf("LAIVAN_PORT must be between 1 and 65535")
 	}
 
-	if c.IsProduction() && c.DatabaseURL == "" {
-		return fmt.Errorf("LAIVAN_DB_URL is required in production")
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("LAIVAN_DB_URL is required")
 	}
 
 	if len(c.AllowedOrigins) == 0 {
