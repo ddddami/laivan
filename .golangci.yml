@@ -4,8 +4,11 @@ linters:
   default: none
   enable:
     - errcheck
+    - errorlint
     - govet
     - ineffassign
     - misspell
+    - rowserrcheck
+    - sqlclosecheck
     - staticcheck
     - unused
