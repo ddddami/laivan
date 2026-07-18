@@ -497,7 +497,16 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {
-			return domain.AgentOffer{}, ErrNotFound
+			unitTypeNotFound := isConstraintViolation(err, "agent_offers_property_unit_type_id_fkey")
+			agentNotFound := isConstraintViolation(err, "agent_offers_agent_id_fkey")
+			switch {
+			case unitTypeNotFound:
+				return domain.AgentOffer{}, ErrUnitTypeNotFound
+			case agentNotFound:
+				return domain.AgentOffer{}, ErrAgentNotFound
+			default:
+				return domain.AgentOffer{}, ErrNotFound
+			}
 		}
 		if isUniqueViolation(err) {
 			return domain.AgentOffer{}, ErrDuplicate
@@ -676,6 +685,11 @@ func isForeignKeyViolation(err error) bool {
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func isConstraintViolation(err error, constraintName string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == constraintName
 }
 
 func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain.PropertySummary {

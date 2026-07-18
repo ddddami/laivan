@@ -195,7 +195,10 @@ func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID
 
 func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
 	if string(offer.PropertyUnitTypeID) != "550e8400-e29b-41d4-a716-446655440020" {
-		return domain.AgentOffer{}, repo.ErrNotFound
+		return domain.AgentOffer{}, repo.ErrUnitTypeNotFound
+	}
+	if string(offer.AgentID) != "550e8400-e29b-41d4-a716-446655440040" {
+		return domain.AgentOffer{}, repo.ErrAgentNotFound
 	}
 
 	offer.ID = domain.ID("550e8400-e29b-41d4-a716-446655440030")

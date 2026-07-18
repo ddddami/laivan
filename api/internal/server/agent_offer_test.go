@@ -118,6 +118,35 @@ func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
+func TestCreateAgentOfferAgentNotFound(t *testing.T) {
+	app := testAppWithRepo()
+	body := `{"agent_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Fresh self-contained room","price_naira":350000}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var bodyDecoded struct {
+		Error struct {
+			Code   string            `json:"code"`
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if bodyDecoded.Error.Code != "validation_failed" {
+		t.Fatalf("code = %q, want validation_failed", bodyDecoded.Error.Code)
+	}
+	if bodyDecoded.Error.Fields["agent_id"] != "Agent does not exist" {
+		t.Fatalf("agent_id error = %q, want Agent does not exist", bodyDecoded.Error.Fields["agent_id"])
+	}
+}
+
 func TestCreateAgentOfferRejectsPriceOverflow(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Premium room","price_naira":21474837}`
