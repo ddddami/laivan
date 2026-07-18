@@ -13,11 +13,6 @@ import (
 )
 
 func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	propertyID := chi.URLParam(r, "id")
 
 	var input struct {
@@ -91,11 +86,6 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	propertyID := chi.URLParam(r, "id")
 
 	v := validator.New()

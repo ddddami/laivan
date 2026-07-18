@@ -19,11 +19,6 @@ const (
 )
 
 func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	qs := r.URL.Query()
 	campusID := readString(qs, "campus_id", "")
 
@@ -90,11 +85,6 @@ func (app *app) listProperties(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	var input struct {
 		CampusID    string `json:"campus_id"`
 		Name        string `json:"name"`
@@ -149,11 +139,6 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	id := chi.URLParam(r, "id")
 
 	v := validator.New()

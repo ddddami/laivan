@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,11 +12,6 @@ import (
 )
 
 func (app *app) discover(w http.ResponseWriter, r *http.Request) {
-	if app.propertyRepo == nil {
-		app.serverErrorResponse(w, r, errors.New("database not available"))
-		return
-	}
-
 	qs := r.URL.Query()
 	campusID := readString(qs, "campus_id", "")
 

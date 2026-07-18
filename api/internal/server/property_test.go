@@ -10,39 +10,6 @@ import (
 	"github.com/ddddami/laivan/internal/domain"
 )
 
-func TestHandlerNilRepo(t *testing.T) {
-	tests := []struct {
-		name   string
-		method string
-		path   string
-		body   string
-	}{
-		{"listProperties", http.MethodGet, "/v1/properties", ""},
-		{"createProperty", http.MethodPost, "/v1/properties", `{}`},
-		{"getProperty", http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", ""},
-		{"listPropertyUnitTypes", http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", ""},
-		{"createPropertyUnitType", http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", `{}`},
-		{"listAgentOffers", http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440000/agent-offers", ""},
-		{"createAgentOffer", http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440000/agent-offers", `{}`},
-		{"discover", http.MethodGet, "/v1/discovery", ""},
-		{"uploadMedia", http.MethodPost, "/v1/media", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := testApp()
-			var req *http.Request
-			if tt.body != "" {
-				req = httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
-			} else {
-				req = httptest.NewRequest(tt.method, tt.path, nil)
-			}
-			rr := httptest.NewRecorder()
-			app.routes().ServeHTTP(rr, req)
-			assertErrorResponse(t, rr, http.StatusInternalServerError, "internal_server_error", "The server encountered a problem and could not process your request")
-		})
-	}
-}
-
 func TestCreatePropertyReturnsProperty(t *testing.T) {
 	app := testAppWithRepo()
 	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440000","name":"Alice Lodge","area":"Obanla","landmark":"South Gate","description":"A nice lodge"}`
