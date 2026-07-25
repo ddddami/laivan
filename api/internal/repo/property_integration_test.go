@@ -1003,6 +1003,15 @@ func TestRepositoryDiscover(t *testing.T) {
 		t.Fatalf("max_price=200000 total = %d, want 2", total)
 	}
 
+	zeroPrice := 0
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, MaxPrice: &zeroPrice, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover with zero maximum price: %v", err)
+	}
+	if total != 0 || len(results) != 0 {
+		t.Fatalf("max_price=0 returned %d of %d results, want none", len(results), total)
+	}
+
 	priceSort := data.Filters{
 		Page:          1,
 		PageSize:      10,

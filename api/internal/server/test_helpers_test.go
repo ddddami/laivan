@@ -137,27 +137,61 @@ func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prop
 }
 
 func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
-	return []domain.DiscoveryResult{
-		{
-			PropertyID:       domain.ID("550e8400-e29b-41d4-a716-446655440010"),
-			PropertyName:     "Alice Lodge",
+	alice := domain.DiscoveryResult{
+		PropertyID:       domain.ID("550e8400-e29b-41d4-a716-446655440010"),
+		PropertyName:     "Alice Lodge",
+		PropertyArea:     "Obanla",
+		PropertyLandmark: "Near South Gate",
+		UnitTypeID:       domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+		UnitTypeCategory: domain.UnitCategorySelfContained,
+		UnitTypeName:     "Self-contained",
+		Structure: domain.UnitStructure{
+			BedroomCount: intPointer(1),
+			HasParlour:   boolPointer(false),
+			BathroomType: "private",
+			KitchenType:  "private",
+		},
+		LowestPrice:         domain.Money{AmountKobo: 35000000},
+		AvailableOfferCount: 2,
+		CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+		UpdatedAt:           time.Date(2026, time.May, 2, 10, 0, 0, 0, time.UTC),
+	}
+	results := []domain.DiscoveryResult{alice}
+	if len(filter.Categories) == 0 {
+		blueRoof := alice
+		blueRoof.PropertyID = domain.ID("550e8400-e29b-41d4-a716-446655440012")
+		blueRoof.PropertyName = "Blue Roof"
+		blueRoof.UnitTypeID = domain.ID("550e8400-e29b-41d4-a716-446655440022")
+		blueRoof.UnitTypeCategory = domain.UnitCategorySingleRoom
+		blueRoof.UnitTypeName = "Single room"
+		blueRoof.LowestPrice = domain.Money{AmountKobo: 30000000}
+		results = append(results, blueRoof)
+	}
+	if filter.Availability != repo.DiscoveryAvailabilityAvailable {
+		unavailable := domain.DiscoveryResult{
+			PropertyID:       domain.ID("550e8400-e29b-41d4-a716-446655440011"),
+			PropertyName:     "Empty Lodge",
 			PropertyArea:     "Obanla",
-			PropertyLandmark: "Near South Gate",
-			UnitTypeID:       domain.ID("550e8400-e29b-41d4-a716-446655440020"),
-			UnitTypeCategory: domain.UnitCategorySelfContained,
-			UnitTypeName:     "Self-contained",
+			PropertyLandmark: "Near North Gate",
+			UnitTypeID:       domain.ID("550e8400-e29b-41d4-a716-446655440021"),
+			UnitTypeCategory: domain.UnitCategorySingleRoom,
+			UnitTypeName:     "Single room",
 			Structure: domain.UnitStructure{
 				BedroomCount: intPointer(1),
 				HasParlour:   boolPointer(false),
-				BathroomType: "private",
-				KitchenType:  "private",
+				BathroomType: "shared",
+				KitchenType:  "shared",
 			},
-			LowestPrice:         domain.Money{AmountKobo: 35000000},
-			AvailableOfferCount: 2,
-			CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
-			UpdatedAt:           time.Date(2026, time.May, 2, 10, 0, 0, 0, time.UTC),
-		},
-	}, 1, nil
+			CreatedAt: time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
+			UpdatedAt: time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
+		}
+		results = append(results, unavailable)
+	}
+	if filter.Filters.Sort != "recommended" && len(results) > 1 {
+		results[0], results[1] = results[1], results[0]
+	}
+
+	return results, len(results), nil
 }
 
 func (s *stubPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
@@ -268,7 +302,6 @@ func testAppWithRepo() *app {
 
 type spyPropertyRepo struct {
 	stub            *stubPropertyRepo
-	discoveryFilter repo.DiscoveryFilter
 	createdUnitType domain.PropertyUnitType
 	createdOffer    domain.AgentOffer
 	createdMedia    []domain.Media
@@ -295,7 +328,6 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 }
 
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
-	s.discoveryFilter = filter
 	return s.stub.Discover(ctx, filter)
 }
 
