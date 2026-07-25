@@ -1,380 +1,356 @@
-# Laivan — Product Specification
+# Laivan — Product Specification and Implementation Plan
 
-# Product Goal
+## Purpose
 
-Enable students to discover accommodation more efficiently while helping agents manage listing discovery and inquiries in a more structured manner.
+This document defines the product scope and the order in which it should be implemented.
 
-The system should reduce fragmentation, improve trust, and simplify coordination without forcing users into unnatural workflows.
+Laivan is a coordination, trust, and workflow layer for the fragmented FUTA accommodation market. It should help students discover accommodation, compare real marketplace options, express structured intent, and continue flexible coordination through WhatsApp. It should help agents distribute offers and manage demand without forcing the market into unfamiliar behavior.
 
----
+The product should reduce fragmentation, improve trust, and simplify coordination. It should not become a generic listing board, chat app, payment product, landlord tool, or property management system.
 
-# Core Product Areas
+## Product Principles
 
-1. Public Discovery
-2. Listing Management
-3. Inquiry Coordination
-4. Inspection Workflow
-5. Trust & Signals
-6. Admin Moderation
-7. Marketplace Structure
+These constraints apply to every implementation phase:
 
----
+- Preserve the core marketplace model: `Property -> PropertyUnitType -> AgentOffer`.
+- Treat Campus as the marketplace boundary. Do not introduce a University hierarchy yet.
+- Treat duplicate inventory and multiple agent offers as normal market behavior.
+- Structure intent before WhatsApp; do not attempt to replace WhatsApp.
+- Represent trust through observable, probabilistic signals rather than absolute verification claims.
+- Keep public location approximate by default.
+- Prioritize mobile-first usability, poor-network resilience, marketplace liquidity, and operational simplicity.
+- Keep the initial web product a React and Vite installable PWA. Defer SSR or ISR infrastructure until public search acquisition justifies it.
 
-# User Roles
+## Users and Responsibilities
 
-## Student
+### Student
 
-Capabilities:
+Students should eventually be able to:
 
-* browse listings
-* filter listings
-* view listing details
-* save/bookmark listings
-* contact agents
-* request inspections
-* submit reviews
+- browse, search, filter, and compare accommodation
+- view property, unit type, agent offer, media, and trust information
+- save properties
+- submit general inquiries and availability checks
+- request inspections
+- express reservation intent
+- continue coordination with an agent through contextual WhatsApp handoff
+- leave property and agent reviews after eligible interactions
 
----
+### Agent
 
-## Agent
+Agents should eventually be able to:
 
-Capabilities:
+- create and manage offers for property unit types
+- upload and maintain offer media
+- manage price, availability, and operational notes
+- receive and respond to structured student intents
+- coordinate inspection and reservation-intent states
+- view lightweight offer performance information
+- build reputation from observable marketplace behavior
 
-* create offers
-* upload images
-* manage listings
-* receive inquiries
-* manage availability
-* respond to requests
-* build reputation
+### Admin
 
----
+Admins should eventually be able to:
 
-## Admin
+- moderate properties, offers, media, reviews, and reports
+- group or merge probable duplicate properties
+- suspend abusive accounts and remove spam
+- manage manual trust and moderation signals
+- curate public marketplace presentation where necessary
 
-Capabilities:
+## Current Implementation Snapshot
 
-* moderate content
-* merge duplicates
-* remove spam
-* manage abuse
-* manage trust signals
-* curate featured listings
+This is a planning aid, not a substitute for acceptance criteria.
 
----
+| Product area | Status | Current position |
+| --- | --- | --- |
+| Marketplace foundation and listing management API | Built | Core schema, repositories, endpoints, media, validation, and local infrastructure exist. |
+| Public discovery API | Built | Discovery, filtering, sorting, pagination, and property detail data exist. |
+| Public discovery UI | In progress | The frontend is currently a landing and waitlist experience. |
+| Identity and authorization | Planned | Authentication, sessions, roles, ownership, and protected writes are not implemented. |
+| Inquiry, inspection, and reservation workflows | Planned | Domain types exist, but persistence and API workflows do not. |
+| Agent operations UI | Planned | Offer management and request queues are not available in the frontend. |
+| Trust and moderation | Planned | Concepts and domain types exist, but operational workflows do not. |
+| Launch readiness | Planned | PWA completion, production operations, monitoring, and pilot readiness remain. |
 
-# Listing Discovery
+## Delivery Strategy
 
-## Listing Feed
+Each phase should produce a coherent, testable product capability. Later phases may begin only when their required dependencies are stable. A phase is complete when its exit criteria are met, not merely when its screens or tables exist.
 
-The platform should provide a structured listing feed.
+### Phase 0 — Re-establish the Marketplace Foundation
 
-Listings should include:
+**Outcome:** The existing backend foundation is green, reproducible, and safe to build on.
 
-* title
-* unit type
-* approximate area
-* pricing
-* images
-* agent information
-* trust indicators
+**Scope:**
 
-The feed should prioritize:
+- confirm the `Property -> PropertyUnitType -> AgentOffer` schema and API behavior
+- verify campus scoping, money handling, filters, pagination, and media delivery
+- run the PostgreSQL integration suite against local infrastructure
+- verify a real MinIO upload and imgproxy delivery path
+- resolve known partial-success behavior in multi-file media persistence
+- confirm OpenAPI output and generated frontend contract readiness
+- keep configuration examples safe, complete, and startup-validated
 
-* freshness
-* relevance
-* trust signals
-* availability confidence
+**Exit criteria:**
 
----
+- canonical backend checks and integration tests pass
+- local setup reproduces discovery and media behavior
+- API documentation matches implemented behavior
+- no known data-integrity issue blocks public discovery work
 
-# Search & Filtering
+### Phase 1 — Public Discovery
 
-Users should be able to filter by:
+**Outcome:** A student can move from opening Laivan to understanding and comparing available accommodation.
 
-* price range
-* unit type
-* area
-* gender preference (if applicable)
-* availability
+**Dependencies:** Phase 0.
 
-Search should remain lightweight initially.
+**Scope:**
 
-Complex search infrastructure is unnecessary for MVP.
+- build a mobile-first discovery feed backed by `/v1/discovery`
+- support validated price, category, area, availability, sorting, and pagination controls
+- build a property detail page that preserves the domain hierarchy
+- show property facts, unit types, competing agent offers, approximate location, pricing, media, and available trust indicators
+- provide clear paths toward inquiry, inspection, saving, and reservation intent, even where later workflows are not yet enabled
+- handle loading, empty, error, stale-data, and poor-network states
+- keep desktop layouts intentionally designed rather than stretched from mobile
+- optimize responsive images and baseline accessibility
 
----
+**Discovery ranking should initially favor:**
 
-# Listing Detail Page
+- freshness
+- filter relevance
+- availability confidence
+- listing completeness
+- trustworthy observable signals when available
 
-The detail page should contain:
+Do not introduce advanced recommendations, AI ranking, or separate search infrastructure during this phase.
 
-* images
-* room information
-* approximate location
-* pricing
-* amenities
-* agent information
-* trust indicators
-* inquiry actions
+**Exit criteria:**
 
-Primary actions:
+- a student can browse, filter, open, and compare real seeded marketplace inventory on mobile and desktop
+- the UI distinguishes property facts, unit types, and agent-specific offers
+- public location remains approximate
+- user-visible loading, empty, error, and retry behavior is verified
 
-* Contact Agent
-* Request Inspection
-* Save Listing
-* Reservation Interest
+### Phase 2 — Identity, Ownership, and Protected Writes
 
----
+**Outcome:** Public reads remain low-friction while mutations are attributable and permission-controlled.
 
-# Communication Flow
+**Dependencies:** Phase 0. Complete before public write workflows ship.
 
-The platform should not implement full messaging infrastructure initially.
+**Scope:**
 
-Instead:
+- add student and agent identity persistence
+- implement authentication and session handling
+- enforce student, agent, and admin roles at route or middleware boundaries
+- define ownership and permission rules for properties, offers, and media
+- remove caller-supplied identity where authenticated context should be authoritative
+- add rate limiting for suspicious public and authenticated behavior
+- add upload abuse controls and safe media validation
+- establish account suspension behavior and protected-route error responses
 
-users initiate structured intents.
+**Exit criteria:**
 
-Then WhatsApp opens with contextual pre-filled messages.
+- every write is associated with an authenticated identity or an explicitly documented administrative path
+- agents cannot mutate another agent's protected resources
+- students cannot access agent or admin operations
+- authentication, authorization, validation, and abuse paths have focused behavior tests
 
-Examples:
+### Phase 3 — Structured Intent and WhatsApp Handoff
 
-"Hi, I am interested in the self-contained room at Alice Lodge. Is it still available?"
+**Outcome:** Laivan captures what a student wants before flexible coordination continues through WhatsApp.
 
-This preserves:
+**Dependencies:** Phases 1 and 2.
 
-* user familiarity
-* operational simplicity
-* low adoption friction
+**Workflow types:**
 
----
+- **General inquiry:** the student wants more information
+- **Availability check:** the student wants current availability confirmed
+- **Inspection request:** the student wants to physically inspect the property
+- **Reservation intent:** the student is seriously interested in securing the room
 
-# Inquiry Types
+A reservation intent does not imply payment, a legal agreement, guaranteed availability, or a completed reservation.
 
-## General Inquiry
+**Scope:**
 
-Represents:
+- persist each intent against the student, agent offer, and relevant property context
+- capture only the fields needed for the selected workflow
+- support preferred inspection time, phone number, and an optional message where relevant
+- define explicit workflow statuses and valid state transitions
+- preserve workflow history needed for operations and future trust signals
+- generate a contextual WhatsApp handoff containing the property, unit type, offer, and expressed intent
+- avoid storing or recreating the subsequent WhatsApp conversation
+- give students clear submission, failure, duplicate-submission, and next-step feedback
 
-"I want more information"
+**Exit criteria:**
 
----
+- a signed-in student can submit every supported intent from a real offer
+- the intent is persisted before WhatsApp opens
+- the receiving agent and offer are unambiguous
+- retries do not create uncontrolled duplicate workflows
+- copy does not imply guaranteed availability, reservation, payment, or verification
 
-## Inspection Request
+### Phase 4 — Lightweight Agent Operations
 
-Represents:
+**Outcome:** Agents can keep offers current and act on structured demand without an enterprise-style dashboard.
 
-"I want to physically inspect this property"
+**Dependencies:** Phases 2 and 3.
 
-Fields:
+**Scope:**
 
-* preferred time
-* optional message
-* phone number
+- provide an agent overview of active and inactive offers
+- allow agents to manage price, availability, operational notes, and media
+- provide queues for inquiries, availability checks, inspection requests, and reservation intents
+- support the minimum response and status actions defined by each workflow
+- surface stale offers and encourage availability updates
+- show lightweight performance information such as views, intents, response behavior, and successful workflow outcomes
+- keep structural property facts separate from agent-specific offer information
 
----
+**Exit criteria:**
 
-## Reservation Intent
+- an agent can maintain an offer without administrative assistance
+- an agent can identify and act on pending student intents
+- availability and workflow status changes are visible to the relevant student experience
+- the dashboard remains usable on a phone and does not introduce chat, CRM, or property-management scope
 
-Represents:
+### Phase 5 — Trust, Reviews, Duplicates, and Moderation
 
-"I am seriously interested in securing this room"
+**Outcome:** The marketplace becomes more understandable and safer through explainable signals and practical admin tools.
 
-This does NOT imply:
+**Dependencies:** Phases 2 through 4, because trust should be based on real behavior.
 
-* payment
-* reservation guarantee
-* legal commitment
+**Initial trust signals may include:**
 
----
+- recently updated
+- listing completeness
+- agent response reliability
+- successful inspection history
+- media consistency
+- repeated offer consistency
+- account and activity history
+- reports and moderation outcomes
 
-# Agent Dashboard
+**Scope:**
 
-Agents should have access to:
+- expose only explainable, evidence-backed trust indicators
+- avoid a single opaque score until sufficient marketplace behavior exists
+- allow eligible students to review properties and agents
+- establish review eligibility, reporting, and abuse controls
+- add content and account reporting
+- give admins queues for reports, abusive content, suspicious offers, and stale inventory
+- support manual duplicate grouping and carefully controlled property merges
+- preserve distinct agent offers when grouping the same underlying property
+- record moderation actions and their reasons
+- add saved properties if evidence shows they improve comparison and return usage
 
-* active listings
-* inquiry overview
-* inspection requests
-* availability status
-* listing performance
+Automated duplicate detection should begin with soft suggestions and lightweight heuristics. Sophisticated media matching or AI canonicalization is not required.
 
-The dashboard should remain operationally lightweight.
+**Exit criteria:**
 
-Avoid enterprise-style complexity.
+- every public trust claim maps to a known signal
+- admins can resolve common marketplace abuse and duplicate cases
+- reviews cannot be submitted without the defined eligibility signal
+- merging duplicate properties does not collapse or transfer agent ownership incorrectly
+- moderation actions are attributable and reviewable
 
----
+### Phase 6 — Pilot and Launch Hardening
 
-# Media Uploads
+**Outcome:** Laivan is safe, observable, installable, and operationally ready for a small FUTA pilot.
 
-Agents should be able to upload:
+**Dependencies:** The launch-critical parts of Phases 1 through 5.
 
-* images
-* optional videos later
+**Scope:**
 
-The platform should:
+- complete and verify the installable PWA experience on iOS and Android
+- test core workflows on low-end devices and poor connections
+- configure production PostgreSQL, object storage, media delivery, and backups
+- add monitoring, alerting, structured operational logs, and recovery procedures
+- validate security headers, rate limits, upload controls, and privacy behavior
+- define moderation ownership and response procedures
+- seed enough current inventory for useful discovery
+- run a small pilot with real students and agents
+- measure discovery success, intent conversion, response reliability, stale inventory, and repeat usage
 
-* compress media
-* moderate abusive uploads
-* eventually support duplicate detection
+**Exit criteria:**
 
----
+- core student and agent workflows pass production smoke tests
+- backups and recovery procedures are verified
+- operational owners can identify and respond to failures and abuse
+- the marketplace has enough current supply to make discovery useful
+- pilot feedback can be traced to concrete product and operational changes
 
-# Duplicate Handling
+## Cross-Phase Requirements
 
-The platform should support:
+### Media
 
-* manual duplicate merging
-* soft duplicate detection
-* property grouping
+- support images first; defer video until there is demonstrated need
+- compress and resize uploads for mobile delivery
+- moderate abusive uploads
+- preserve media provenance across property, unit type, and agent offer contexts
+- avoid partial database persistence for a logically atomic upload operation
+- treat automated duplicate-media detection as a later enhancement
 
-The system should acknowledge that:
+### Location and Privacy
 
-multiple agents may advertise the same room.
+- expose area, landmarks, district references, or relative positioning publicly
+- do not expose exact public coordinates or directions by default
+- share more precise directions only when the workflow and permissions justify it
+- collect and retain only the personal information needed for the active workflow
 
----
+### Performance and Resilience
 
-# Trust & Signals
+- remain fast and usable on low-end phones and poor networks
+- optimize images aggressively
+- keep request and payload sizes proportionate
+- make retry and stale-data behavior understandable
+- avoid making native app distribution a launch dependency
 
-The system should expose lightweight trust indicators.
+### Security and Abuse Prevention
 
-Examples:
+- validate request bodies, route parameters, query parameters, uploads, and configuration
+- reject unknown JSON fields at API boundaries
+- protect personal data and avoid leaking internal errors
+- rate limit suspicious behavior
+- make authentication and permission requirements explicit
+- sanitize and moderate user-controlled content
+- keep audit history for consequential administrative actions
 
-* recently updated
-* multiple confirmations
-* responsive agent
-* repeated submissions
-* verified media consistency
+### Rendering and SEO
 
-The platform should avoid false claims of certainty.
+During the initial phases:
 
----
+- use clean URLs, semantic HTML, descriptive metadata, structured content, and strong mobile performance
+- keep the React and Vite application client-rendered
+- do not add SSR, ISR, or TanStack Start solely because listing pages are public
 
-# Review System
+After marketplace workflows are validated and organic search becomes a meaningful acquisition channel:
 
-Students may leave:
+- evaluate campus, area, category, and property pages for prerendering or cached server rendering
+- migrate selectively rather than converting operational dashboards unnecessarily
 
-* property reviews
-* agent reviews
+## Explicitly Out of MVP Scope
 
-The review system should avoid:
+- in-app chat
+- payments or escrow
+- guaranteed reservations
+- guaranteed listing availability
+- absolute property or agent verification claims
+- advanced AI ranking or recommendation systems
+- fully automated duplicate detection
+- video-first media workflows
+- landlord property-management tooling
+- cross-campus discovery
+- native mobile applications
+- microservices or premature event-driven infrastructure
 
-* harassment
-* abuse
-* fake reputation manipulation
+## Post-MVP Decision Gates
 
-Moderation tooling is important.
+Future work should be triggered by evidence rather than added automatically:
 
----
-
-# Location Handling
-
-Public listings should generally avoid exact coordinates.
-
-Instead:
-
-* approximate area
-* landmarks
-* district references
-
-Detailed directions may happen later during conversations.
-
----
-
-# SEO Strategy
-
-The public web application should prioritize discoverability.
-
-Important pages include:
-
-* Campus accommodation landing page (initially FUTA)
-* area pages
-* listing pages
-* room category pages
-
-Rendering strategy:
-
-* ISR for public listing pages
-* client-side freshness indicators
-* lightweight real-time validation for actions
-
-The platform should avoid expensive SSR for every request.
-
----
-
-# Performance Requirements
-
-The system should:
-
-* remain mobile-first
-* work well as an installable PWA on iOS and Android
-* load quickly on low-end devices
-* function reasonably on poor connections
-* optimize images aggressively
-
-The initial product should not depend on native mobile distribution. The web experience should be excellent for phone-first users while still feeling intentionally designed on desktop, not merely stretched from the mobile layout.
-
----
-
-# Security Requirements
-
-The system should:
-
-* protect user data
-* sanitize uploads
-* prevent abuse/spam
-* rate limit suspicious behavior
-
-The platform should not overcomplicate security early,
-but should remain structurally safe.
-
----
-
-# Moderation Requirements
-
-Admins should be able to:
-
-* remove fake listings
-* merge duplicates
-* suspend abusive agents
-* manage reported content
-
-Moderation tooling is operationally important.
-
----
-
-# Initial MVP Scope
-
-The MVP should focus on:
-
-* listing discovery
-* structured listings
-* inquiry intents
-* WhatsApp coordination
-* lightweight trust indicators
-* basic agent dashboards
-* manual moderation
-
-The MVP should NOT initially include:
-
-* chat systems
-* payments
-* escrow
-* advanced AI ranking
-* complex recommendation engines
-* automated verification systems
-* microservices architecture
-
----
-
-# Future Possibilities
-
-Possible future expansions:
-
-* stronger dedupe systems
-* analytics
-* richer trust systems
-* agent workflow tooling
-* cross-campus support
-* recommendation engines
-* enhanced moderation automation
-
-However,
-these should not distract from marketplace fundamentals.
+- **SEO rendering:** when indexed public discovery becomes a material acquisition channel
+- **Cross-campus support:** when the FUTA marketplace works and another campus has an operational launch path
+- **Native mobile:** when PWA limitations block validated user behavior
+- **Payments:** when trust, inspection, and reservation workflows demonstrate a safe and valuable transaction boundary
+- **Advanced deduplication:** when manual moderation volume becomes a measurable bottleneck
+- **Recommendations:** when inventory and interaction data are sufficient to outperform explicit filters
+- **Agent monetization:** when Laivan already creates measurable agent value without compromising trust
