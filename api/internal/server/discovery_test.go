@@ -5,9 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/ddddami/laivan/internal/domain"
-	"github.com/ddddami/laivan/internal/repo"
 )
 
 func TestDiscoveryReturnsResults(t *testing.T) {
@@ -98,9 +95,7 @@ func TestDiscoveryValidationErrors(t *testing.T) {
 }
 
 func TestDiscoveryDefaultsToAvailableRecommendedResults(t *testing.T) {
-	app := testApp()
-	store := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app.propertyRepo = store
+	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002", nil)
 	rr := httptest.NewRecorder()
 
@@ -109,11 +104,27 @@ func TestDiscoveryDefaultsToAvailableRecommendedResults(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
-	if store.discoveryFilter.Availability != repo.DiscoveryAvailabilityAvailable {
-		t.Fatalf("availability = %q, want %q", store.discoveryFilter.Availability, repo.DiscoveryAvailabilityAvailable)
+
+	var body struct {
+		Results []struct {
+			Property struct {
+				Name string `json:"name"`
+			} `json:"property"`
+		} `json:"results"`
 	}
-	if store.discoveryFilter.Filters.Sort != "recommended" {
-		t.Fatalf("sort = %q, want recommended", store.discoveryFilter.Filters.Sort)
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if len(body.Results) != 2 {
+		t.Fatalf("results length = %d, want 2", len(body.Results))
+	}
+	if body.Results[0].Property.Name != "Alice Lodge" {
+		t.Fatalf("first property = %q, want recommended Alice Lodge", body.Results[0].Property.Name)
+	}
+	for _, result := range body.Results {
+		if result.Property.Name == "Empty Lodge" {
+			t.Fatal("default discovery included unavailable Empty Lodge")
+		}
 	}
 }
 
@@ -141,10 +152,8 @@ func TestDiscoveryRejectsInvalidAvailability(t *testing.T) {
 	}
 }
 
-func TestDiscoveryAcceptsAllAvailability(t *testing.T) {
-	app := testApp()
-	store := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app.propertyRepo = store
+func TestDiscoveryCanIncludeUnavailableResults(t *testing.T) {
+	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&availability=all", nil)
 	rr := httptest.NewRecorder()
 
@@ -153,22 +162,32 @@ func TestDiscoveryAcceptsAllAvailability(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
 	}
-	if store.discoveryFilter.Availability != repo.DiscoveryAvailabilityAll {
-		t.Fatalf("availability = %q, want %q", store.discoveryFilter.Availability, repo.DiscoveryAvailabilityAll)
-	}
-}
 
-func TestDiscoveryResultWithoutAvailableOfferHasNullPrice(t *testing.T) {
-	app := testApp()
-	response := app.discoveryResultResponse(domain.DiscoveryResult{
-		AvailableOfferCount: 0,
-	})
+	var body struct {
+		Results []struct {
+			Property struct {
+				Name string `json:"name"`
+			} `json:"property"`
+			Pricing struct {
+				LowestPriceNaira *int `json:"lowest_price_naira"`
+			} `json:"pricing"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if len(body.Results) != 3 {
+		t.Fatalf("results length = %d, want 3", len(body.Results))
+	}
 
-	pricing, ok := response["pricing"].(map[string]any)
-	if !ok {
-		t.Fatalf("pricing = %#v, want response object", response["pricing"])
+	for _, result := range body.Results {
+		if result.Property.Name == "Empty Lodge" {
+			if result.Pricing.LowestPriceNaira != nil {
+				t.Fatalf("unavailable result price = %d, want null", *result.Pricing.LowestPriceNaira)
+			}
+			return
+		}
 	}
-	if pricing["lowest_price_naira"] != nil {
-		t.Fatalf("lowest_price_naira = %#v, want nil", pricing["lowest_price_naira"])
-	}
+
+	t.Fatal("Empty Lodge is missing from all-availability results")
 }
