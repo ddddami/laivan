@@ -19,3 +19,9 @@ type AgentOffer struct {
 	Status             AgentOfferStatus
 	Timestamps
 }
+
+type AgentOfferDetail struct {
+	AgentOffer
+	Agent AgentSummary
+	Media []Media
+}

@@ -26,5 +26,5 @@ type PropertyDetail struct {
 type PropertyUnitTypeDetail struct {
 	PropertyUnitType
 	Media       []Media
-	AgentOffers []AgentOffer
+	AgentOffers []AgentOfferDetail
 }

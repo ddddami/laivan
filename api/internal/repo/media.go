@@ -172,6 +172,10 @@ func mediaFromAgentOfferRow(row generateddb.ListMediaByAgentOfferRow) domain.Med
 	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
 }
 
+func mediaFromAgentOfferIDsRow(row generateddb.ListMediaByAgentOfferIDsRow) domain.Media {
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+}
+
 func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedByAgentID pgtype.UUID, url string, objectKey pgtype.Text, kind string, caption pgtype.Text, contentType pgtype.Text, sizeBytes pgtype.Int8, createdAt pgtype.Timestamptz) domain.Media {
 	return domain.Media{
 		ID:                 domain.ID(uuidString(id)),

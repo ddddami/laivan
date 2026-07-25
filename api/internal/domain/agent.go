@@ -9,6 +9,11 @@ type Agent struct {
 	Timestamps
 }
 
+type AgentSummary struct {
+	ID          ID
+	DisplayName string
+}
+
 type Student struct {
 	ID          ID
 	DisplayName string

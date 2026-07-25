@@ -26,3 +26,9 @@ SELECT id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent
 FROM media
 WHERE agent_offer_id = $1
 ORDER BY created_at ASC, id ASC;
+
+-- name: ListMediaByAgentOfferIDs :many
+SELECT id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at
+FROM media
+WHERE agent_offer_id = ANY($1::uuid[])
+ORDER BY agent_offer_id, created_at ASC, id ASC;

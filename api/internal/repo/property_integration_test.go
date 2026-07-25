@@ -83,6 +83,35 @@ func TestPropertyRepositoryGetNotFound(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryGetCampusBySlug(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	repository := NewPropertyRepository(pool)
+	campus, err := repository.GetCampusBySlug(ctx, "futa")
+	if err != nil {
+		t.Fatalf("get FUTA campus: %v", err)
+	}
+	if campus.Slug != "futa" || campus.ShortName != "FUTA" {
+		t.Fatalf("campus = %#v, want FUTA campus", campus)
+	}
+
+	inactiveCampusID := createTestCampus(t, ctx, pool, "inactive-campus")
+	if _, err := pool.Exec(ctx, "UPDATE campuses SET is_active = false WHERE id = $1", string(inactiveCampusID)); err != nil {
+		t.Fatalf("deactivate campus: %v", err)
+	}
+	_, err = repository.GetCampusBySlug(ctx, "inactive-campus")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("inactive campus error = %v, want %v", err, ErrNotFound)
+	}
+
+	_, err = repository.GetCampusBySlug(ctx, "missing-campus")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing campus error = %v, want %v", err, ErrNotFound)
+	}
+}
+
 func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
@@ -100,7 +129,7 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	unitType1 := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	unitType2 := insertPropertyUnitType(t, ctx, pool, propertyID, "Single room")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
-	insertAgentOffer(t, ctx, pool, unitType1, agentID, "Selfcon offer", 25000000)
+	offerID := insertAgentOffer(t, ctx, pool, unitType1, agentID, "Selfcon offer", 25000000)
 	insertAgentOffer(t, ctx, pool, unitType2, agentID, "Single room offer", 15000000)
 
 	repository := NewPropertyRepository(pool)
@@ -119,6 +148,14 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 		Kind:               domain.MediaKindImage,
 	}); err != nil {
 		t.Fatalf("create single-room media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		AgentOfferID:      offerID,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/self-contained-offer.jpg",
+		Kind:              domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create agent offer media: %v", err)
 	}
 
 	detail, err := repository.GetWithDetails(ctx, propertyID)
@@ -140,6 +177,13 @@ func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	}
 	if detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo != 25000000 {
 		t.Fatalf("price = %d, want 25000000", detail.UnitTypes[0].AgentOffers[0].Price.AmountKobo)
+	}
+	if detail.UnitTypes[0].AgentOffers[0].Agent.DisplayName != "Dami Agent" {
+		t.Fatalf("agent display name = %q, want Dami Agent", detail.UnitTypes[0].AgentOffers[0].Agent.DisplayName)
+	}
+	if len(detail.UnitTypes[0].AgentOffers[0].Media) != 1 ||
+		detail.UnitTypes[0].AgentOffers[0].Media[0].URL != "https://media.example.test/self-contained-offer.jpg" {
+		t.Fatalf("agent offer media = %#v", detail.UnitTypes[0].AgentOffers[0].Media)
 	}
 	if len(detail.UnitTypes[0].Media) != 1 || detail.UnitTypes[0].Media[0].URL != "https://media.example.test/self-contained.jpg" {
 		t.Fatalf("self-contained media = %#v", detail.UnitTypes[0].Media)
@@ -768,15 +812,21 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitTypeID domain.ID, agentID domain.ID, title string, priceKobo int) domain.ID {
 	t.Helper()
 
+	return insertAgentOfferWithStatus(t, ctx, db, unitTypeID, agentID, title, priceKobo, "available")
+}
+
+func insertAgentOfferWithStatus(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitTypeID domain.ID, agentID domain.ID, title string, priceKobo int, status string) domain.ID {
+	t.Helper()
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var offerID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, price_kobo, status)
-		VALUES ($1, $2, $3, 'Test offer', $4, 'available')
+		VALUES ($1, $2, $3, 'Test offer', $4, $5)
 		RETURNING id::text
-	`, string(unitTypeID), string(agentID), title, priceKobo).Scan(&offerID)
+	`, string(unitTypeID), string(agentID), title, priceKobo, status).Scan(&offerID)
 	if err != nil {
 		t.Fatalf("insert agent offer: %v", err)
 	}
@@ -818,23 +868,92 @@ func TestRepositoryDiscover(t *testing.T) {
 	quietSingle := insertPropertyUnitTypeFull(t, ctx, pool, quiet, "single_room", "", 1, false, "shared", "shared", "Shared kitchen")
 	insertAgentOffer(t, ctx, pool, quietSingle, agentID, "Quiet single", 15000000)
 
-	// Property D: an available unit type with no agent offers yet
+	// Property D: a unit type with no agent offers yet and valid property media.
 	empty := insertPropertyWithArea(t, ctx, pool, campusID, "Empty Lodge", "Obanla", time.Date(2026, time.April, 30, 12, 0, 0, 0, time.UTC))
 	insertPropertyUnitTypeFull(t, ctx, pool, empty, "single_room", "", 1, false, "shared", "shared", "No offers yet")
 
+	// Property E: only a paused offer, a video, and paused-offer media.
+	pausedProperty := insertPropertyWithArea(t, ctx, pool, campusID, "Paused Lodge", "Obanla", time.Date(2026, time.April, 29, 12, 0, 0, 0, time.UTC))
+	pausedUnit := insertPropertyUnitTypeFull(t, ctx, pool, pausedProperty, "single_room", "", 1, false, "shared", "shared", "Paused offer only")
+	pausedOffer := insertAgentOfferWithStatus(t, ctx, pool, pausedUnit, agentID, "Paused single", 12000000, "paused")
+
+	// An available offer on another campus must never leak into FUTA discovery.
+	otherCampusID := createTestCampus(t, ctx, pool, "other-discovery-campus")
+	otherProperty := insertPropertyWithArea(t, ctx, pool, otherCampusID, "Other Campus Lodge", "Obanla", time.Date(2026, time.May, 4, 12, 0, 0, 0, time.UTC))
+	otherUnit := insertPropertyUnitTypeFull(t, ctx, pool, otherProperty, "single_room", "", 1, false, "shared", "shared", "Other campus")
+	insertAgentOffer(t, ctx, pool, otherUnit, agentID, "Other campus single", 10000000)
+
 	repository := NewPropertyRepository(pool)
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: blueRoomParlour,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/blue-roof.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create discovery media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID:        empty,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/empty-lodge.jpg",
+		Kind:              domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create no-offer property media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: pausedUnit,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/paused-lodge.mp4",
+		Kind:               domain.MediaKindVideo,
+	}); err != nil {
+		t.Fatalf("create paused unit video: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		AgentOfferID:      pausedOffer,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/paused-offer.jpg",
+		Kind:              domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create paused offer media: %v", err)
+	}
 	baseFilter := data.Filters{Page: 1, PageSize: 10, Sort: "-created_at", SortSafelist: []string{"created_at", "-created_at"}}
 
-	// All results for campus
+	// Public discovery defaults to unit types with at least one available offer.
 	results, total, err := repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover available: %v", err)
+	}
+	if total != 5 {
+		t.Fatalf("available total = %d, want 5", total)
+	}
+	if len(results) != 5 {
+		t.Fatalf("available results length = %d, want 5", len(results))
+	}
+
+	// Callers can explicitly include unit types without available offers.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{
+		CampusID:     campusID,
+		Availability: DiscoveryAvailabilityAll,
+		Filters:      baseFilter,
+	})
 	if err != nil {
 		t.Fatalf("discover all: %v", err)
 	}
-	if total != 6 {
-		t.Fatalf("total = %d, want 6", total)
+	if total != 7 {
+		t.Fatalf("all total = %d, want 7", total)
 	}
-	if len(results) != 6 {
-		t.Fatalf("results length = %d, want 6", len(results))
+	for _, result := range results {
+		if result.PropertyName == "Other Campus Lodge" {
+			t.Fatal("other campus result leaked into FUTA discovery")
+		}
+		if result.PropertyName == "Paused Lodge" {
+			if result.AvailableOfferCount != 0 {
+				t.Fatalf("paused result available offer count = %d, want 0", result.AvailableOfferCount)
+			}
+			if result.ThumbnailURL != "" {
+				t.Fatalf("paused result thumbnail = %q, want empty", result.ThumbnailURL)
+			}
+		}
 	}
 
 	// Filter by single category
@@ -851,8 +970,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover by categories: %v", err)
 	}
-	if total != 5 {
-		t.Fatalf("multi-category total = %d, want 5", total)
+	if total != 4 {
+		t.Fatalf("multi-category total = %d, want 4", total)
 	}
 
 	// Filter by area partial match
@@ -860,8 +979,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover by area: %v", err)
 	}
-	if total != 3 {
-		t.Fatalf("Obanla total = %d, want 3", total)
+	if total != 2 {
+		t.Fatalf("Obanla total = %d, want 2", total)
 	}
 
 	// Filter by min price (naira converted to kobo internally)
@@ -898,8 +1017,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if results[0].PropertyName != "Quiet Place" {
 		t.Fatalf("first price-sorted property = %q, want Quiet Place", results[0].PropertyName)
 	}
-	if results[len(results)-1].PropertyName != "Empty Lodge" {
-		t.Fatalf("last price-sorted property = %q, want Empty Lodge", results[len(results)-1].PropertyName)
+	if results[len(results)-1].PropertyName != "Blue Roof" {
+		t.Fatalf("last price-sorted property = %q, want Blue Roof", results[len(results)-1].PropertyName)
 	}
 	priceSort.Sort = "-lowest_price_kobo"
 	results, _, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: priceSort})
@@ -909,8 +1028,8 @@ func TestRepositoryDiscover(t *testing.T) {
 	if results[0].PropertyName != "Blue Roof" || results[0].LowestPrice.AmountKobo != 50000000 {
 		t.Fatalf("first descending price result = %#v", results[0])
 	}
-	if results[len(results)-1].PropertyName != "Empty Lodge" {
-		t.Fatalf("last descending price property = %q, want Empty Lodge", results[len(results)-1].PropertyName)
+	if results[len(results)-1].PropertyName != "Quiet Place" {
+		t.Fatalf("last descending price property = %q, want Quiet Place", results[len(results)-1].PropertyName)
 	}
 
 	// Filter by bathroom_type
@@ -943,6 +1062,49 @@ func TestRepositoryDiscover(t *testing.T) {
 	}
 	if results[0].PropertyName != "Blue Roof" {
 		t.Fatalf("property name = %q, want Blue Roof", results[0].PropertyName)
+	}
+
+	recommended := data.Filters{
+		Page:         1,
+		PageSize:     10,
+		Sort:         "recommended",
+		SortSafelist: []string{"recommended"},
+	}
+	results, _, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Filters: recommended})
+	if err != nil {
+		t.Fatalf("discover recommended: %v", err)
+	}
+	if results[0].PropertyName != "Blue Roof" || results[0].ThumbnailURL == "" {
+		t.Fatalf("first recommended result = %#v, want Blue Roof result with media", results[0])
+	}
+	if results[0].UpdatedAt.IsZero() {
+		t.Fatal("recommended result updated_at is zero")
+	}
+
+	allRecommendedFilter := DiscoveryFilter{
+		CampusID:     campusID,
+		Availability: DiscoveryAvailabilityAll,
+		Filters:      recommended,
+	}
+	allRecommended, _, err := repository.Discover(ctx, allRecommendedFilter)
+	if err != nil {
+		t.Fatalf("discover all recommended: %v", err)
+	}
+	if allRecommended[0].AvailableOfferCount == 0 {
+		t.Fatalf("first all-availability result = %#v, want an available opportunity", allRecommended[0])
+	}
+
+	repeated, _, err := repository.Discover(ctx, allRecommendedFilter)
+	if err != nil {
+		t.Fatalf("repeat all recommended: %v", err)
+	}
+	if len(repeated) != len(allRecommended) {
+		t.Fatalf("repeated result length = %d, want %d", len(repeated), len(allRecommended))
+	}
+	for i := range allRecommended {
+		if repeated[i].UnitTypeID != allRecommended[i].UnitTypeID {
+			t.Fatalf("result %d changed from %q to %q across identical requests", i, allRecommended[i].UnitTypeID, repeated[i].UnitTypeID)
+		}
 	}
 }
 

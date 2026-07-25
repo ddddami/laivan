@@ -33,6 +33,13 @@ type PropertyListFilter struct {
 	Filters   data.Filters
 }
 
+type DiscoveryAvailability string
+
+const (
+	DiscoveryAvailabilityAvailable DiscoveryAvailability = "available"
+	DiscoveryAvailabilityAll       DiscoveryAvailability = "all"
+)
+
 type DiscoveryFilter struct {
 	CampusID     domain.ID
 	Categories   []string
@@ -42,6 +49,7 @@ type DiscoveryFilter struct {
 	HasParlour   *bool
 	MinPrice     *int
 	MaxPrice     *int
+	Availability DiscoveryAvailability
 	Filters      data.Filters
 }
 
@@ -126,7 +134,7 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 	}
 
 	mediaByUnitType := make(map[domain.ID][]domain.Media, len(unitTypeRows))
-	offersByUnitType := make(map[domain.ID][]domain.AgentOffer, len(unitTypeRows))
+	offersByUnitType := make(map[domain.ID][]domain.AgentOfferDetail, len(unitTypeRows))
 	if len(unitTypeRows) > 0 {
 		unitTypeIDs := make([]pgtype.UUID, 0, len(unitTypeRows))
 		for _, unitTypeRow := range unitTypeRows {
@@ -142,12 +150,31 @@ func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (
 			mediaByUnitType[media.PropertyUnitTypeID] = append(mediaByUnitType[media.PropertyUnitTypeID], media)
 		}
 
-		offerRows, err := r.queries.ListAgentOffersByPropertyUnitTypeIDs(ctx, unitTypeIDs)
+		offerRows, err := r.queries.ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx, unitTypeIDs)
 		if err != nil {
 			return domain.PropertyDetail{}, fmt.Errorf("list agent offers: %w", err)
 		}
+
+		mediaByOffer := make(map[domain.ID][]domain.Media, len(offerRows))
+		if len(offerRows) > 0 {
+			offerIDs := make([]pgtype.UUID, 0, len(offerRows))
+			for _, offerRow := range offerRows {
+				offerIDs = append(offerIDs, offerRow.ID)
+			}
+
+			offerMediaRows, err := r.queries.ListMediaByAgentOfferIDs(ctx, offerIDs)
+			if err != nil {
+				return domain.PropertyDetail{}, fmt.Errorf("list agent offer media: %w", err)
+			}
+			for _, mediaRow := range offerMediaRows {
+				media := mediaFromAgentOfferIDsRow(mediaRow)
+				mediaByOffer[media.AgentOfferID] = append(mediaByOffer[media.AgentOfferID], media)
+			}
+		}
+
 		for _, offerRow := range offerRows {
-			offer := agentOfferFromRow(offerRow)
+			offer := agentOfferDetailFromRow(offerRow)
+			offer.Media = mediaByOffer[offer.ID]
 			offersByUnitType[offer.PropertyUnitTypeID] = append(offersByUnitType[offer.PropertyUnitTypeID], offer)
 		}
 	}
@@ -330,6 +357,9 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 	}
 
 	havingClause := "TRUE"
+	if filter.Availability != DiscoveryAvailabilityAll {
+		havingClause += " AND available_offer_count > 0"
+	}
 	if filter.MinPrice != nil {
 		havingClause += fmt.Sprintf(" AND lowest_price_kobo >= $%d", argPos)
 		args = append(args, domain.Kobo(*filter.MinPrice))
@@ -341,14 +371,25 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		argPos++
 	}
 
-	sortColumn := filter.Filters.SortColumn()
-	nullsOrder := ""
-	if sortColumn == "lowest_price_kobo" {
-		nullsOrder = " NULLS LAST"
+	var orderClause string
+	if filter.Filters.SortColumn() == "recommended" {
+		orderClause = "(available_offer_count > 0) DESC, (thumbnail_url IS NOT NULL) DESC, completeness_score DESC, updated_at DESC, available_offer_count DESC, unit_type_id ASC"
+	} else {
+		sortColumn := filter.Filters.SortColumn()
+		nullsOrder := ""
+		if sortColumn == "lowest_price_kobo" {
+			nullsOrder = " NULLS LAST"
+		}
+		orderClause = fmt.Sprintf("%s %s%s, unit_type_id ASC", sortColumn, filter.Filters.SortDirection(), nullsOrder)
 	}
 
 	query := fmt.Sprintf(`
-		SELECT *, COUNT(*) OVER() AS total_count
+		SELECT
+		  property_id, property_name, property_area, property_landmark,
+		  unit_type_id, category, unit_type_name, description, notes,
+		  bedroom_count, has_parlour, bathroom_type, kitchen_type,
+		  lowest_price_kobo, available_offer_count, thumbnail_url, created_at, updated_at,
+		  COUNT(*) OVER() AS total_count
 		FROM (
 		  SELECT
 		    p.id AS property_id, p.name AS property_name, p.area AS property_area, p.landmark AS property_landmark,
@@ -356,8 +397,34 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		    put.bedroom_count, put.has_parlour, put.bathroom_type, put.kitchen_type,
 		    MIN(ao.price_kobo)::integer AS lowest_price_kobo,
 		    COALESCE(COUNT(ao.id), 0)::integer AS available_offer_count,
-		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id = put.id OR m.agent_offer_id IN (SELECT id FROM agent_offers WHERE property_unit_type_id = put.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url,
-		    p.created_at
+		    (
+		      SELECT m.url
+		      FROM media m
+		      WHERE m.kind = 'image'
+		        AND (
+		          m.property_id = p.id
+		          OR m.property_unit_type_id = put.id
+		          OR m.agent_offer_id IN (
+		            SELECT id
+		            FROM agent_offers
+		            WHERE property_unit_type_id = put.id
+		              AND status = 'available'
+		          )
+		        )
+		      ORDER BY m.created_at ASC, m.id ASC
+		      LIMIT 1
+		    ) AS thumbnail_url,
+		    p.created_at,
+		    GREATEST(p.updated_at, put.updated_at, COALESCE(MAX(ao.updated_at), p.updated_at)) AS updated_at,
+		    (
+		      CASE WHEN NULLIF(BTRIM(p.landmark), '') IS NOT NULL THEN 1 ELSE 0 END +
+		      CASE WHEN NULLIF(BTRIM(p.description), '') IS NOT NULL THEN 1 ELSE 0 END +
+		      CASE WHEN NULLIF(BTRIM(put.description), '') IS NOT NULL THEN 1 ELSE 0 END +
+		      CASE WHEN NULLIF(BTRIM(put.notes), '') IS NOT NULL THEN 1 ELSE 0 END +
+		      CASE WHEN put.bedroom_count IS NOT NULL THEN 1 ELSE 0 END +
+		      CASE WHEN put.bathroom_type IS NOT NULL AND put.bathroom_type <> 'unknown' THEN 1 ELSE 0 END +
+		      CASE WHEN put.kitchen_type IS NOT NULL AND put.kitchen_type <> 'unknown' THEN 1 ELSE 0 END
+		    )::integer AS completeness_score
 		  FROM properties p
 		  JOIN property_unit_types put ON p.id = put.property_id
 		  LEFT JOIN agent_offers ao ON put.id = ao.property_unit_type_id AND ao.status = 'available'
@@ -365,8 +432,8 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		  GROUP BY p.id, put.id
 		) sub
 		WHERE %s
-		ORDER BY %s %s%s, unit_type_id ASC
-		LIMIT $%d OFFSET $%d`, whereClause, havingClause, sortColumn, filter.Filters.SortDirection(), nullsOrder, argPos, argPos+1)
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d`, whereClause, havingClause, orderClause, argPos, argPos+1)
 
 	args = append(args, filter.Filters.Limit(), filter.Filters.Offset())
 
@@ -397,13 +464,14 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			availableOfferCount int
 			thumbnailURL        pgtype.Text
 			createdAt           pgtype.Timestamptz
+			updatedAt           pgtype.Timestamptz
 			totalCountScan      int64
 		)
 		if err := rows.Scan(
 			&propertyID, &propertyName, &propertyArea, &propertyLandmark,
 			&unitTypeID, &category, &unitTypeName, &description, &notes,
 			&bedroomCount, &hasParlour, &bathroomType, &kitchenType,
-			&lowestPriceKobo, &availableOfferCount, &thumbnailURL, &createdAt, &totalCountScan,
+			&lowestPriceKobo, &availableOfferCount, &thumbnailURL, &createdAt, &updatedAt, &totalCountScan,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan discovery result: %w", err)
 		}
@@ -428,6 +496,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 			AvailableOfferCount: availableOfferCount,
 			ThumbnailURL:        textString(thumbnailURL),
 			CreatedAt:           createdAt.Time,
+			UpdatedAt:           updatedAt.Time,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -624,6 +693,29 @@ func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
+		},
+	}
+}
+
+func agentOfferDetailFromRow(row generateddb.ListAgentOfferDetailsByPropertyUnitTypeIDsRow) domain.AgentOfferDetail {
+	return domain.AgentOfferDetail{
+		AgentOffer: domain.AgentOffer{
+			ID:                 domain.ID(uuidString(row.ID)),
+			PropertyUnitTypeID: domain.ID(uuidString(row.PropertyUnitTypeID)),
+			AgentID:            domain.ID(uuidString(row.AgentID)),
+			Title:              row.Title,
+			Description:        textString(row.Description),
+			Notes:              textString(row.Notes),
+			Price:              domain.Money{AmountKobo: row.PriceKobo},
+			Status:             domain.AgentOfferStatus(row.Status),
+			Timestamps: domain.Timestamps{
+				CreatedAt: row.CreatedAt.Time,
+				UpdatedAt: row.UpdatedAt.Time,
+			},
+		},
+		Agent: domain.AgentSummary{
+			ID:          domain.ID(uuidString(row.AgentID)),
+			DisplayName: row.AgentDisplayName,
 		},
 	}
 }

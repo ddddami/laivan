@@ -30,6 +30,7 @@ type MediaURLBuilder interface {
 // Split only when operational pressure becomes recurring
 // (see gh issue:  #8 repository/interface split).
 type PropertyStore interface {
+	GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error)
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
