@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@10.22.0",
   "scripts": {
+    "contract:generate": "pnpm --package=openapi-typescript@7.13.0 dlx openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable",
+    "contract:check": "pnpm --package=openapi-typescript@7.13.0 dlx openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable --check",
     "web:build": "pnpm --filter web build",
     "web:check": "pnpm --filter web check",
     "web:dev": "pnpm --filter web dev",
