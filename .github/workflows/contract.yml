@@ -34,3 +34,6 @@ jobs:
 
       - name: Validate OpenAPI contract
         run: pnpm --package=@redocly/cli@2.31.4 dlx redocly lint openapi/openapi.yaml
+
+      - name: Check generated TypeScript contract
+        run: pnpm contract:check
