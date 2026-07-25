@@ -10,6 +10,20 @@ import (
 
 type stubPropertyRepo struct{}
 
+func (s *stubPropertyRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
+	if slug != "futa" {
+		return domain.Campus{}, repo.ErrNotFound
+	}
+
+	return domain.Campus{
+		ID:        domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+		Slug:      "futa",
+		Name:      "Federal University of Technology, Akure",
+		ShortName: "FUTA",
+		IsActive:  true,
+	}, nil
+}
+
 func (s *stubPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
 	property.ID = domain.ID("550e8400-e29b-41d4-a716-446655440001")
 	property.CreatedAt = time.Now()
@@ -65,19 +79,35 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 						UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 					},
 				},
-				AgentOffers: []domain.AgentOffer{
+				AgentOffers: []domain.AgentOfferDetail{
 					{
-						ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
-						PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
-						AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
-						Title:              "Fresh self-contained room",
-						Description:        "Recently painted room with private bathroom.",
-						Price:              domain.Money{AmountKobo: 35000000},
-						Status:             domain.AgentOfferStatusAvailable,
-						Timestamps: domain.Timestamps{
-							CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
-							UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						AgentOffer: domain.AgentOffer{
+							ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+							PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+							AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+							Title:              "Fresh self-contained room",
+							Description:        "Recently painted room with private bathroom.",
+							Price:              domain.Money{AmountKobo: 35000000},
+							Status:             domain.AgentOfferStatusAvailable,
+							Timestamps: domain.Timestamps{
+								CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+								UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+							},
 						},
+						Agent: domain.AgentSummary{
+							ID:          domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+							DisplayName: "Bisi Housing Connect",
+						},
+						Media: []domain.Media{{
+							ID:                domain.ID("550e8400-e29b-41d4-a716-446655440060"),
+							AgentOfferID:      domain.ID("550e8400-e29b-41d4-a716-446655440030"),
+							UploadedByAgentID: domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+							URL:               "https://media.example.test/offer.jpg",
+							Kind:              domain.MediaKindImage,
+							ContentType:       "image/jpeg",
+							SizeBytes:         1024,
+							CreatedAt:         time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+						}},
 					},
 				},
 			},
@@ -125,6 +155,7 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 			LowestPrice:         domain.Money{AmountKobo: 35000000},
 			AvailableOfferCount: 2,
 			CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+			UpdatedAt:           time.Date(2026, time.May, 2, 10, 0, 0, 0, time.UTC),
 		},
 	}, 1, nil
 }
@@ -237,6 +268,7 @@ func testAppWithRepo() *app {
 
 type spyPropertyRepo struct {
 	stub            *stubPropertyRepo
+	discoveryFilter repo.DiscoveryFilter
 	createdUnitType domain.PropertyUnitType
 	createdOffer    domain.AgentOffer
 	createdMedia    []domain.Media
@@ -244,6 +276,10 @@ type spyPropertyRepo struct {
 
 func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
 	return s.stub.Create(ctx, property)
+}
+
+func (s *spyPropertyRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
+	return s.stub.GetCampusBySlug(ctx, slug)
 }
 
 func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
@@ -259,6 +295,7 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 }
 
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	s.discoveryFilter = filter
 	return s.stub.Discover(ctx, filter)
 }
 
@@ -299,6 +336,10 @@ func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain
 
 type duplicateAgentOfferRepo struct {
 	stub *stubPropertyRepo
+}
+
+func (s *duplicateAgentOfferRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
+	return s.stub.GetCampusBySlug(ctx, slug)
 }
 
 func (s *duplicateAgentOfferRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {

@@ -18,4 +18,5 @@ type DiscoveryResult struct {
 	AvailableOfferCount int
 	ThumbnailURL        string
 	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }

@@ -70,6 +70,8 @@ func (app *app) routes() http.Handler {
 	r.Get("/docs/", app.docs)
 	r.Get("/openapi.yaml", app.openapi)
 
+	r.Get("/v1/campuses/{slug}", app.getCampusBySlug)
+
 	r.Route("/v1/properties", func(r chi.Router) {
 		r.Get("/", app.listProperties)
 		r.Post("/", app.createProperty)

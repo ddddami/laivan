@@ -185,22 +185,48 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 	return i, err
 }
 
-const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
-FROM agent_offers
-WHERE property_unit_type_id = $1
-ORDER BY created_at DESC, id DESC
+const listAgentOfferDetailsByPropertyUnitTypeIDs = `-- name: ListAgentOfferDetailsByPropertyUnitTypeIDs :many
+SELECT
+  ao.id,
+  ao.property_unit_type_id,
+  ao.agent_id,
+  ao.title,
+  ao.description,
+  ao.price_kobo,
+  ao.status,
+  ao.created_at,
+  ao.updated_at,
+  ao.notes,
+  a.display_name AS agent_display_name
+FROM agent_offers ao
+JOIN agents a ON a.id = ao.agent_id
+WHERE ao.property_unit_type_id = ANY($1::uuid[])
+ORDER BY ao.property_unit_type_id, ao.created_at DESC, ao.id DESC
 `
 
-func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propertyUnitTypeID pgtype.UUID) ([]AgentOffer, error) {
-	rows, err := q.db.Query(ctx, listAgentOffersByPropertyUnitType, propertyUnitTypeID)
+type ListAgentOfferDetailsByPropertyUnitTypeIDsRow struct {
+	ID                 pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentID            pgtype.UUID
+	Title              string
+	Description        pgtype.Text
+	PriceKobo          int
+	Status             string
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	Notes              pgtype.Text
+	AgentDisplayName   string
+}
+
+func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListAgentOfferDetailsByPropertyUnitTypeIDsRow, error) {
+	rows, err := q.db.Query(ctx, listAgentOfferDetailsByPropertyUnitTypeIDs, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []AgentOffer
+	var items []ListAgentOfferDetailsByPropertyUnitTypeIDsRow
 	for rows.Next() {
-		var i AgentOffer
+		var i ListAgentOfferDetailsByPropertyUnitTypeIDsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.PropertyUnitTypeID,
@@ -212,6 +238,7 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Notes,
+			&i.AgentDisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -223,15 +250,15 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 	return items, nil
 }
 
-const listAgentOffersByPropertyUnitTypeIDs = `-- name: ListAgentOffersByPropertyUnitTypeIDs :many
+const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
 SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
 FROM agent_offers
-WHERE property_unit_type_id = ANY($1::uuid[])
-ORDER BY property_unit_type_id, created_at DESC, id DESC
+WHERE property_unit_type_id = $1
+ORDER BY created_at DESC, id DESC
 `
 
-func (q *Queries) ListAgentOffersByPropertyUnitTypeIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]AgentOffer, error) {
-	rows, err := q.db.Query(ctx, listAgentOffersByPropertyUnitTypeIDs, dollar_1)
+func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propertyUnitTypeID pgtype.UUID) ([]AgentOffer, error) {
+	rows, err := q.db.Query(ctx, listAgentOffersByPropertyUnitType, propertyUnitTypeID)
 	if err != nil {
 		return nil, err
 	}

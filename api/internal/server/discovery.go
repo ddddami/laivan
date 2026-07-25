@@ -22,8 +22,9 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 	var filters data.Filters
 	filters.Page = readInt(qs, "page", 1, v)
 	filters.PageSize = readInt(qs, "page_size", defaultPropertyListLimit, v)
-	filters.Sort = readString(qs, "sort", "-created_at")
+	filters.Sort = readString(qs, "sort", "recommended")
 	filters.SortSafelist = []string{
+		"recommended",
 		"created_at", "-created_at",
 		"lowest_price_naira", "-lowest_price_naira",
 	}
@@ -44,6 +45,12 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 	hasParlour := readBool(qs, "has_parlour", nil, v)
 	minPrice := readInt(qs, "min_price", 0, v)
 	maxPrice := readInt(qs, "max_price", 0, v)
+	availability := repo.DiscoveryAvailability(readString(qs, "availability", string(repo.DiscoveryAvailabilityAvailable)))
+	v.Check(
+		validator.PermittedValue(availability, repo.DiscoveryAvailabilityAvailable, repo.DiscoveryAvailabilityAll),
+		"availability",
+		"Availability must be available or all",
+	)
 
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
@@ -57,6 +64,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 		BathroomType: bathroomType,
 		KitchenType:  kitchenType,
 		HasParlour:   hasParlour,
+		Availability: availability,
 		Filters:      filters,
 	}
 	if minPrice > 0 {
@@ -110,14 +118,22 @@ func (app *app) discoveryResultResponse(r domain.DiscoveryResult) map[string]any
 			"kitchen_type":  nullableString(r.Structure.KitchenType),
 		},
 		"pricing": map[string]any{
-			"lowest_price_naira": r.LowestPrice.Naira(),
+			"lowest_price_naira": discoveryLowestPrice(r),
 		},
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,
 		},
 		"thumbnail_url": app.thumbnailURL(r.ThumbnailURL),
 		"created_at":    r.CreatedAt.Format(time.RFC3339),
+		"updated_at":    r.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+func discoveryLowestPrice(result domain.DiscoveryResult) any {
+	if result.AvailableOfferCount == 0 {
+		return nil
+	}
+	return result.LowestPrice.Naira()
 }
 
 // unitTypeDisplayNameFromResult is the DiscoveryResult variant of unitTypeDisplayName.

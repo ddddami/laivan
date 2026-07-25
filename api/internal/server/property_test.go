@@ -247,6 +247,13 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 				AgentOffers []struct {
 					Title      string `json:"title"`
 					PriceNaira int    `json:"price_naira"`
+					Agent      struct {
+						ID          string `json:"id"`
+						DisplayName string `json:"display_name"`
+					} `json:"agent"`
+					Media []struct {
+						URL string `json:"url"`
+					} `json:"media"`
 				} `json:"agent_offers"`
 			} `json:"unit_types"`
 		} `json:"property"`
@@ -269,6 +276,18 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 	}
 	if body.Property.UnitTypes[0].AgentOffers[0].PriceNaira != 350000 {
 		t.Fatalf("price_naira = %d, want 350000", body.Property.UnitTypes[0].AgentOffers[0].PriceNaira)
+	}
+	if body.Property.UnitTypes[0].AgentOffers[0].Agent.ID != "550e8400-e29b-41d4-a716-446655440040" {
+		t.Fatalf("agent ID = %q, want 550e8400-e29b-41d4-a716-446655440040", body.Property.UnitTypes[0].AgentOffers[0].Agent.ID)
+	}
+	if body.Property.UnitTypes[0].AgentOffers[0].Agent.DisplayName != "Bisi Housing Connect" {
+		t.Fatalf("agent display name = %q, want Bisi Housing Connect", body.Property.UnitTypes[0].AgentOffers[0].Agent.DisplayName)
+	}
+	if len(body.Property.UnitTypes[0].AgentOffers[0].Media) != 1 {
+		t.Fatalf("offer media length = %d, want 1", len(body.Property.UnitTypes[0].AgentOffers[0].Media))
+	}
+	if body.Property.UnitTypes[0].AgentOffers[0].Media[0].URL != "https://media.example.test/offer.jpg" {
+		t.Fatalf("offer media URL = %q, want https://media.example.test/offer.jpg", body.Property.UnitTypes[0].AgentOffers[0].Media[0].URL)
 	}
 }
 

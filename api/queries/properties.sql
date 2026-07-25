@@ -42,11 +42,23 @@ FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC;
 
--- name: ListAgentOffersByPropertyUnitTypeIDs :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
-FROM agent_offers
-WHERE property_unit_type_id = ANY($1::uuid[])
-ORDER BY property_unit_type_id, created_at DESC, id DESC;
+-- name: ListAgentOfferDetailsByPropertyUnitTypeIDs :many
+SELECT
+  ao.id,
+  ao.property_unit_type_id,
+  ao.agent_id,
+  ao.title,
+  ao.description,
+  ao.price_kobo,
+  ao.status,
+  ao.created_at,
+  ao.updated_at,
+  ao.notes,
+  a.display_name AS agent_display_name
+FROM agent_offers ao
+JOIN agents a ON a.id = ao.agent_id
+WHERE ao.property_unit_type_id = ANY($1::uuid[])
+ORDER BY ao.property_unit_type_id, ao.created_at DESC, ao.id DESC;
 
 -- name: ListPropertiesWithSummary :many
 SELECT

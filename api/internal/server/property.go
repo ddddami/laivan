@@ -243,10 +243,24 @@ func (app *app) propertyUnitTypeDetailResponse(ut domain.PropertyUnitTypeDetail)
 		"bathroom_type": nullableString(ut.Structure.BathroomType),
 		"kitchen_type":  nullableString(ut.Structure.KitchenType),
 		"media":         app.mediaListResponse(ut.Media),
-		"agent_offers":  agentOffersResponse(ut.AgentOffers),
+		"agent_offers":  app.agentOfferDetailsResponse(ut.AgentOffers),
 		"created_at":    ut.CreatedAt.Format(time.RFC3339),
 		"updated_at":    ut.UpdatedAt.Format(time.RFC3339),
 	}
+}
+
+func (app *app) agentOfferDetailsResponse(offers []domain.AgentOfferDetail) []map[string]any {
+	return mapItems(offers, app.agentOfferDetailResponse)
+}
+
+func (app *app) agentOfferDetailResponse(offer domain.AgentOfferDetail) map[string]any {
+	response := agentOfferResponse(offer.AgentOffer)
+	response["agent"] = map[string]any{
+		"id":           string(offer.Agent.ID),
+		"display_name": offer.Agent.DisplayName,
+	}
+	response["media"] = app.mediaListResponse(offer.Media)
+	return response
 }
 
 func (app *app) thumbnailURL(sourceURL string) any {

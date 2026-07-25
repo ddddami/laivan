@@ -17,6 +17,8 @@ security: []
 tags:
   - name: Health
     description: Service health checks.
+  - name: Campuses
+    description: Public campus boundaries for marketplace discovery.
   - name: Discovery
     description: Searchable rentable opportunities combining property, unit type, and offer layers.
   - name: Properties
@@ -52,6 +54,44 @@ paths:
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
 
+  /v1/campuses/{slug}:
+    get:
+      operationId: getCampusBySlug
+      tags:
+        - Campuses
+      summary: Resolve a public campus by slug.
+      description: Returns the stable public identity needed to scope marketplace discovery.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Stable campus slug, such as `futa`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Campus returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampusResponse"
+              examples:
+                futa:
+                  value:
+                    campus:
+                      id: 550e8400-e29b-41d4-a716-446655440002
+                      slug: futa
+                      name: Federal University of Technology, Akure
+                      short_name: FUTA
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /v1/discovery:
     get:
       operationId: discover
@@ -61,7 +101,8 @@ paths:
       description: |
         Returns flat search results — one row per property+unit type combination.
         Each result represents a "searchable rentable opportunity" with the best available pricing and offer count.
-        This is the primary search interface for the mobile app.
+        By default, only unit types with at least one available agent offer are returned.
+        This is the primary search interface for the public web app.
       parameters:
         - name: campus_id
           in: query
@@ -120,6 +161,14 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: availability
+          in: query
+          required: false
+          description: Return only opportunities with an available offer, or include all unit types.
+          schema:
+            type: string
+            enum: [available, all]
+            default: available
         - name: page
           in: query
           required: false
@@ -140,11 +189,14 @@ paths:
         - name: sort
           in: query
           required: false
-          description: Sort order. Prefix with `-` for descending. Defaults to `-created_at`.
+          description: |
+            Sort order. `recommended` uses deterministic availability, usable image media,
+            completeness, recent activity, available-offer count, and stable-ID ordering.
+            Prefix supported fields with `-` for descending.
           schema:
             type: string
-            enum: [created_at, -created_at, lowest_price_naira, -lowest_price_naira]
-            default: -created_at
+            enum: [recommended, created_at, -created_at, lowest_price_naira, -lowest_price_naira]
+            default: recommended
       responses:
         "200":
           description: Discovery results returned successfully.
@@ -176,6 +228,7 @@ paths:
                         offer_summary:
                           available_offer_count: 2
                         created_at: "2026-05-01T10:00:00Z"
+                        updated_at: "2026-05-02T10:00:00Z"
                     metadata:
                       current_page: 1
                       page_size: 20
@@ -677,6 +730,32 @@ components:
           type: string
           example: dev
 
+    Campus:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - short_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        short_name:
+          type: string
+
+    CampusResponse:
+      type: object
+      required:
+        - campus
+      properties:
+        campus:
+          $ref: "#/components/schemas/Campus"
+
     CreatePropertyRequest:
       type: object
       additionalProperties: false
@@ -955,6 +1034,33 @@ components:
           type: string
           format: date-time
 
+    AgentSummary:
+      type: object
+      required:
+        - id
+        - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+
+    AgentOfferDetail:
+      allOf:
+        - $ref: "#/components/schemas/AgentOffer"
+        - type: object
+          required:
+            - agent
+            - media
+          properties:
+            agent:
+              $ref: "#/components/schemas/AgentSummary"
+            media:
+              type: array
+              items:
+                $ref: "#/components/schemas/Media"
+
     UnitTypeDetail:
       type: object
       required:
@@ -968,6 +1074,7 @@ components:
         - bathroom_type
         - kitchen_type
         - agent_offers
+        - media
         - created_at
         - updated_at
       properties:
@@ -984,6 +1091,12 @@ components:
         description:
           type: string
           description: Unit type description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+          description: Structural notes about the unit.
         bedroom_count:
           type:
             - integer
@@ -1004,7 +1117,7 @@ components:
         agent_offers:
           type: array
           items:
-            $ref: "#/components/schemas/AgentOffer"
+            $ref: "#/components/schemas/AgentOfferDetail"
         media:
           type: array
           items:
@@ -1026,6 +1139,7 @@ components:
         - landmark
         - description
         - unit_types
+        - media
         - created_at
         - updated_at
       properties:
@@ -1097,6 +1211,7 @@ components:
         - pricing
         - offer_summary
         - created_at
+        - updated_at
       properties:
         property:
           type: object
@@ -1161,8 +1276,11 @@ components:
             - lowest_price_naira
           properties:
             lowest_price_naira:
-              type: integer
+              type:
+                - integer
+                - "null"
               minimum: 0
+              description: Lowest available price in whole Naira, or null when no offer is available.
         offer_summary:
           type: object
           required:
@@ -1177,6 +1295,9 @@ components:
             - "null"
           format: uri
         created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
 

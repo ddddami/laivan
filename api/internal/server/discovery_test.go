@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 )
 
 func TestDiscoveryReturnsResults(t *testing.T) {
@@ -91,5 +94,81 @@ func TestDiscoveryValidationErrors(t *testing.T) {
 	}
 	if body.Error.Fields["has_parlour"] == "" {
 		t.Fatal("has_parlour validation error missing")
+	}
+}
+
+func TestDiscoveryDefaultsToAvailableRecommendedResults(t *testing.T) {
+	app := testApp()
+	store := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app.propertyRepo = store
+	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if store.discoveryFilter.Availability != repo.DiscoveryAvailabilityAvailable {
+		t.Fatalf("availability = %q, want %q", store.discoveryFilter.Availability, repo.DiscoveryAvailabilityAvailable)
+	}
+	if store.discoveryFilter.Filters.Sort != "recommended" {
+		t.Fatalf("sort = %q, want recommended", store.discoveryFilter.Filters.Sort)
+	}
+}
+
+func TestDiscoveryRejectsInvalidAvailability(t *testing.T) {
+	app := testAppWithRepo()
+	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&availability=stale", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+
+	var body struct {
+		Error struct {
+			Fields map[string]string `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.Error.Fields["availability"] == "" {
+		t.Fatal("availability validation error missing")
+	}
+}
+
+func TestDiscoveryAcceptsAllAvailability(t *testing.T) {
+	app := testApp()
+	store := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app.propertyRepo = store
+	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&availability=all", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if store.discoveryFilter.Availability != repo.DiscoveryAvailabilityAll {
+		t.Fatalf("availability = %q, want %q", store.discoveryFilter.Availability, repo.DiscoveryAvailabilityAll)
+	}
+}
+
+func TestDiscoveryResultWithoutAvailableOfferHasNullPrice(t *testing.T) {
+	app := testApp()
+	response := app.discoveryResultResponse(domain.DiscoveryResult{
+		AvailableOfferCount: 0,
+	})
+
+	pricing, ok := response["pricing"].(map[string]any)
+	if !ok {
+		t.Fatalf("pricing = %#v, want response object", response["pricing"])
+	}
+	if pricing["lowest_price_naira"] != nil {
+		t.Fatalf("lowest_price_naira = %#v, want nil", pricing["lowest_price_naira"])
 	}
 }

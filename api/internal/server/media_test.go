@@ -393,6 +393,10 @@ type fkViolationRepo struct {
 	stub *stubPropertyRepo
 }
 
+func (s *fkViolationRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
+	return s.stub.GetCampusBySlug(ctx, slug)
+}
+
 func (s *fkViolationRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
 	return s.stub.Create(ctx, property)
 }
