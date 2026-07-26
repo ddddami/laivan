@@ -36,14 +36,11 @@ WITH opportunities AS (
         AND (
           m.property_id = p.id
           OR m.property_unit_type_id = put.id
-          OR m.agent_offer_id IN (
-            SELECT available_offer.id
-            FROM agent_offers available_offer
-            WHERE available_offer.property_unit_type_id = put.id
-              AND available_offer.status = 'available'
-          )
         )
-      ORDER BY m.created_at, m.id
+      ORDER BY
+        CASE WHEN m.property_unit_type_id = put.id THEN 0 ELSE 1 END,
+        m.created_at,
+        m.id
       LIMIT 1
     ) AS thumbnail_url,
     p.created_at,
