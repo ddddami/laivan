@@ -56,6 +56,7 @@ type WorkflowPreviewSheetProps = {
   property: Pick<PropertyDetail, 'id' | 'name' | 'area' | 'landmark'>
   unit: Pick<UnitTypeDetail, 'id' | 'name' | 'category'>
   offer: AgentOfferDetail
+  requestsAvailable?: boolean
 }
 
 export function WorkflowPreviewSheet({
@@ -64,6 +65,7 @@ export function WorkflowPreviewSheet({
   property,
   unit,
   offer,
+  requestsAvailable = true,
 }: WorkflowPreviewSheetProps) {
   const [selected, setSelected] = useState<WorkflowKind | null>(null)
   const selectedWorkflow = workflows.find((workflow) => workflow.value === selected)
@@ -83,7 +85,7 @@ export function WorkflowPreviewSheet({
     >
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         <section className="bg-surface rounded-card p-4" aria-labelledby="workflow-context">
-          <p className="font-body text-faint text-xs">Selected offer</p>
+          <p className="font-body text-muted text-xs">Selected offer</p>
           <h2
             id="workflow-context"
             className="font-display text-foreground mt-1 text-base font-bold tracking-[-0.02em]"
@@ -95,7 +97,7 @@ export function WorkflowPreviewSheet({
           </p>
           <div className="mt-3 flex items-end justify-between gap-3">
             <Price amount={offer.price_naira} />
-            <p className="font-body text-faint text-right text-xs">
+            <p className="font-body text-muted text-right text-xs">
               via {offer.agent.display_name}
             </p>
           </div>
@@ -104,28 +106,30 @@ export function WorkflowPreviewSheet({
         <fieldset className="mt-6">
           <legend className="section-label">What would you like to do?</legend>
           <div className="space-y-2">
-            {workflows.map((workflow) => (
-              <button
-                key={workflow.value}
-                type="button"
-                aria-pressed={selected === workflow.value}
-                className={`focus-ring rounded-control w-full px-4 py-3.5 text-left transition-colors ${
-                  selected === workflow.value
-                    ? 'bg-foreground text-background'
-                    : 'bg-surface text-foreground hover:bg-surface-strong'
-                }`}
-                onClick={() => setSelected(workflow.value)}
-              >
-                <span className="font-body block text-sm font-semibold">{workflow.label}</span>
-                <span
-                  className={`font-body mt-1 block text-xs leading-5 ${
-                    selected === workflow.value ? 'text-background/65' : 'text-muted'
+            {workflows
+              .filter((workflow) => requestsAvailable || workflow.value === 'save')
+              .map((workflow) => (
+                <button
+                  key={workflow.value}
+                  type="button"
+                  aria-pressed={selected === workflow.value}
+                  className={`focus-ring rounded-control w-full px-4 py-3.5 text-left transition-colors ${
+                    selected === workflow.value
+                      ? 'bg-foreground text-background'
+                      : 'bg-surface text-foreground hover:bg-surface-strong'
                   }`}
+                  onClick={() => setSelected(workflow.value)}
                 >
-                  {workflow.description}
-                </span>
-              </button>
-            ))}
+                  <span className="font-body block text-sm font-semibold">{workflow.label}</span>
+                  <span
+                    className={`font-body mt-1 block text-xs leading-5 ${
+                      selected === workflow.value ? 'text-background/65' : 'text-muted'
+                    }`}
+                  >
+                    {workflow.description}
+                  </span>
+                </button>
+              ))}
           </div>
         </fieldset>
 
@@ -136,7 +140,7 @@ export function WorkflowPreviewSheet({
           </section>
         ) : null}
 
-        <p className="font-body text-faint mt-5 text-xs leading-5">
+        <p className="font-body text-muted mt-5 text-xs leading-5">
           Nothing in this preview is submitted or saved. No inspection, reservation, availability
           confirmation, or agent conversation has started.
         </p>

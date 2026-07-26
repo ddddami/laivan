@@ -122,6 +122,9 @@ describe('UnitDetail', () => {
     expect(
       within(pausedOffer).queryByRole('button', { name: 'Explore request options' }),
     ).not.toBeInTheDocument()
+    fireEvent.click(within(pausedOffer).getByRole('button', { name: 'Preview save option' }))
+    expect(screen.getByRole('button', { name: /Save property/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Request an inspection/ })).not.toBeInTheDocument()
   })
 
   it('previews structured workflows without submitting or exposing agent contact', () => {

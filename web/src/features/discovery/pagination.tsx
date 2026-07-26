@@ -25,7 +25,7 @@ export function Pagination({
 
   return (
     <nav className="border-border mt-6 border-t pt-5" aria-label="Discovery pages">
-      <p className="font-body text-faint mb-3 text-center text-xs">
+      <p className="font-body text-muted mb-3 text-center text-xs">
         Showing {start.toLocaleString('en-NG')}–{end.toLocaleString('en-NG')} of{' '}
         {totalRecords.toLocaleString('en-NG')}
       </p>
@@ -41,7 +41,7 @@ export function Pagination({
         <div className="hidden items-center gap-1 sm:flex">
           {pages.map((page, index) =>
             page === 'ellipsis' ? (
-              <span key={`ellipsis-${index}`} className="text-faint px-2" aria-hidden>
+              <span key={`ellipsis-${index}`} className="text-muted px-2" aria-hidden>
                 …
               </span>
             ) : (

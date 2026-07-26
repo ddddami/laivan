@@ -12,22 +12,21 @@ type WorkflowActionAreaProps = {
 
 export function WorkflowActionArea({ property, unit, offer }: WorkflowActionAreaProps) {
   const [open, setOpen] = useState(false)
-
-  if (offer.status !== 'available') {
-    return (
-      <p className="font-body text-faint border-border mt-4 border-t pt-4 text-xs leading-5">
-        This offer is not currently open for student requests.
-      </p>
-    )
-  }
+  const requestsAvailable = offer.status === 'available'
 
   return (
     <div className="border-border mt-4 border-t pt-4">
-      <Button variant="accent" className="w-full" onClick={() => setOpen(true)}>
-        Explore request options
+      <Button
+        variant={requestsAvailable ? 'accent' : 'secondary'}
+        className="w-full"
+        onClick={() => setOpen(true)}
+      >
+        {requestsAvailable ? 'Explore request options' : 'Preview save option'}
       </Button>
-      <p className="font-body text-faint mt-2 text-center text-xs">
-        Preview only. Nothing will be sent.
+      <p className="font-body text-muted mt-2 text-center text-xs">
+        {requestsAvailable
+          ? 'Preview only. Nothing will be sent.'
+          : 'This offer is not open for requests.'}
       </p>
       <WorkflowPreviewSheet
         open={open}
@@ -35,6 +34,7 @@ export function WorkflowActionArea({ property, unit, offer }: WorkflowActionArea
         property={property}
         unit={unit}
         offer={offer}
+        requestsAvailable={requestsAvailable}
       />
     </div>
   )

@@ -16,6 +16,7 @@ export function ProductIcon({ icon, size = 20, className, label }: ProductIconPr
       className={className}
       aria-hidden={label ? undefined : true}
       aria-label={label}
+      role={label ? 'img' : undefined}
     />
   )
 }

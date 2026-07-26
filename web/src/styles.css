@@ -10,15 +10,6 @@
 }
 
 @font-face {
-  font-family: 'Bricolage Grotesque Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 200 800;
-  src: url('@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-ext-wght-normal.woff2')
-    format('woff2-variations');
-}
-
-@font-face {
   font-family: 'Geist Variable';
   font-style: normal;
   font-display: swap;
@@ -28,29 +19,11 @@
 }
 
 @font-face {
-  font-family: 'Geist Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2')
-    format('woff2-variations');
-}
-
-@font-face {
   font-family: 'Geist Mono Variable';
   font-style: normal;
   font-display: swap;
   font-weight: 100 900;
   src: url('@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2')
-    format('woff2-variations');
-}
-
-@font-face {
-  font-family: 'Geist Mono Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/geist-mono/files/geist-mono-latin-ext-wght-normal.woff2')
     format('woff2-variations');
 }
 
@@ -94,7 +67,7 @@ a {
   --color-foreground: #0f0f0f;
   --color-surface: #f4f5f1;
   --color-surface-strong: #ebebea;
-  --color-muted: #737373;
+  --color-muted: #707070;
   --color-faint: #a8a8a8;
   --color-border: #e3e3e3;
   --color-accent: #4ade80;
@@ -118,6 +91,8 @@ a {
   --container-content: 72rem;
   --container-reading: 46rem;
 
+  --shadow-sheet: 0 -16px 50px rgb(15 15 15 / 14%);
+
   --default-transition-duration: 180ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -133,7 +108,7 @@ a {
 }
 
 @utility section-label {
-  color: var(--color-faint);
+  color: var(--color-muted);
   display: block;
   margin-bottom: 0.75rem;
   font-family: var(--font-body);

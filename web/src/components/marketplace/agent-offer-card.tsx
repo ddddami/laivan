@@ -33,7 +33,7 @@ export function AgentOfferCard({ offer, property, unit }: AgentOfferCardProps) {
             {initials}
           </span>
           <div className="min-w-0">
-            <p className="font-body text-faint text-xs">Offered by</p>
+            <p className="font-body text-muted text-xs">Offered by</p>
             <p className="font-body text-foreground mt-0.5 truncate text-sm font-semibold">
               {offer.agent.display_name}
             </p>
@@ -57,7 +57,7 @@ export function AgentOfferCard({ offer, property, unit }: AgentOfferCardProps) {
         ) : null}
         {offer.notes ? (
           <div className="bg-surface rounded-control mt-3 px-3.5 py-3">
-            <p className="font-body text-faint text-xs font-semibold tracking-[0.08em] uppercase">
+            <p className="font-body text-muted text-xs font-semibold tracking-[0.08em] uppercase">
               Offer notes
             </p>
             <p className="font-body text-muted mt-1.5 text-sm leading-5">{offer.notes}</p>
@@ -81,7 +81,7 @@ export function AgentOfferCard({ offer, property, unit }: AgentOfferCardProps) {
 
       <div className="border-border mt-4 flex items-end justify-between gap-3 border-t pt-4">
         <Price amount={offer.price_naira} />
-        <p className="font-body text-faint text-right text-xs">
+        <p className="font-body text-muted text-right text-xs">
           Updated {formatUpdatedDate(offer.updated_at)}
         </p>
       </div>

@@ -16,7 +16,7 @@ export function AppShell({ children }: AppShellProps) {
             to="/"
             search={{ availability: 'available', sort: 'recommended', page: 1 }}
             aria-label="Laivan home"
-            className="focus-ring rounded-control"
+            className="focus-ring rounded-control inline-flex min-h-11 items-center"
           >
             <LaivanWordmark />
           </Link>
