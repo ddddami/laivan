@@ -6,6 +6,7 @@ import { unitCategoryLabel } from '../../components/marketplace/labels'
 import { UnitFacts } from '../../components/marketplace/unit-facts'
 import { MediaPlaceholder } from '../../components/ui/media-placeholder'
 import { ResponsiveImage } from '../../components/ui/responsive-image'
+import { navigationEntryPoint } from '../discovery/navigation-state'
 
 type UnitDetailProps = {
   property: PropertyDetail
@@ -34,7 +35,8 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
           <Link
             to="/properties/$propertyId"
             params={{ propertyId: property.id }}
-            className="focus-ring text-foreground rounded-control font-semibold underline-offset-4 hover:underline"
+            state={(current) => ({ ...current, entryPoint: navigationEntryPoint.property })}
+            className="focus-ring text-foreground rounded-control -my-3 inline-flex min-h-11 items-center font-semibold underline-offset-4 hover:underline"
           >
             {property.name}
           </Link>

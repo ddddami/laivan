@@ -8,6 +8,7 @@ import { AppShell } from '../components/app-shell'
 import { FeedbackState } from '../components/ui/feedback-state'
 import { ProductIcon } from '../components/ui/product-icon'
 import { Skeleton } from '../components/ui/skeleton'
+import { readDiscoveryNavigationState } from '../features/discovery/navigation-state'
 import { PropertyDetail } from '../features/property/property-detail'
 
 export const Route = createFileRoute('/properties/$propertyId')({
@@ -23,8 +24,13 @@ function PropertyPage() {
   const notFound = propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
 
   function backToResults() {
-    if (location.state.__TSR_index > 0) {
-      router.history.back()
+    const { discoveryIndex } = readDiscoveryNavigationState(location.state)
+    if (
+      discoveryIndex !== undefined &&
+      discoveryIndex >= 0 &&
+      discoveryIndex < location.state.__TSR_index
+    ) {
+      router.history.go(discoveryIndex - location.state.__TSR_index)
       return
     }
     void navigate({

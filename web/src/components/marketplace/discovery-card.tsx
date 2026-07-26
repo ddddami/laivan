@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import type { DiscoveryResult } from '../../api/client'
+import { navigationEntryPoint } from '../../features/discovery/navigation-state'
 import { Price } from '../ui/price'
 import { ResponsiveImage } from '../ui/responsive-image'
 import { bathroomLabel, kitchenLabel, unitCategoryLabel } from './labels'
@@ -21,7 +22,11 @@ export function DiscoveryCard({ result }: DiscoveryCardProps) {
       <Link
         to="/properties/$propertyId/unit-types/$unitTypeId"
         params={{ propertyId: result.property.id, unitTypeId: result.unit_type.id }}
-        state={(current) => ({ ...current, entryPoint: 'discovery' })}
+        state={(current) => ({
+          ...current,
+          discoveryIndex: current.__TSR_index,
+          entryPoint: navigationEntryPoint.discovery,
+        })}
         className="focus-ring group rounded-card flex h-full flex-col"
       >
         <div className="bg-surface-strong relative aspect-[16/10] overflow-hidden">
