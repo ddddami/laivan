@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -62,9 +63,34 @@ func TestDiscoveryReturnsResults(t *testing.T) {
 	}
 }
 
+func TestDiscoveryAcceptsMarketplaceSearch(t *testing.T) {
+	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = repository
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&q=Alice+Lodge",
+		nil,
+	)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if repository.discoveryFilter.Search != "Alice Lodge" {
+		t.Fatalf("search = %q, want Alice Lodge", repository.discoveryFilter.Search)
+	}
+}
+
 func TestDiscoveryValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
-	req := httptest.NewRequest(http.MethodGet, "/v1/discovery?campus_id=bad-uuid&category=self_contained&has_parlour=yes", nil)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/discovery?campus_id=bad-uuid&category=self_contained&has_parlour=yes&q="+strings.Repeat("a", 101),
+		nil,
+	)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -91,6 +117,9 @@ func TestDiscoveryValidationErrors(t *testing.T) {
 	}
 	if body.Error.Fields["has_parlour"] == "" {
 		t.Fatal("has_parlour validation error missing")
+	}
+	if body.Error.Fields["q"] == "" {
+		t.Fatal("q validation error missing")
 	}
 }
 

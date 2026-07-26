@@ -136,6 +136,61 @@ describe('Home route behavior', () => {
     })
   })
 
+  it('searches by lodge name without clearing active filters', async () => {
+    const discover = vi.fn(async () => discoveryResponse)
+    const apiClient: PublicApiClient = {
+      getCampus: async () => ({
+        id: 'campus-1',
+        slug: 'futa',
+        name: 'Federal University of Technology, Akure',
+        short_name: 'FUTA',
+      }),
+      discover,
+      getProperty: async () => {
+        throw new Error('Property is not used in this test')
+      },
+    }
+    const router = await renderHome(
+      '/?q=Alice%20Lodge&area=Obanla&category=self_contained&page=3',
+      apiClient,
+    )
+
+    await waitFor(() => {
+      expect(discover).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: 'Alice Lodge',
+          area: 'Obanla',
+          category: 'self_contained',
+          page: 3,
+        }),
+      )
+    })
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search accommodation' }), {
+      target: { value: 'Blue Roof' },
+    })
+    fireEvent.submit(screen.getByRole('search'))
+
+    await waitFor(() => {
+      expect(router.state.location.search).toEqual(
+        expect.objectContaining({
+          q: 'Blue Roof',
+          area: 'Obanla',
+          category: 'self_contained',
+          page: 1,
+        }),
+      )
+      expect(discover).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          q: 'Blue Roof',
+          area: 'Obanla',
+          category: 'self_contained',
+          page: 1,
+        }),
+      )
+    })
+  })
+
   it('clears an invalid price range without requiring URL editing', async () => {
     const apiClient: PublicApiClient = {
       getCampus: async () => ({

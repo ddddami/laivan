@@ -595,6 +595,11 @@ export interface operations {
                  */
                 readonly category?: string;
                 /**
+                 * @description Search property names, areas, landmarks, and unit type names.
+                 *     Matching is case-insensitive and combines with the other discovery filters.
+                 */
+                readonly q?: string;
+                /**
                  * @description Filter by area text. Case-insensitive partial match (ILIKE).
                  *     Example: `area=South` matches "South Gate", "South Campus".
                  */

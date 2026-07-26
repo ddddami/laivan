@@ -116,6 +116,7 @@ export function normalizeDiscoveryParams(params: DiscoveryParams): DiscoveryPara
   return {
     campus_id: params.campus_id.trim(),
     category: categories.length > 0 ? categories.join(',') : undefined,
+    q: normalizedString(params.q),
     area: normalizedString(params.area),
     bathroom_type: params.bathroom_type,
     kitchen_type: params.kitchen_type,
@@ -133,6 +134,7 @@ function discoverySearchParams(params: DiscoveryParams): string {
   const search = new URLSearchParams()
   appendString(search, 'campus_id', params.campus_id)
   appendString(search, 'category', params.category)
+  appendString(search, 'q', params.q)
   appendString(search, 'area', params.area)
   appendString(search, 'bathroom_type', params.bathroom_type)
   appendString(search, 'kitchen_type', params.kitchen_type)

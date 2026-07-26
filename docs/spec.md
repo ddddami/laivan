@@ -65,8 +65,8 @@ This is a planning aid, not a substitute for acceptance criteria.
 | Product area | Status | Current position |
 | --- | --- | --- |
 | Marketplace foundation and listing management API | Built | Core schema, repositories, endpoints, media, validation, and local infrastructure exist. |
-| Public discovery API | Built | Discovery, filtering, sorting, pagination, and property detail data exist. |
-| Public discovery UI | Built | Phase 1 provides accommodation-first discovery, shareable filters, property context, competing offers, responsive media, and honest workflow previews. |
+| Public discovery API | Built | Discovery, marketplace search, filtering, sorting, pagination, and property detail data exist. |
+| Public discovery UI | Built | Phase 1 provides accommodation-first discovery, shareable search and filters, property context, competing offers, responsive media, and honest workflow previews. |
 | Identity and authorization | Planned | Authentication, sessions, roles, ownership, and protected writes are not implemented. |
 | Inquiry, inspection, and reservation workflows | Planned | Domain types exist, but persistence and API workflows do not. |
 | Agent operations UI | Planned | Offer management and request queues are not available in the frontend. |
@@ -109,7 +109,7 @@ Each phase should produce a coherent, testable product capability. Later phases 
 **Scope:**
 
 - build a mobile-first discovery feed backed by `/v1/discovery`
-- support validated price, category, area, availability, sorting, and pagination controls
+- support validated marketplace search, price, category, area, availability, sorting, and pagination controls
 - build a property detail page that preserves the domain hierarchy
 - show property facts, unit types, competing agent offers, approximate location, pricing, media, and available trust indicators
 - provide clear paths toward inquiry, inspection, saving, and reservation intent, even where later workflows are not yet enabled

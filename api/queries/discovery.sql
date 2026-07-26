@@ -52,6 +52,17 @@ WITH opportunities AS (
     AND ao.status = 'available'
   WHERE p.campus_id = sqlc.arg(campus_id)
     AND (
+      sqlc.arg(search)::text = ''
+      OR STRPOS(LOWER(p.name), LOWER(sqlc.arg(search)::text)) > 0
+      OR STRPOS(LOWER(p.area), LOWER(sqlc.arg(search)::text)) > 0
+      OR STRPOS(LOWER(COALESCE(p.landmark, '')), LOWER(sqlc.arg(search)::text)) > 0
+      OR STRPOS(LOWER(COALESCE(put.name, '')), LOWER(sqlc.arg(search)::text)) > 0
+      OR STRPOS(
+        REPLACE(LOWER(put.category), '_', ' '),
+        REPLACE(LOWER(sqlc.arg(search)::text), '-', ' ')
+      ) > 0
+    )
+    AND (
       cardinality(sqlc.arg(categories)::text[]) = 0
       OR put.category = ANY(sqlc.arg(categories)::text[])
     )

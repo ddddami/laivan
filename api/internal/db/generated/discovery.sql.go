@@ -65,24 +65,35 @@ WITH opportunities AS (
     AND ao.status = 'available'
   WHERE p.campus_id = $4
     AND (
-      cardinality($5::text[]) = 0
-      OR put.category = ANY($5::text[])
+      $5::text = ''
+      OR STRPOS(LOWER(p.name), LOWER($5::text)) > 0
+      OR STRPOS(LOWER(p.area), LOWER($5::text)) > 0
+      OR STRPOS(LOWER(COALESCE(p.landmark, '')), LOWER($5::text)) > 0
+      OR STRPOS(LOWER(COALESCE(put.name, '')), LOWER($5::text)) > 0
+      OR STRPOS(
+        REPLACE(LOWER(put.category), '_', ' '),
+        REPLACE(LOWER($5::text), '-', ' ')
+      ) > 0
     )
     AND (
-      $6::text = ''
-      OR p.area ILIKE '%' || $6::text || '%'
+      cardinality($6::text[]) = 0
+      OR put.category = ANY($6::text[])
     )
     AND (
       $7::text = ''
-      OR put.bathroom_type = $7::text
+      OR p.area ILIKE '%' || $7::text || '%'
     )
     AND (
       $8::text = ''
-      OR put.kitchen_type = $8::text
+      OR put.bathroom_type = $8::text
     )
     AND (
-      NOT $9::boolean
-      OR put.has_parlour = $10::boolean
+      $9::text = ''
+      OR put.kitchen_type = $9::text
+    )
+    AND (
+      NOT $10::boolean
+      OR put.has_parlour = $11::boolean
     )
   GROUP BY p.id, put.id
 ),
@@ -90,16 +101,16 @@ filtered AS (
   SELECT property_id, property_name, property_area, property_landmark, unit_type_id, category, unit_type_name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, lowest_price_kobo, available_offer_count, thumbnail_url, created_at, updated_at, completeness_score
   FROM opportunities
   WHERE (
-      $11::text = 'all'
+      $12::text = 'all'
       OR available_offer_count > 0
     )
     AND (
-      NOT $12::boolean
-      OR lowest_price_kobo >= $13::integer
+      NOT $13::boolean
+      OR lowest_price_kobo >= $14::integer
     )
     AND (
-      NOT $14::boolean
-      OR lowest_price_kobo <= $15::integer
+      NOT $15::boolean
+      OR lowest_price_kobo <= $16::integer
     )
 )
 SELECT
@@ -143,6 +154,7 @@ type DiscoverPropertiesParams struct {
 	ResultOffset  int
 	ResultLimit   int
 	CampusID      pgtype.UUID
+	Search        string
 	Categories    []string
 	Area          string
 	BathroomType  string
@@ -184,6 +196,7 @@ func (q *Queries) DiscoverProperties(ctx context.Context, arg DiscoverProperties
 		arg.ResultOffset,
 		arg.ResultLimit,
 		arg.CampusID,
+		arg.Search,
 		arg.Categories,
 		arg.Area,
 		arg.BathroomType,

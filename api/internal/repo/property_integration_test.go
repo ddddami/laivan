@@ -1015,6 +1015,66 @@ func TestRepositoryDiscover(t *testing.T) {
 		t.Fatalf("Obanla total = %d, want 2", total)
 	}
 
+	// Search by property name returns each matching accommodation type.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Search: "alice", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by property name: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("Alice Lodge total = %d, want 2", total)
+	}
+	for _, result := range results {
+		if result.PropertyName != "Alice Lodge" {
+			t.Fatalf("search result property = %q, want Alice Lodge", result.PropertyName)
+		}
+	}
+
+	// Search composes with structural filters instead of clearing them.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{
+		CampusID:   campusID,
+		Search:     "Alice Lodge",
+		Categories: []string{"self_contained"},
+		Filters:    baseFilter,
+	})
+	if err != nil {
+		t.Fatalf("discover by property name and category: %v", err)
+	}
+	if total != 1 || results[0].UnitTypeID != aliceSelfCon {
+		t.Fatalf("Alice self-contained search returned %d results, want 1", total)
+	}
+
+	// Canonical category language is searchable when a unit has no custom name.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Search: "room and parlour", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by category text: %v", err)
+	}
+	if total != 1 || results[0].UnitTypeID != blueRoomParlour {
+		t.Fatalf("room and parlour search returned %d results, want 1", total)
+	}
+
+	// Category search accepts the same hyphenated language shown to students.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Search: "Self-contained", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by hyphenated category text: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("Self-contained search returned %d results, want 2", total)
+	}
+	for _, result := range results {
+		if result.UnitTypeCategory != domain.UnitCategorySelfContained {
+			t.Fatalf("Self-contained search returned category %q", result.UnitTypeCategory)
+		}
+	}
+
+	// SQL pattern characters are treated as literal search text.
+	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Search: "%", Filters: baseFilter})
+	if err != nil {
+		t.Fatalf("discover by literal pattern character: %v", err)
+	}
+	if total != 0 || len(results) != 0 {
+		t.Fatalf("literal pattern search returned %d results, want none", total)
+	}
+
 	// Filter by min price (naira converted to kobo internally)
 	minPrice := 200000
 	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, MinPrice: &minPrice, Filters: baseFilter})

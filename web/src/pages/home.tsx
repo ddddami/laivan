@@ -30,7 +30,7 @@ type HomeProps = {
 
 export function Home({ search, onSearchChange, apiClient }: HomeProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [area, setArea] = useState(search.area ?? '')
+  const [query, setQuery] = useState(search.q ?? '')
   const searchError = discoverySearchError(search)
   const filterCount = activeFilterCount(search)
   const campusQuery = useQuery(campusQueryOptions('futa', apiClient))
@@ -39,6 +39,7 @@ export function Home({ search, onSearchChange, apiClient }: HomeProps) {
       {
         campus_id: campusQuery.data?.id ?? '',
         category: search.category,
+        q: search.q,
         area: search.area,
         min_price: search.min_price,
         max_price: search.max_price,
@@ -58,14 +59,14 @@ export function Home({ search, onSearchChange, apiClient }: HomeProps) {
     (campusQuery.isError && !campusQuery.data) || (discoveryQuery.isError && !discoveryQuery.data)
 
   useEffect(() => {
-    setArea(search.area ?? '')
-  }, [search.area])
+    setQuery(search.q ?? '')
+  }, [search.q])
 
-  function submitArea(event: FormEvent<HTMLFormElement>) {
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     onSearchChange({
       ...search,
-      area: area.trim() || undefined,
+      q: query.trim() || undefined,
       page: 1,
     })
   }
@@ -80,11 +81,20 @@ export function Home({ search, onSearchChange, apiClient }: HomeProps) {
 
   function clearFilters() {
     onSearchChange({
+      q: search.q,
       availability: 'available',
       sort: search.sort,
       page: 1,
     })
-    setArea('')
+  }
+
+  function clearSearch() {
+    setQuery('')
+    onSearchChange({
+      ...search,
+      q: undefined,
+      page: 1,
+    })
   }
 
   function changePage(page: number) {
@@ -106,21 +116,23 @@ export function Home({ search, onSearchChange, apiClient }: HomeProps) {
 
       <section className="border-border border-b py-4">
         <div className="flex items-center gap-2">
-          <form className="relative min-w-0 flex-1" onSubmit={submitArea}>
+          <form role="search" className="relative min-w-0 flex-1" onSubmit={submitSearch}>
             <ProductIcon
               icon={Search01Icon}
               size={17}
               className="text-muted pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
             />
-            <label htmlFor="area-search" className="sr-only">
-              Filter by area
+            <label htmlFor="accommodation-search" className="sr-only">
+              Search accommodation
             </label>
             <input
-              id="area-search"
-              value={area}
-              onChange={(event) => setArea(event.target.value)}
+              id="accommodation-search"
+              type="search"
+              value={query}
+              maxLength={100}
+              onChange={(event) => setQuery(event.target.value)}
               className="focus-ring bg-surface text-foreground placeholder:text-muted rounded-control min-h-11 w-full pl-10 text-sm"
-              placeholder="Search by area"
+              placeholder="Search lodges, areas, or room types"
               autoComplete="off"
             />
           </form>
@@ -282,15 +294,23 @@ export function Home({ search, onSearchChange, apiClient }: HomeProps) {
             {discoveryQuery.isSuccess && discoveryQuery.data.results.length === 0 ? (
               <FeedbackState
                 title={
-                  filterCount > 0 ? 'No accommodation matches' : 'No accommodation is available yet'
+                  filterCount > 0
+                    ? 'No accommodation matches'
+                    : search.q
+                      ? 'No accommodation found'
+                      : 'No accommodation is available yet'
                 }
                 description={
                   filterCount > 0
                     ? 'Try widening your price range, changing the area, or clearing a filter.'
-                    : 'New FUTA inventory will appear here as agents make offers available.'
+                    : search.q
+                      ? 'Try another lodge, area, landmark, or room type.'
+                      : 'New FUTA inventory will appear here as agents make offers available.'
                 }
-                actionLabel={filterCount > 0 ? 'Clear filters' : undefined}
-                onAction={filterCount > 0 ? clearFilters : undefined}
+                actionLabel={
+                  filterCount > 0 ? 'Clear filters' : search.q ? 'Clear search' : undefined
+                }
+                onAction={filterCount > 0 ? clearFilters : search.q ? clearSearch : undefined}
               />
             ) : null}
 

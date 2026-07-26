@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/data"
@@ -34,6 +35,9 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 
 	data.ValidateFilters(v, filters)
 
+	search := strings.TrimSpace(readString(qs, "q", ""))
+	v.Check(validator.MaxChars(search, 100), "q", "Search must not exceed 100 characters")
+
 	categories := readCSV(qs, "category", nil)
 	for _, c := range categories {
 		v.Check(validUnitCategory(c), "category", "Invalid category: "+c)
@@ -59,6 +63,7 @@ func (app *app) discover(w http.ResponseWriter, r *http.Request) {
 
 	filter := repo.DiscoveryFilter{
 		CampusID:     domain.ID(campusID),
+		Search:       search,
 		Categories:   categories,
 		Area:         area,
 		BathroomType: bathroomType,
