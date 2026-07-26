@@ -39,6 +39,7 @@ export function DiscoveryFilters({ search, onApply, onClose }: DiscoveryFiltersP
     event.preventDefault()
     onApply({
       category: draft.categories.length > 0 ? [...draft.categories].sort().join(',') : undefined,
+      q: search.q,
       area: draft.area.trim() || undefined,
       min_price: inputPrice(draft.minPrice),
       max_price: inputPrice(draft.maxPrice),
@@ -53,7 +54,7 @@ export function DiscoveryFilters({ search, onApply, onClose }: DiscoveryFiltersP
   }
 
   function clear() {
-    const cleared = { ...defaultDiscoverySearch, sort: search.sort }
+    const cleared = { ...defaultDiscoverySearch, q: search.q, sort: search.sort }
     setDraft(draftFromSearch(cleared))
     onApply(cleared)
     onClose?.()

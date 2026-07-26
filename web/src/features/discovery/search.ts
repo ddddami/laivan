@@ -23,6 +23,7 @@ export type DiscoverySort = (typeof discoverySorts)[number]
 
 export type DiscoverySearch = {
   category?: string
+  q?: string
   area?: string
   min_price?: number
   max_price?: number
@@ -43,6 +44,7 @@ export const defaultDiscoverySearch: DiscoverySearch = {
 export function normalizeDiscoverySearch(raw: Record<string, unknown>): DiscoverySearch {
   return {
     category: normalizeCategories(raw.category),
+    q: normalizeSearchText(raw.q),
     area: normalizeText(raw.area),
     min_price: positiveInteger(raw.min_price),
     max_price: positiveInteger(raw.max_price),
@@ -97,6 +99,11 @@ function normalizeText(value: unknown) {
   if (typeof value !== 'string') return undefined
   const normalized = value.trim()
   return normalized || undefined
+}
+
+function normalizeSearchText(value: unknown) {
+  const normalized = normalizeText(value)
+  return normalized ? [...normalized].slice(0, 100).join('') : undefined
 }
 
 function positiveInteger(value: unknown) {

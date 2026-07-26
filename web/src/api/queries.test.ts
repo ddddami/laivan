@@ -7,12 +7,14 @@ describe('public query options', () => {
     const first = publicQueryKeys.discovery({
       campus_id: '550e8400-e29b-41d4-a716-446655440002',
       category: 'single_room,self_contained',
+      q: ' Alice Lodge ',
       area: ' South Gate ',
       page: 1,
     })
     const second = publicQueryKeys.discovery({
       campus_id: '550e8400-e29b-41d4-a716-446655440002',
       category: 'self_contained, single_room,single_room',
+      q: 'Alice Lodge',
       area: 'South Gate',
       page: 1,
     })

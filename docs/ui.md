@@ -59,6 +59,12 @@ Discovery imagery prefers media attached to the selected accommodation type and
 falls back to property media. Do not promote an individual agent offer’s media onto
 an aggregated accommodation card.
 
+Marketplace search uses the shareable `q` URL parameter for property names, areas,
+landmarks, and accommodation-type language. It composes with the explicit area,
+category, price, structure, and availability filters and resets pagination to the
+first page. Applying or clearing filters must preserve the current search; clearing
+search must preserve the current filters.
+
 Public location is approximate: area and landmark only. Do not expose exact coordinates, directions, phone numbers, or direct contact details.
 
 Use factual status language such as “2 available offers.” Do not claim verification, guaranteed availability, confirmed reservations, recommended agents, response times, ratings, inspections, or trust signals without contract-backed evidence. Workflow previews must say that nothing is submitted or saved.

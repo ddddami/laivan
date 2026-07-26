@@ -12,6 +12,7 @@ describe('discovery search', () => {
     expect(
       normalizeDiscoverySearch({
         category: 'self_contained, single_room,self_contained',
+        q: ' Alice Lodge ',
         area: ' South Gate ',
         min_price: '200000',
         max_price: 500_000,
@@ -24,6 +25,7 @@ describe('discovery search', () => {
       }),
     ).toEqual({
       category: 'self_contained,single_room',
+      q: 'Alice Lodge',
       area: 'South Gate',
       min_price: 200_000,
       max_price: 500_000,
@@ -50,6 +52,7 @@ describe('discovery search', () => {
     ).toEqual({
       ...defaultDiscoverySearch,
       category: 'single_room',
+      q: undefined,
       area: undefined,
       min_price: undefined,
       max_price: undefined,
@@ -57,6 +60,10 @@ describe('discovery search', () => {
       kitchen_type: undefined,
       has_parlour: undefined,
     })
+  })
+
+  it('limits shared marketplace search to the public contract length', () => {
+    expect(normalizeDiscoverySearch({ q: 'a'.repeat(101) }).q).toBe('a'.repeat(100))
   })
 
   it('keeps a reversed valid price range visible for user correction', () => {
@@ -67,6 +74,7 @@ describe('discovery search', () => {
 
   it('counts explicit marketplace filters without counting defaults', () => {
     expect(activeFilterCount(defaultDiscoverySearch)).toBe(0)
+    expect(activeFilterCount({ ...defaultDiscoverySearch, q: 'Alice Lodge' })).toBe(0)
     expect(
       activeFilterCount({
         ...defaultDiscoverySearch,

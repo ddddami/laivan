@@ -18,6 +18,7 @@ const (
 
 type DiscoveryFilter struct {
 	CampusID     domain.ID
+	Search       string
 	Categories   []string
 	Area         string
 	BathroomType string
@@ -48,6 +49,7 @@ func (r *PropertyRepository) Discover(ctx context.Context, filter DiscoveryFilte
 		ResultOffset:  filter.Filters.Offset(),
 		ResultLimit:   filter.Filters.Limit(),
 		CampusID:      campusUUID,
+		Search:        filter.Search,
 		Categories:    []string{},
 		Area:          filter.Area,
 		BathroomType:  filter.BathroomType,

@@ -7,7 +7,12 @@ import { defaultDiscoverySearch } from './search'
 describe('DiscoveryFilters', () => {
   it('applies one form model as validated route search state', () => {
     const onApply = vi.fn()
-    render(<DiscoveryFilters search={defaultDiscoverySearch} onApply={onApply} />)
+    render(
+      <DiscoveryFilters
+        search={{ ...defaultDiscoverySearch, q: 'Alice Lodge' }}
+        onApply={onApply}
+      />,
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Self-contained' }))
     fireEvent.change(screen.getByLabelText('Area'), { target: { value: ' South Gate ' } })
@@ -25,6 +30,7 @@ describe('DiscoveryFilters', () => {
 
     expect(onApply).toHaveBeenCalledWith({
       category: 'self_contained',
+      q: 'Alice Lodge',
       area: 'South Gate',
       min_price: 200_000,
       max_price: 500_000,
@@ -37,12 +43,13 @@ describe('DiscoveryFilters', () => {
     })
   })
 
-  it('clears filters while preserving the current sort', () => {
+  it('clears filters while preserving the current search and sort', () => {
     const onApply = vi.fn()
     render(
       <DiscoveryFilters
         search={{
           ...defaultDiscoverySearch,
+          q: 'Alice Lodge',
           category: 'single_room',
           area: 'Obanla',
           sort: '-created_at',
@@ -54,6 +61,7 @@ describe('DiscoveryFilters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
 
     expect(onApply).toHaveBeenCalledWith({
+      q: 'Alice Lodge',
       availability: 'available',
       sort: '-created_at',
       page: 1,

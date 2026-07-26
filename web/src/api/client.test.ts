@@ -55,6 +55,7 @@ describe('public API client', () => {
     const response = await client.discover({
       campus_id: '550e8400-e29b-41d4-a716-446655440002',
       category: 'single_room, self_contained,single_room',
+      q: '  Alice Lodge  ',
       area: '  South Gate  ',
       has_parlour: false,
       page: 2,
@@ -64,7 +65,7 @@ describe('public API client', () => {
 
     expect(response.results).toEqual([])
     expect(fetcher).toHaveBeenCalledWith(
-      'https://api.laivan.test/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&category=self_contained%2Csingle_room&area=South+Gate&has_parlour=false&page=2&page_size=20&sort=recommended',
+      'https://api.laivan.test/v1/discovery?campus_id=550e8400-e29b-41d4-a716-446655440002&category=self_contained%2Csingle_room&q=Alice+Lodge&area=South+Gate&has_parlour=false&page=2&page_size=20&sort=recommended',
       expect.any(Object),
     )
   })

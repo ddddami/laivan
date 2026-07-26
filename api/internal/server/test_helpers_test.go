@@ -305,6 +305,7 @@ type spyPropertyRepo struct {
 	createdUnitType domain.PropertyUnitType
 	createdOffer    domain.AgentOffer
 	createdMedia    []domain.Media
+	discoveryFilter repo.DiscoveryFilter
 }
 
 func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
@@ -328,6 +329,7 @@ func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.Prope
 }
 
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
+	s.discoveryFilter = filter
 	return s.stub.Discover(ctx, filter)
 }
 
