@@ -1,42 +1,49 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 
 import { ApiError } from '../api/client'
 import { propertyQueryOptions } from '../api/queries'
 import { AppShell } from '../components/app-shell'
-import { Button } from '../components/ui/button'
 import { FeedbackState } from '../components/ui/feedback-state'
 import { ProductIcon } from '../components/ui/product-icon'
 import { Skeleton } from '../components/ui/skeleton'
+import { PropertyDetail } from '../features/property/property-detail'
 
 export const Route = createFileRoute('/properties/$propertyId')({
-  component: PropertyTracer,
+  component: PropertyPage,
 })
 
-function PropertyTracer() {
+function PropertyPage() {
   const { propertyId } = Route.useParams()
   const propertyQuery = useQuery(propertyQueryOptions(propertyId))
+  const router = useRouter()
+  const navigate = useNavigate()
   const notFound = propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
+
+  function backToResults() {
+    if (window.history.length > 1) {
+      router.history.back()
+      return
+    }
+    void navigate({
+      to: '/',
+      search: { availability: 'available', sort: 'recommended', page: 1 },
+    })
+  }
 
   return (
     <AppShell>
-      <Link
-        to="/"
-        search={{ availability: 'available', sort: 'recommended', page: 1 }}
+      <button
+        type="button"
         className="focus-ring font-body text-muted rounded-control mb-5 inline-flex min-h-11 items-center gap-2 pr-3 text-sm font-medium"
+        onClick={backToResults}
       >
         <ProductIcon icon={ArrowLeft01Icon} size={18} />
         Back to results
-      </Link>
+      </button>
 
-      {propertyQuery.isPending ? (
-        <div className="space-y-3" aria-label="Loading property">
-          <Skeleton className="rounded-media h-64 w-full" />
-          <Skeleton className="h-8 w-2/3" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-      ) : null}
+      {propertyQuery.isPending ? <PropertySkeleton /> : null}
 
       {propertyQuery.isError ? (
         <FeedbackState
@@ -51,25 +58,28 @@ function PropertyTracer() {
         />
       ) : null}
 
-      {propertyQuery.data ? (
-        <article className="bg-surface rounded-card p-5 sm:p-8">
-          <p className="font-body text-faint text-xs font-semibold tracking-[0.1em] uppercase">
-            Property
-          </p>
-          <h1 className="font-display text-foreground mt-2 text-3xl font-bold tracking-[-0.04em]">
-            {propertyQuery.data.name}
-          </h1>
-          <p className="font-body text-muted mt-2 text-sm">
-            {[propertyQuery.data.area, propertyQuery.data.landmark].filter(Boolean).join(' · ')}
-          </p>
-          <p className="font-body text-muted mt-5 max-w-2xl text-sm leading-6">
-            {propertyQuery.data.description || 'Building details are not available yet.'}
-          </p>
-          <Button className="mt-6" disabled>
-            Unit comparison arrives in the next slice
-          </Button>
-        </article>
-      ) : null}
+      {propertyQuery.data ? <PropertyDetail property={propertyQuery.data} /> : null}
     </AppShell>
+  )
+}
+
+function PropertySkeleton() {
+  return (
+    <div
+      className="grid gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]"
+      aria-label="Loading property"
+    >
+      <div className="space-y-4">
+        <Skeleton className="rounded-media aspect-[4/3] w-full" />
+        <Skeleton className="h-9 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="rounded-card h-40 w-full" />
+        <Skeleton className="rounded-card h-40 w-full" />
+      </div>
+    </div>
   )
 }
