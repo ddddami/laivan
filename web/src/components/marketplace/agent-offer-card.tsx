@@ -1,9 +1,12 @@
-import type { AgentOfferDetail } from '../../api/client'
+import type { AgentOfferDetail, PropertyDetail, UnitTypeDetail } from '../../api/client'
 import { Price } from '../ui/price'
 import { ResponsiveImage } from '../ui/responsive-image'
+import { WorkflowActionArea } from './workflow-action-area'
 
 type AgentOfferCardProps = {
   offer: AgentOfferDetail
+  property: Pick<PropertyDetail, 'id' | 'name' | 'area' | 'landmark'>
+  unit: Pick<UnitTypeDetail, 'id' | 'name' | 'category'>
 }
 
 const statusLabels = {
@@ -12,7 +15,7 @@ const statusLabels = {
   paused: 'Paused',
 } as const
 
-export function AgentOfferCard({ offer }: AgentOfferCardProps) {
+export function AgentOfferCard({ offer, property, unit }: AgentOfferCardProps) {
   const images = offer.media.filter((media) => media.kind === 'image')
   const initials = agentInitials(offer.agent.display_name)
   const isAvailable = offer.status === 'available'
@@ -82,6 +85,8 @@ export function AgentOfferCard({ offer }: AgentOfferCardProps) {
           Updated {formatUpdatedDate(offer.updated_at)}
         </p>
       </div>
+
+      <WorkflowActionArea property={property} unit={unit} offer={offer} />
     </article>
   )
 }

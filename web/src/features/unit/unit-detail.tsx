@@ -82,7 +82,7 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
           {offers.length > 0 ? (
             <div className="bg-surface rounded-sheet space-y-2 p-2">
               {offers.map((offer) => (
-                <AgentOfferCard key={offer.id} offer={offer} />
+                <AgentOfferCard key={offer.id} offer={offer} property={property} unit={unit} />
               ))}
             </div>
           ) : (

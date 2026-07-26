@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { PropertyDetail } from '../../api/client'
@@ -119,5 +119,32 @@ describe('UnitDetail', () => {
     expect(within(pausedOffer).getByText('Paused')).toBeInTheDocument()
     expect(within(pausedOffer).getByText('₦340,000')).toBeInTheDocument()
     expect(within(pausedOffer).getByText('Updated 3 May 2026')).toBeInTheDocument()
+    expect(
+      within(pausedOffer).queryByRole('button', { name: 'Explore request options' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('previews structured workflows without submitting or exposing agent contact', () => {
+    render(<UnitDetail property={property} unit={property.unit_types[0]!} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Explore request options' }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Alice Lodge · Premium self-contained')).toBeInTheDocument()
+    expect(screen.getByText('via Ade Martins')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Save property/ })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Request an inspection/ }))
+
+    expect(
+      screen.getByText(
+        'Inspection requests will collect a preferred time and preserve their workflow status.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Nothing in this preview is submitted or saved/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /WhatsApp/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
