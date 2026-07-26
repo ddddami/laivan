@@ -23,10 +23,20 @@ function UnitTypePage() {
   const propertyNotFound =
     propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
   const unit = propertyQuery.data?.unit_types.find((candidate) => candidate.id === unitTypeId)
+  const cameFromDiscovery =
+    'entryPoint' in location.state && location.state.entryPoint === 'discovery'
 
-  function backToProperty() {
+  function backToPreviousContext() {
     if (location.state.__TSR_index > 0) {
       router.history.back()
+      return
+    }
+    if (cameFromDiscovery) {
+      void navigate({
+        to: '/',
+        search: { availability: 'available', sort: 'recommended', page: 1 },
+        replace: true,
+      })
       return
     }
     void navigate({
@@ -41,10 +51,10 @@ function UnitTypePage() {
       <button
         type="button"
         className="focus-ring font-body text-muted rounded-control mb-5 inline-flex min-h-11 items-center gap-2 pr-3 text-sm font-medium"
-        onClick={backToProperty}
+        onClick={backToPreviousContext}
       >
         <ProductIcon icon={ArrowLeft01Icon} size={18} />
-        Back to property
+        {cameFromDiscovery ? 'Back to results' : 'Back to property'}
       </button>
 
       {propertyQuery.isPending ? <UnitSkeleton /> : null}

@@ -20,17 +20,17 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
         </div>
       </div>
 
-      <section aria-labelledby="unit-types-heading" className="min-w-0">
+      <section aria-labelledby="accommodation-options-heading" className="min-w-0">
         <div className="mb-4">
-          <p className="section-label">Compare structure first</p>
+          <p className="section-label">Compare accommodation first</p>
           <h2
-            id="unit-types-heading"
+            id="accommodation-options-heading"
             className="font-display text-foreground text-2xl font-bold tracking-[-0.035em]"
           >
-            Unit types
+            Accommodation options at {property.name}
           </h2>
           <p className="font-body text-muted mt-2 text-sm leading-6">
-            Choose a unit type to compare the independent agent offers attached to it.
+            Choose an accommodation type to compare its independent agent offers.
           </p>
         </div>
 
@@ -43,7 +43,7 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
         ) : (
           <div className="bg-surface rounded-card px-5 py-8 text-center">
             <p className="font-display text-foreground text-base font-bold">
-              No unit types are public yet
+              No accommodation types are public yet
             </p>
             <p className="font-body text-muted mt-2 text-sm">
               Structural accommodation details will appear here when they are available.

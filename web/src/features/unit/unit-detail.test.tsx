@@ -1,3 +1,11 @@
+import {
+  Outlet,
+  RouterProvider,
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+} from '@tanstack/react-router'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
@@ -93,8 +101,8 @@ const property: PropertyDetail = {
 }
 
 describe('UnitDetail', () => {
-  it('keeps selected unit facts above only that unit’s competing agent offers', () => {
-    render(<UnitDetail property={property} unit={property.unit_types[0]!} />)
+  it('keeps selected unit facts above only that unit’s competing agent offers', async () => {
+    await renderUnitDetail()
 
     expect(screen.getByRole('heading', { name: 'Premium self-contained' })).toBeInTheDocument()
     expect(screen.getByText('Top-floor corner unit.')).toBeInTheDocument()
@@ -107,8 +115,8 @@ describe('UnitDetail', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('visually demotes paused offers while preserving factual comparison details', () => {
-    render(<UnitDetail property={property} unit={property.unit_types[0]!} />)
+  it('visually demotes paused offers while preserving factual comparison details', async () => {
+    await renderUnitDetail()
 
     const availableOffer = screen.getByLabelText('Ade Martins offer')
     const pausedOffer = screen.getByLabelText('Bola Ajayi offer')
@@ -127,8 +135,8 @@ describe('UnitDetail', () => {
     expect(screen.queryByRole('button', { name: /Request an inspection/ })).not.toBeInTheDocument()
   })
 
-  it('previews structured workflows without submitting or exposing agent contact', () => {
-    render(<UnitDetail property={property} unit={property.unit_types[0]!} />)
+  it('previews structured workflows without submitting or exposing agent contact', async () => {
+    await renderUnitDetail()
 
     fireEvent.click(screen.getByRole('button', { name: 'Explore request options' }))
 
@@ -151,3 +159,24 @@ describe('UnitDetail', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
+async function renderUnitDetail() {
+  const rootRoute = createRootRoute({ component: Outlet })
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    component: () => <UnitDetail property={property} unit={property.unit_types[0]!} />,
+  })
+  const propertyRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/properties/$propertyId',
+    component: () => null,
+  })
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([indexRoute, propertyRoute]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+
+  await router.load()
+  return render(<RouterProvider router={router} />)
+}
