@@ -885,6 +885,22 @@ func TestRepositoryDiscover(t *testing.T) {
 
 	repository := NewPropertyRepository(pool)
 	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID:        alice,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/alice-property.jpg",
+		Kind:              domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create Alice property media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: aliceSelfCon,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/alice-self-contained.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create Alice self-contained media: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
 		PropertyUnitTypeID: blueRoomParlour,
 		UploadedByAgentID:  agentID,
 		URL:                "https://media.example.test/blue-roof.jpg",
@@ -928,6 +944,22 @@ func TestRepositoryDiscover(t *testing.T) {
 	}
 	if len(results) != 5 {
 		t.Fatalf("available results length = %d, want 5", len(results))
+	}
+	for _, result := range results {
+		if result.UnitTypeID == aliceSelfCon &&
+			result.ThumbnailURL != "https://media.example.test/alice-self-contained.jpg" {
+			t.Fatalf(
+				"Alice self-contained thumbnail = %q, want unit media",
+				result.ThumbnailURL,
+			)
+		}
+		if result.UnitTypeID == aliceSingle &&
+			result.ThumbnailURL != "https://media.example.test/alice-property.jpg" {
+			t.Fatalf(
+				"Alice single-room thumbnail = %q, want property fallback",
+				result.ThumbnailURL,
+			)
+		}
 	}
 
 	// Callers can explicitly include unit types without available offers.
