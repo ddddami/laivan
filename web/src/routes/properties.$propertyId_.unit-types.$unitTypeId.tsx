@@ -8,6 +8,10 @@ import { AppShell } from '../components/app-shell'
 import { FeedbackState } from '../components/ui/feedback-state'
 import { ProductIcon } from '../components/ui/product-icon'
 import { Skeleton } from '../components/ui/skeleton'
+import {
+  navigationEntryPoint,
+  readDiscoveryNavigationState,
+} from '../features/discovery/navigation-state'
 import { UnitDetail } from '../features/unit/unit-detail'
 
 export const Route = createFileRoute('/properties/$propertyId_/unit-types/$unitTypeId')({
@@ -23,8 +27,8 @@ function UnitTypePage() {
   const propertyNotFound =
     propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
   const unit = propertyQuery.data?.unit_types.find((candidate) => candidate.id === unitTypeId)
-  const cameFromDiscovery =
-    'entryPoint' in location.state && location.state.entryPoint === 'discovery'
+  const { entryPoint } = readDiscoveryNavigationState(location.state)
+  const cameFromDiscovery = entryPoint === navigationEntryPoint.discovery
 
   function backToPreviousContext() {
     if (location.state.__TSR_index > 0) {
