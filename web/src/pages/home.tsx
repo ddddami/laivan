@@ -1,23 +1,82 @@
 import { useQuery } from '@tanstack/react-query'
+import { FilterHorizontalIcon, Search01Icon } from '@hugeicons/core-free-icons'
+import { useEffect, useState, type FormEvent } from 'react'
 
 import { campusQueryOptions, discoveryQueryOptions } from '../api/queries'
 import { AppShell } from '../components/app-shell'
 import { DiscoveryCard } from '../components/marketplace/discovery-card'
+import { FilterChip } from '../components/ui/filter-chip'
 import { FeedbackState } from '../components/ui/feedback-state'
+import { IconButton } from '../components/ui/icon-button'
+import { ProductIcon } from '../components/ui/product-icon'
+import { Sheet } from '../components/ui/sheet'
 import { Skeleton } from '../components/ui/skeleton'
+import { DiscoveryFilters } from '../features/discovery/discovery-filters'
+import {
+  activeFilterCount,
+  discoverySearchError,
+  type DiscoverySearch,
+  type DiscoverySort,
+} from '../features/discovery/search'
 
-export function Home() {
+type HomeProps = {
+  search: DiscoverySearch
+  onSearchChange: (search: DiscoverySearch) => void
+}
+
+export function Home({ search, onSearchChange }: HomeProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [area, setArea] = useState(search.area ?? '')
+  const searchError = discoverySearchError(search)
+  const filterCount = activeFilterCount(search)
   const campusQuery = useQuery(campusQueryOptions('futa'))
   const discoveryQuery = useQuery({
     ...discoveryQueryOptions({
       campus_id: campusQuery.data?.id ?? '',
-      availability: 'available',
-      sort: 'recommended',
-      page: 1,
+      category: search.category,
+      area: search.area,
+      min_price: search.min_price,
+      max_price: search.max_price,
+      bathroom_type: search.bathroom_type,
+      kitchen_type: search.kitchen_type,
+      has_parlour: search.has_parlour,
+      availability: search.availability,
+      sort: search.sort,
+      page: search.page,
       page_size: 20,
     }),
-    enabled: campusQuery.isSuccess,
+    enabled: campusQuery.isSuccess && !searchError,
   })
+
+  useEffect(() => {
+    setArea(search.area ?? '')
+  }, [search.area])
+
+  function submitArea(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    onSearchChange({
+      ...search,
+      area: area.trim() || undefined,
+      page: 1,
+    })
+  }
+
+  function selectCategory(category?: string) {
+    onSearchChange({
+      ...search,
+      category,
+      page: 1,
+    })
+  }
+
+  function clearFilters() {
+    onSearchChange({
+      availability: 'available',
+      sort: search.sort,
+      page: 1,
+    })
+    setArea('')
+  }
 
   return (
     <AppShell>
@@ -32,8 +91,63 @@ export function Home() {
         </h1>
       </section>
 
+      <section className="border-border border-b py-4">
+        <div className="flex items-center gap-2">
+          <form className="relative min-w-0 flex-1" onSubmit={submitArea}>
+            <ProductIcon
+              icon={Search01Icon}
+              size={17}
+              className="text-faint pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
+            />
+            <label htmlFor="area-search" className="sr-only">
+              Filter by area
+            </label>
+            <input
+              id="area-search"
+              value={area}
+              onChange={(event) => setArea(event.target.value)}
+              className="focus-ring bg-surface text-foreground placeholder:text-faint rounded-control min-h-11 w-full pl-10 text-sm"
+              placeholder="Search by area"
+              autoComplete="off"
+            />
+          </form>
+          <IconButton
+            icon={FilterHorizontalIcon}
+            label={filterCount > 0 ? `Open filters, ${filterCount} active` : 'Open filters'}
+            className={`${
+              filterCount > 0 ? 'bg-foreground text-background hover:bg-foreground/85' : ''
+            } lg:hidden`}
+            onClick={() => setFiltersOpen(true)}
+          />
+        </div>
+
+        <div className="scrollbar-none -mx-1 mt-3 flex gap-2 overflow-x-auto px-1">
+          <FilterChip selected={!search.category} onClick={() => selectCategory()}>
+            All
+          </FilterChip>
+          <FilterChip
+            selected={search.category === 'single_room'}
+            onClick={() => selectCategory('single_room')}
+          >
+            Single room
+          </FilterChip>
+          <FilterChip
+            selected={search.category === 'self_contained'}
+            onClick={() => selectCategory('self_contained')}
+          >
+            Self-contained
+          </FilterChip>
+          <FilterChip
+            selected={search.category === 'room_and_parlour'}
+            onClick={() => selectCategory('room_and_parlour')}
+          >
+            Room and parlour
+          </FilterChip>
+        </div>
+      </section>
+
       <section className="pt-5 sm:pt-7" aria-labelledby="discovery-heading">
-        <div className="mb-3 flex items-end justify-between gap-4">
+        <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <p className="font-body text-faint text-xs">
               {discoveryQuery.data
@@ -47,11 +161,36 @@ export function Home() {
               Accommodation options
             </h2>
           </div>
+          <label className="font-body text-faint text-xs">
+            <span className="sr-only">Sort accommodation</span>
+            <select
+              value={search.sort}
+              className="focus-ring bg-surface text-foreground rounded-control min-h-11 border-0 px-3 text-xs font-semibold"
+              onChange={(event) =>
+                onSearchChange({
+                  ...search,
+                  sort: event.target.value as DiscoverySort,
+                  page: 1,
+                })
+              }
+            >
+              <option value="recommended">Recommended</option>
+              <option value="-created_at">Newest</option>
+              <option value="lowest_price_naira">Lowest price</option>
+              <option value="-lowest_price_naira">Highest price</option>
+            </select>
+          </label>
         </div>
 
-        {campusQuery.isPending || discoveryQuery.isPending ? <DiscoverySkeletons /> : null}
+        {searchError ? (
+          <FeedbackState title="Check your price range" description={searchError} />
+        ) : null}
 
-        {campusQuery.isError || discoveryQuery.isError ? (
+        {!searchError && (campusQuery.isPending || discoveryQuery.isPending) ? (
+          <DiscoverySkeletons />
+        ) : null}
+
+        {!searchError && (campusQuery.isError || discoveryQuery.isError) ? (
           <FeedbackState
             title="We could not load accommodation"
             description="Check your connection and try again."
@@ -63,21 +202,58 @@ export function Home() {
           />
         ) : null}
 
-        {discoveryQuery.data?.results.length ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-            {discoveryQuery.data.results.map((result) => (
-              <DiscoveryCard key={`${result.property.id}:${result.unit_type.id}`} result={result} />
-            ))}
-          </div>
-        ) : null}
+        <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-7">
+          <aside className="border-border rounded-card sticky top-5 hidden border lg:block">
+            <div className="border-border border-b px-5 py-4">
+              <h3 className="font-display text-foreground text-base font-bold">Filters</h3>
+              <p className="font-body text-faint mt-1 text-xs">
+                {filterCount} {filterCount === 1 ? 'filter' : 'filters'} active
+              </p>
+            </div>
+            <DiscoveryFilters
+              key={JSON.stringify(search)}
+              search={search}
+              onApply={onSearchChange}
+            />
+          </aside>
 
-        {discoveryQuery.isSuccess && discoveryQuery.data.results.length === 0 ? (
-          <FeedbackState
-            title="No accommodation is available yet"
-            description="New FUTA inventory will appear here as agents make offers available."
-          />
-        ) : null}
+          <div>
+            {discoveryQuery.data?.results.length ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-1 xl:grid-cols-2">
+                {discoveryQuery.data.results.map((result) => (
+                  <DiscoveryCard
+                    key={`${result.property.id}:${result.unit_type.id}`}
+                    result={result}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {discoveryQuery.isSuccess && discoveryQuery.data.results.length === 0 ? (
+              <FeedbackState
+                title="No accommodation matches"
+                description="Try widening your price range, changing the area, or clearing a filter."
+                actionLabel={filterCount > 0 ? 'Clear filters' : undefined}
+                onAction={filterCount > 0 ? clearFilters : undefined}
+              />
+            ) : null}
+          </div>
+        </div>
       </section>
+
+      <Sheet
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        title="Filters"
+        description={`${filterCount} ${filterCount === 1 ? 'filter' : 'filters'} active`}
+      >
+        <DiscoveryFilters
+          key={`${filtersOpen}:${JSON.stringify(search)}`}
+          search={search}
+          onApply={onSearchChange}
+          onClose={() => setFiltersOpen(false)}
+        />
+      </Sheet>
     </AppShell>
   )
 }

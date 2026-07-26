@@ -23,6 +23,7 @@ function PropertyTracer() {
     <AppShell>
       <Link
         to="/"
+        search={{ availability: 'available', sort: 'recommended', page: 1 }}
         className="focus-ring font-body text-muted rounded-control mb-5 inline-flex min-h-11 items-center gap-2 pr-3 text-sm font-medium"
       >
         <ProductIcon icon={ArrowLeft01Icon} size={18} />

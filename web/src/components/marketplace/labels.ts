@@ -1,6 +1,6 @@
 import type { components } from '../../api/schema.gen'
 
-type UnitCategory = components['schemas']['UnitCategory']
+export type UnitCategory = components['schemas']['UnitCategory']
 type BathroomType = components['schemas']['BathroomType']
 type KitchenType = components['schemas']['KitchenType']
 
