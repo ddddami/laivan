@@ -2,7 +2,11 @@ import type { components, operations } from './schema.gen'
 
 export type Campus = components['schemas']['Campus']
 export type DiscoveryResponse = components['schemas']['DiscoveryResponse']
+export type DiscoveryResult = components['schemas']['DiscoveryResult']
 export type PropertyDetail = components['schemas']['PropertyDetail']
+export type UnitTypeDetail = components['schemas']['UnitTypeDetail']
+export type AgentOfferDetail = components['schemas']['AgentOfferDetail']
+export type Media = components['schemas']['Media']
 export type DiscoveryParams = operations['discover']['parameters']['query']
 
 type ClientOptions = {
