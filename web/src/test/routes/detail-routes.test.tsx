@@ -3,9 +3,9 @@ import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/rea
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, type PropertyDetail } from '../api/client'
-import { publicApiClient } from '../api/queries'
-import { routeTree } from '../routeTree.gen'
+import { ApiError, type PropertyDetail } from '../../api/client'
+import { publicApiClient } from '../../api/queries'
+import { routeTree } from '../../routeTree.gen'
 
 const property: PropertyDetail = {
   id: 'property-1',
