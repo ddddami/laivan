@@ -13,7 +13,7 @@ export function MediaPlaceholder({
 }: MediaPlaceholderProps) {
   return (
     <div
-      className={`bg-surface-strong text-faint flex min-h-40 flex-col items-center justify-center gap-2 ${className}`}
+      className={`bg-surface-strong text-muted flex min-h-40 flex-col items-center justify-center gap-2 ${className}`}
       role="img"
       aria-label={label}
     >

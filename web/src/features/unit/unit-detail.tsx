@@ -51,7 +51,7 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
               ) : null}
               {unit.notes ? (
                 <div className="bg-surface rounded-control mt-3 px-3.5 py-3">
-                  <p className="font-body text-faint text-xs font-semibold tracking-[0.08em] uppercase">
+                  <p className="font-body text-muted text-xs font-semibold tracking-[0.08em] uppercase">
                     Structural notes
                   </p>
                   <p className="font-body text-muted mt-1.5 text-sm leading-5">{unit.notes}</p>

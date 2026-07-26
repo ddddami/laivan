@@ -40,7 +40,7 @@ export function UnitFacts({ unit }: UnitFactsProps) {
             <ProductIcon icon={fact.icon} size={16} />
           </span>
           <div className="min-w-0">
-            <dt className="font-body text-faint text-xs">{fact.label}</dt>
+            <dt className="font-body text-muted text-xs">{fact.label}</dt>
             <dd className="font-body text-foreground mt-0.5 truncate text-xs font-semibold capitalize">
               {fact.value}
             </dd>

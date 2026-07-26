@@ -23,7 +23,7 @@ export function StatusLine({ children, tone = 'neutral', actionLabel, onAction }
       {actionLabel && onAction ? (
         <button
           type="button"
-          className="focus-ring text-foreground rounded-control min-h-9 px-2 font-semibold underline underline-offset-2"
+          className="focus-ring text-foreground rounded-control min-h-11 px-2 font-semibold underline underline-offset-2"
           onClick={onAction}
         >
           {actionLabel}

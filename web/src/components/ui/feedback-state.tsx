@@ -13,7 +13,7 @@ type FeedbackStateProps = {
 export function FeedbackState({ title, description, actionLabel, onAction }: FeedbackStateProps) {
   return (
     <div className="border-border bg-surface rounded-card border px-5 py-10 text-center">
-      <span className="bg-background text-faint rounded-control mx-auto mb-4 flex size-12 items-center justify-center">
+      <span className="bg-background text-muted rounded-control mx-auto mb-4 flex size-12 items-center justify-center">
         <ProductIcon icon={Alert02Icon} size={23} />
       </span>
       <h2 className="font-display text-foreground text-lg font-bold tracking-[-0.02em]">{title}</h2>

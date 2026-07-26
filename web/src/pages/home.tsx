@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { FilterHorizontalIcon, Search01Icon } from '@hugeicons/core-free-icons'
-import { useEffect, useState, type FormEvent } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 
+import type { PublicApiClient } from '../api/client'
 import { campusQueryOptions, discoveryQueryOptions } from '../api/queries'
 import { AppShell } from '../components/app-shell'
 import { DiscoveryCard } from '../components/marketplace/discovery-card'
@@ -16,37 +17,41 @@ import { DiscoveryFilters } from '../features/discovery/discovery-filters'
 import { Pagination } from '../features/discovery/pagination'
 import {
   activeFilterCount,
-  discoverySearchError,
   type DiscoverySearch,
+  discoverySearchError,
   type DiscoverySort,
 } from '../features/discovery/search'
 
 type HomeProps = {
   search: DiscoverySearch
   onSearchChange: (search: DiscoverySearch) => void
+  apiClient?: PublicApiClient
 }
 
-export function Home({ search, onSearchChange }: HomeProps) {
+export function Home({ search, onSearchChange, apiClient }: HomeProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [area, setArea] = useState(search.area ?? '')
   const searchError = discoverySearchError(search)
   const filterCount = activeFilterCount(search)
-  const campusQuery = useQuery(campusQueryOptions('futa'))
+  const campusQuery = useQuery(campusQueryOptions('futa', apiClient))
   const discoveryQuery = useQuery({
-    ...discoveryQueryOptions({
-      campus_id: campusQuery.data?.id ?? '',
-      category: search.category,
-      area: search.area,
-      min_price: search.min_price,
-      max_price: search.max_price,
-      bathroom_type: search.bathroom_type,
-      kitchen_type: search.kitchen_type,
-      has_parlour: search.has_parlour,
-      availability: search.availability,
-      sort: search.sort,
-      page: search.page,
-      page_size: 20,
-    }),
+    ...discoveryQueryOptions(
+      {
+        campus_id: campusQuery.data?.id ?? '',
+        category: search.category,
+        area: search.area,
+        min_price: search.min_price,
+        max_price: search.max_price,
+        bathroom_type: search.bathroom_type,
+        kitchen_type: search.kitchen_type,
+        has_parlour: search.has_parlour,
+        availability: search.availability,
+        sort: search.sort,
+        page: search.page,
+        page_size: 20,
+      },
+      apiClient,
+    ),
     enabled: campusQuery.isSuccess && !searchError,
   })
   const hardError =
@@ -92,9 +97,6 @@ export function Home({ search, onSearchChange }: HomeProps) {
   return (
     <AppShell>
       <section className="border-border border-b pb-5 sm:pb-7">
-        <p className="font-body text-faint mb-2 text-xs font-semibold tracking-[0.12em] uppercase">
-          FUTA student accommodation
-        </p>
         <h1 className="font-display text-foreground max-w-2xl text-[2rem] leading-[0.98] font-bold tracking-[-0.045em] sm:text-5xl">
           Find accommodation
           <br />
@@ -108,7 +110,7 @@ export function Home({ search, onSearchChange }: HomeProps) {
             <ProductIcon
               icon={Search01Icon}
               size={17}
-              className="text-faint pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
+              className="text-muted pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2"
             />
             <label htmlFor="area-search" className="sr-only">
               Filter by area
@@ -117,7 +119,7 @@ export function Home({ search, onSearchChange }: HomeProps) {
               id="area-search"
               value={area}
               onChange={(event) => setArea(event.target.value)}
-              className="focus-ring bg-surface text-foreground placeholder:text-faint rounded-control min-h-11 w-full pl-10 text-sm"
+              className="focus-ring bg-surface text-foreground placeholder:text-muted rounded-control min-h-11 w-full pl-10 text-sm"
               placeholder="Search by area"
               autoComplete="off"
             />
@@ -160,7 +162,7 @@ export function Home({ search, onSearchChange }: HomeProps) {
       <section className="pt-5 sm:pt-7" aria-labelledby="discovery-heading">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
-            <p className="font-body text-faint text-xs">
+            <p className="font-body text-muted text-xs">
               {discoveryQuery.data
                 ? resultCountLabel(discoveryQuery.data.metadata.total_records)
                 : 'Available around campus'}
@@ -172,7 +174,7 @@ export function Home({ search, onSearchChange }: HomeProps) {
               Accommodation options
             </h2>
           </div>
-          <label className="font-body text-faint text-xs">
+          <label className="font-body text-muted text-xs">
             <span className="sr-only">Sort accommodation</span>
             <select
               value={search.sort}
@@ -194,12 +196,17 @@ export function Home({ search, onSearchChange }: HomeProps) {
         </div>
 
         {searchError ? (
-          <FeedbackState title="Check your price range" description={searchError} />
+          <FeedbackState
+            title="Check your price range"
+            description={searchError}
+            actionLabel="Clear filters"
+            onAction={clearFilters}
+          />
         ) : null}
 
         {!searchError &&
         !discoveryQuery.data &&
-        (campusQuery.isPending || discoveryQuery.isPending) ? (
+        (campusQuery.isPending || (campusQuery.isSuccess && discoveryQuery.isPending)) ? (
           <DiscoverySkeletons />
         ) : null}
 
@@ -209,8 +216,11 @@ export function Home({ search, onSearchChange }: HomeProps) {
             description="Check your connection and try again."
             actionLabel="Try again"
             onAction={() => {
-              void campusQuery.refetch()
-              void discoveryQuery.refetch()
+              if (campusQuery.isError) {
+                void campusQuery.refetch()
+              } else {
+                void discoveryQuery.refetch()
+              }
             }}
           />
         ) : null}
@@ -246,7 +256,7 @@ export function Home({ search, onSearchChange }: HomeProps) {
           <aside className="border-border rounded-card sticky top-5 hidden border lg:block">
             <div className="border-border border-b px-5 py-4">
               <h3 className="font-display text-foreground text-base font-bold">Filters</h3>
-              <p className="font-body text-faint mt-1 text-xs">
+              <p className="font-body text-muted mt-1 text-xs">
                 {filterCount} {filterCount === 1 ? 'filter' : 'filters'} active
               </p>
             </div>

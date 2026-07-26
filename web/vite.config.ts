@@ -30,14 +30,21 @@ export default defineConfig({
         theme_color: '#0f0f0f',
         icons: [
           {
-            src: '/logo192.png',
+            src: '/laivan-icon-192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/logo512.png',
+            src: '/laivan-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/laivan-icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },

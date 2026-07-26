@@ -21,7 +21,7 @@ export function Price({ amount, from = false, className = '' }: PriceProps) {
 
   return (
     <span className={className}>
-      {from ? <span className="font-body text-faint mb-0.5 block text-xs">From</span> : null}
+      {from ? <span className="font-body text-muted mb-0.5 block text-xs">From</span> : null}
       <span className="text-foreground font-mono text-[17px] leading-none font-semibold tracking-[-0.025em]">
         {formatPrice(amount)}
         <span className="text-muted ml-0.5 text-[11px] font-normal">/yr</span>

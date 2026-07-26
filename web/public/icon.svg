@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Laivan">
+  <rect width="512" height="512" fill="#0f0f0f"/>
+  <path d="M132 116h72v216c0 33 14 49 43 49h25v65h-38c-68 0-102-37-102-110V116Z" fill="#ffffff"/>
+  <rect x="279" y="108" width="117" height="94" rx="24" fill="#4ade80"/>
+  <path d="M316 135h24c24 0 39 11 39 29 0 12-6 21-17 25 14 4 22 14 22 28 0 21-17 33-43 33h-25V135Zm24 46c10 0 16-4 16-12s-6-12-16-12h-2v24h2Zm2 46c12 0 19-5 19-14s-7-14-19-14h-4v28h4Z" fill="#0f0f0f"/>
+</svg>

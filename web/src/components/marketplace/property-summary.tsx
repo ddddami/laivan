@@ -22,13 +22,13 @@ export function PropertySummary({ property }: PropertySummaryProps) {
 
       <dl className="mt-5 grid grid-cols-2 gap-3">
         <div className="bg-surface rounded-control px-3.5 py-3">
-          <dt className="font-body text-faint text-xs">Area</dt>
+          <dt className="font-body text-muted text-xs">Area</dt>
           <dd className="font-body text-foreground mt-1 text-sm font-semibold">
             {property.area || 'Unknown'}
           </dd>
         </div>
         <div className="bg-surface rounded-control px-3.5 py-3">
-          <dt className="font-body text-faint text-xs">Unit types</dt>
+          <dt className="font-body text-muted text-xs">Unit types</dt>
           <dd className="text-foreground mt-1 font-mono text-sm font-semibold">
             {property.unit_types.length}
           </dd>

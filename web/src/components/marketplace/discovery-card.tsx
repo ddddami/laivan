@@ -60,7 +60,10 @@ export function DiscoveryCard({ result }: DiscoveryCardProps) {
               <p className="text-foreground font-semibold">
                 {offerCount} {offerCount === 1 ? 'offer' : 'offers'}
               </p>
-              <p className={offerCount > 0 ? 'text-positive mt-1' : 'text-faint mt-1'}>
+              <p className="text-muted mt-1 inline-flex items-center justify-end gap-1.5">
+                {offerCount > 0 ? (
+                  <span className="bg-positive size-1.5 rounded-full" aria-hidden />
+                ) : null}
                 {offerCount > 0 ? 'Available now' : 'No available offers'}
               </p>
             </div>

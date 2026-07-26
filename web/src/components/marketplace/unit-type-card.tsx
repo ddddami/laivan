@@ -38,7 +38,7 @@ export function UnitTypeCard({ propertyId, unit }: UnitTypeCardProps) {
         <div className="flex min-w-0 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-body text-faint text-xs">{category}</p>
+              <p className="font-body text-muted text-xs">{category}</p>
               <h3 className="font-display text-foreground mt-1 text-base leading-tight font-bold tracking-[-0.025em]">
                 {unit.name || category}
               </h3>

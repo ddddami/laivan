@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useLocation, useNavigate, useRouter } from '@tanstack/react-router'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 
 import { ApiError } from '../api/client'
@@ -16,13 +16,14 @@ export const Route = createFileRoute('/properties/$propertyId')({
 
 function PropertyPage() {
   const { propertyId } = Route.useParams()
+  const location = useLocation()
   const propertyQuery = useQuery(propertyQueryOptions(propertyId))
   const router = useRouter()
   const navigate = useNavigate()
   const notFound = propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
 
   function backToResults() {
-    if (window.history.length > 1) {
+    if (location.state.__TSR_index > 0) {
       router.history.back()
       return
     }

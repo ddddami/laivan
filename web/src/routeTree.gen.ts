@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PropertiesPropertyIdRouteImport } from './routes/properties.$propertyId'
-import { Route as PropertiesPropertyIdUnitTypesUnitTypeIdRouteImport } from './routes/properties.$propertyId.unit-types.$unitTypeId'
+import { Route as PropertiesPropertyIdUnitTypesUnitTypeIdRouteImport } from './routes/properties.$propertyId_.unit-types.$unitTypeId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -25,26 +25,26 @@ const PropertiesPropertyIdRoute = PropertiesPropertyIdRouteImport.update({
 } as any)
 const PropertiesPropertyIdUnitTypesUnitTypeIdRoute =
   PropertiesPropertyIdUnitTypesUnitTypeIdRouteImport.update({
-    id: '/unit-types/$unitTypeId',
-    path: '/unit-types/$unitTypeId',
-    getParentRoute: () => PropertiesPropertyIdRoute,
+    id: '/properties/$propertyId_/unit-types/$unitTypeId',
+    path: '/properties/$propertyId/unit-types/$unitTypeId',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
+  '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/$propertyId/unit-types/$unitTypeId': typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
+  '/properties/$propertyId': typeof PropertiesPropertyIdRoute
   '/properties/$propertyId/unit-types/$unitTypeId': typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/properties/$propertyId': typeof PropertiesPropertyIdRouteWithChildren
-  '/properties/$propertyId/unit-types/$unitTypeId': typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
+  '/properties/$propertyId': typeof PropertiesPropertyIdRoute
+  '/properties/$propertyId_/unit-types/$unitTypeId': typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -61,12 +61,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/properties/$propertyId'
-    | '/properties/$propertyId/unit-types/$unitTypeId'
+    | '/properties/$propertyId_/unit-types/$unitTypeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRouteWithChildren
+  PropertiesPropertyIdRoute: typeof PropertiesPropertyIdRoute
+  PropertiesPropertyIdUnitTypesUnitTypeIdRoute: typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,31 +86,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropertiesPropertyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/properties/$propertyId/unit-types/$unitTypeId': {
-      id: '/properties/$propertyId/unit-types/$unitTypeId'
-      path: '/unit-types/$unitTypeId'
+    '/properties/$propertyId_/unit-types/$unitTypeId': {
+      id: '/properties/$propertyId_/unit-types/$unitTypeId'
+      path: '/properties/$propertyId/unit-types/$unitTypeId'
       fullPath: '/properties/$propertyId/unit-types/$unitTypeId'
       preLoaderRoute: typeof PropertiesPropertyIdUnitTypesUnitTypeIdRouteImport
-      parentRoute: typeof PropertiesPropertyIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface PropertiesPropertyIdRouteChildren {
-  PropertiesPropertyIdUnitTypesUnitTypeIdRoute: typeof PropertiesPropertyIdUnitTypesUnitTypeIdRoute
-}
-
-const PropertiesPropertyIdRouteChildren: PropertiesPropertyIdRouteChildren = {
-  PropertiesPropertyIdUnitTypesUnitTypeIdRoute:
-    PropertiesPropertyIdUnitTypesUnitTypeIdRoute,
-}
-
-const PropertiesPropertyIdRouteWithChildren =
-  PropertiesPropertyIdRoute._addFileChildren(PropertiesPropertyIdRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  PropertiesPropertyIdRoute: PropertiesPropertyIdRouteWithChildren,
+  PropertiesPropertyIdRoute: PropertiesPropertyIdRoute,
+  PropertiesPropertyIdUnitTypesUnitTypeIdRoute:
+    PropertiesPropertyIdUnitTypesUnitTypeIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
