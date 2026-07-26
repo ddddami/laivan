@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"embed"
+	"time"
+)
 
 type agentSeed struct {
 	ID             string
@@ -50,14 +53,16 @@ type mediaSeed struct {
 	UnitTypeID        string
 	AgentOfferID      string
 	UploadedByAgentID string
-	URL               string
+	AssetPath         string
 	ObjectKey         string
 	Kind              string
 	Caption           string
 	ContentType       string
-	SizeBytes         int
 	CreatedAt         time.Time
 }
+
+//go:embed assets/*.jpg
+var seedMediaAssets embed.FS
 
 var seedBaseTime = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 
@@ -124,36 +129,33 @@ var mediaItems = []mediaSeed{
 		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
 		PropertyID:        "33333333-3333-4333-8333-333333333333",
 		UploadedByAgentID: "11111111-1111-4111-8111-111111111111",
-		URL:               "http://localhost:9000/laivan-dev/seed/alice-lodge/front.jpg",
-		ObjectKey:         "seed/alice-lodge/front.jpg",
+		AssetPath:         "assets/alice-lodge-compound.jpg",
+		ObjectKey:         "seed/alice-lodge/compound.jpg",
 		Kind:              "image",
 		Caption:           "Front view of Alice Lodge compound",
 		ContentType:       "image/jpeg",
-		SizeBytes:         245000,
 		CreatedAt:         seedBaseTime.Add(50 * time.Minute),
 	},
 	{
 		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
 		UnitTypeID:        "66666666-6666-4666-8666-666666666662",
 		UploadedByAgentID: "22222222-2222-4222-8222-222222222222",
-		URL:               "http://localhost:9000/laivan-dev/seed/alice-lodge/self-contained-room.jpg",
+		AssetPath:         "assets/alice-self-contained.jpg",
 		ObjectKey:         "seed/alice-lodge/self-contained-room.jpg",
 		Kind:              "image",
 		Caption:           "Self-contained room interior",
 		ContentType:       "image/jpeg",
-		SizeBytes:         312000,
 		CreatedAt:         seedBaseTime.Add(55 * time.Minute),
 	},
 	{
 		ID:                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
-		PropertyID:        "44444444-4444-4444-8444-444444444444",
+		UnitTypeID:        "77777777-7777-4777-8777-777777777771",
 		UploadedByAgentID: "22222222-2222-4222-8222-222222222222",
-		URL:               "http://localhost:9000/laivan-dev/seed/blue-roof/compound.jpg",
-		ObjectKey:         "seed/blue-roof/compound.jpg",
+		AssetPath:         "assets/blue-roof-room-and-parlour.jpg",
+		ObjectKey:         "seed/blue-roof/room-and-parlour.jpg",
 		Kind:              "image",
-		Caption:           "Blue Roof compound entrance",
+		Caption:           "Room-and-parlour interior",
 		ContentType:       "image/jpeg",
-		SizeBytes:         280000,
 		CreatedAt:         seedBaseTime.Add(time.Hour),
 	},
 }
