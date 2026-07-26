@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
 	appdb "github.com/ddddami/laivan/internal/db"
+	"github.com/ddddami/laivan/internal/storage"
 	"github.com/jackc/pgx/v5"
 )
 
-func run(ctx context.Context, databaseURL string, maxConns int32) error {
+func run(ctx context.Context, databaseURL string, maxConns int32, mediaUploader storage.Uploader) error {
 	db, err := appdb.Open(ctx, databaseURL, maxConns)
 	if err != nil {
 		return err
@@ -38,7 +40,7 @@ func run(ctx context.Context, databaseURL string, maxConns int32) error {
 	if err := seedAgentOffers(ctx, tx); err != nil {
 		return err
 	}
-	if err := seedMedia(ctx, tx); err != nil {
+	if err := seedMedia(ctx, tx, mediaUploader); err != nil {
 		return err
 	}
 
@@ -143,8 +145,30 @@ func seedAgentOffers(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func seedMedia(ctx context.Context, tx pgx.Tx) error {
+func seedMedia(ctx context.Context, tx pgx.Tx, mediaUploader storage.Uploader) error {
+	if mediaUploader == nil {
+		for _, media := range mediaItems {
+			if _, err := tx.Exec(ctx, `DELETE FROM media WHERE id = $1`, media.ID); err != nil {
+				return fmt.Errorf("remove disabled seed media %s: %w", media.ID, err)
+			}
+		}
+		return nil
+	}
+
 	for _, media := range mediaItems {
+		data, err := seedMediaAssets.ReadFile(media.AssetPath)
+		if err != nil {
+			return fmt.Errorf("read seed media %s: %w", media.ID, err)
+		}
+		url, err := mediaUploader.Upload(ctx, storage.UploadInput{
+			Key:         media.ObjectKey,
+			Body:        bytes.NewReader(data),
+			ContentType: media.ContentType,
+		})
+		if err != nil {
+			return fmt.Errorf("upload seed media %s: %w", media.ID, err)
+		}
+
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO media (id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at)
 			VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -160,7 +184,7 @@ func seedMedia(ctx context.Context, tx pgx.Tx) error {
 			  content_type = EXCLUDED.content_type,
 			  size_bytes = EXCLUDED.size_bytes,
 			  created_at = EXCLUDED.created_at
-		`, media.ID, media.PropertyID, media.UnitTypeID, media.AgentOfferID, media.UploadedByAgentID, media.URL, media.ObjectKey, media.Kind, media.Caption, media.ContentType, media.SizeBytes, media.CreatedAt); err != nil {
+		`, media.ID, media.PropertyID, media.UnitTypeID, media.AgentOfferID, media.UploadedByAgentID, url, media.ObjectKey, media.Kind, media.Caption, media.ContentType, len(data), media.CreatedAt); err != nil {
 			return fmt.Errorf("seed media %s: %w", media.ID, err)
 		}
 	}
