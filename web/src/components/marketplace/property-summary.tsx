@@ -28,7 +28,7 @@ export function PropertySummary({ property }: PropertySummaryProps) {
           </dd>
         </div>
         <div className="bg-surface rounded-control px-3.5 py-3">
-          <dt className="font-body text-muted text-xs">Unit types</dt>
+          <dt className="font-body text-muted text-xs">Accommodation types</dt>
           <dd className="text-foreground mt-1 font-mono text-sm font-semibold">
             {property.unit_types.length}
           </dd>

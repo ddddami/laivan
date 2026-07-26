@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 import type { PropertyDetail, UnitTypeDetail } from '../../api/client'
 import { AgentOfferCard } from '../../components/marketplace/agent-offer-card'
 import { unitCategoryLabel } from '../../components/marketplace/labels'
@@ -29,7 +31,15 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
           {unit.name || category}
         </h1>
         <p className="font-body text-muted mt-2 text-sm">
-          {property.name} · {[property.area, property.landmark].filter(Boolean).join(' · ')}
+          <Link
+            to="/properties/$propertyId"
+            params={{ propertyId: property.id }}
+            className="focus-ring text-foreground rounded-control font-semibold underline-offset-4 hover:underline"
+          >
+            {property.name}
+          </Link>
+          {' · '}
+          {[property.area, property.landmark].filter(Boolean).join(' · ')}
         </p>
       </header>
 

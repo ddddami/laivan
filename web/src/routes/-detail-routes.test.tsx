@@ -87,6 +87,10 @@ describe('property and unit routes', () => {
     await renderRoute('/properties/property-1')
 
     expect(await screen.findByRole('heading', { name: 'Alice Lodge' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Accommodation options at Alice Lodge' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Accommodation types')).toBeInTheDocument()
     expect(screen.getByText('A factual property description.')).toBeInTheDocument()
     expect(getProperty).toHaveBeenCalledWith('property-1')
   })
@@ -98,6 +102,10 @@ describe('property and unit routes', () => {
     expect(
       await screen.findByRole('heading', { name: 'Premium self-contained' }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Alice Lodge' })).toHaveAttribute(
+      'href',
+      '/properties/property-1',
+    )
     expect(screen.getByLabelText('Ade Martins offer')).toBeInTheDocument()
     expect(screen.queryByText('Bola Ajayi')).not.toBeInTheDocument()
   })

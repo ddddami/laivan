@@ -35,35 +35,39 @@ const result: DiscoveryResult = {
 }
 
 describe('DiscoveryCard', () => {
-  it('presents the property and unit hierarchy as a semantic property link', async () => {
+  it('presents the accommodation before its property and links to its offer comparison', async () => {
     const rootRoute = createRootRoute({ component: Outlet })
     const indexRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: '/',
       component: () => <DiscoveryCard result={result} />,
     })
-    const propertyRoute = createRoute({
+    const unitRoute = createRoute({
       getParentRoute: () => rootRoute,
-      path: '/properties/$propertyId',
+      path: '/properties/$propertyId/unit-types/$unitTypeId',
       component: () => null,
     })
     const router = createRouter({
-      routeTree: rootRoute.addChildren([indexRoute, propertyRoute]),
+      routeTree: rootRoute.addChildren([indexRoute, unitRoute]),
       history: createMemoryHistory({ initialEntries: ['/'] }),
     })
 
     await router.load()
     render(<RouterProvider router={router} />)
 
-    expect(screen.getByRole('heading', { name: 'Alice Lodge' })).toBeInTheDocument()
-    expect(screen.getAllByText('Self-contained')).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: 'Self-contained' })).toBeInTheDocument()
+    expect(
+      screen.getByText((_, element) => element?.textContent === 'at Alice Lodge'),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Self-contained')).toHaveLength(1)
     expect(screen.getByText('Obanla · Near South Gate')).toBeInTheDocument()
     expect(screen.getByText('₦350,000')).toBeInTheDocument()
-    expect(screen.getByText('2 offers')).toBeInTheDocument()
+    expect(screen.getByText('2 available offers')).toBeInTheDocument()
+    expect(screen.queryByText('Available now')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'No photos available' })).toBeInTheDocument()
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
-      '/properties/550e8400-e29b-41d4-a716-446655440010',
+      '/properties/550e8400-e29b-41d4-a716-446655440010/unit-types/550e8400-e29b-41d4-a716-446655440020',
     )
   })
 
@@ -91,13 +95,13 @@ describe('DiscoveryCard', () => {
       path: '/',
       component: () => <DiscoveryCard result={edgeResult} />,
     })
-    const propertyRoute = createRoute({
+    const unitRoute = createRoute({
       getParentRoute: () => rootRoute,
-      path: '/properties/$propertyId',
+      path: '/properties/$propertyId/unit-types/$unitTypeId',
       component: () => null,
     })
     const router = createRouter({
-      routeTree: rootRoute.addChildren([indexRoute, propertyRoute]),
+      routeTree: rootRoute.addChildren([indexRoute, unitRoute]),
       history: createMemoryHistory({ initialEntries: ['/'] }),
     })
 
@@ -106,7 +110,6 @@ describe('DiscoveryCard', () => {
 
     expect(screen.getByText('Approximate location unavailable')).toBeInTheDocument()
     expect(screen.getByText('Price unavailable')).toBeInTheDocument()
-    expect(screen.getByText('0 offers')).toBeInTheDocument()
     expect(screen.getByText('No available offers')).toBeInTheDocument()
     expect(screen.getByText('Bathroom unknown')).toBeInTheDocument()
     expect(screen.getByText('Kitchen unknown')).toBeInTheDocument()

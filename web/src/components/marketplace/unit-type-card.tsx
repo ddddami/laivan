@@ -26,6 +26,7 @@ export function UnitTypeCard({ propertyId, unit }: UnitTypeCardProps) {
       <Link
         to="/properties/$propertyId/unit-types/$unitTypeId"
         params={{ propertyId, unitTypeId: unit.id }}
+        state={(current) => ({ ...current, entryPoint: 'property' })}
         className="focus-ring group rounded-card grid min-h-40 grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)]"
       >
         <ResponsiveImage
