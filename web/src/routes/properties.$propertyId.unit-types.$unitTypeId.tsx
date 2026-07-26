@@ -1,44 +1,38 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 
 import { ApiError } from '../api/client'
 import { propertyQueryOptions } from '../api/queries'
 import { AppShell } from '../components/app-shell'
-import { bathroomLabel, kitchenLabel, unitCategoryLabel } from '../components/marketplace/labels'
 import { FeedbackState } from '../components/ui/feedback-state'
 import { ProductIcon } from '../components/ui/product-icon'
 import { Skeleton } from '../components/ui/skeleton'
+import { UnitDetail } from '../features/unit/unit-detail'
 
 export const Route = createFileRoute('/properties/$propertyId/unit-types/$unitTypeId')({
-  component: UnitTypeTracer,
+  component: UnitTypePage,
 })
 
-function UnitTypeTracer() {
+function UnitTypePage() {
   const { propertyId, unitTypeId } = Route.useParams()
   const propertyQuery = useQuery(propertyQueryOptions(propertyId))
-  const router = useRouter()
   const propertyNotFound =
     propertyQuery.error instanceof ApiError && propertyQuery.error.status === 404
   const unit = propertyQuery.data?.unit_types.find((candidate) => candidate.id === unitTypeId)
 
   return (
     <AppShell>
-      <button
-        type="button"
+      <Link
+        to="/properties/$propertyId"
+        params={{ propertyId }}
         className="focus-ring font-body text-muted rounded-control mb-5 inline-flex min-h-11 items-center gap-2 pr-3 text-sm font-medium"
-        onClick={() => router.history.back()}
       >
         <ProductIcon icon={ArrowLeft01Icon} size={18} />
         Back to property
-      </button>
+      </Link>
 
-      {propertyQuery.isPending ? (
-        <div className="space-y-4" aria-label="Loading unit type">
-          <Skeleton className="h-9 w-2/3" />
-          <Skeleton className="rounded-card h-40 w-full" />
-        </div>
-      ) : null}
+      {propertyQuery.isPending ? <UnitSkeleton /> : null}
 
       {propertyQuery.isError ? (
         <FeedbackState
@@ -60,20 +54,27 @@ function UnitTypeTracer() {
         />
       ) : null}
 
-      {propertyQuery.data && unit ? (
-        <article className="bg-surface rounded-card p-5 sm:p-8">
-          <p className="section-label">{unitCategoryLabel(unit.category)}</p>
-          <h1 className="font-display text-foreground text-3xl font-bold tracking-[-0.04em]">
-            {unit.name || unitCategoryLabel(unit.category)}
-          </h1>
-          <p className="font-body text-muted mt-2 text-sm">
-            {propertyQuery.data.name} · {propertyQuery.data.area}
-          </p>
-          <p className="font-body text-muted mt-5 text-sm">
-            {bathroomLabel(unit.bathroom_type)} · {kitchenLabel(unit.kitchen_type)}
-          </p>
-        </article>
-      ) : null}
+      {propertyQuery.data && unit ? <UnitDetail property={propertyQuery.data} unit={unit} /> : null}
     </AppShell>
+  )
+}
+
+function UnitSkeleton() {
+  return (
+    <div aria-label="Loading unit type">
+      <Skeleton className="h-9 w-2/3" />
+      <Skeleton className="mt-3 h-4 w-1/2" />
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.2fr)]">
+        <div className="space-y-4">
+          <Skeleton className="rounded-media aspect-[4/3] w-full" />
+          <Skeleton className="rounded-card h-40 w-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="rounded-card h-72 w-full" />
+          <Skeleton className="rounded-card h-72 w-full" />
+        </div>
+      </div>
+    </div>
   )
 }
