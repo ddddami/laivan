@@ -47,11 +47,21 @@ The public hierarchy is always:
 
 `Property -> PropertyUnitType -> AgentOffer`
 
+“Accommodation type” is the student-facing label for `PropertyUnitType`. Discovery
+starts with the accommodation a student is seeking, then presents the property as
+context and the competing agent offers as market options. A discovery card opens
+that accommodation type directly; the property remains available through its
+context link.
+
 Property facts and property media stay at the property layer. Structural facts, notes, and unit media stay at the unit layer. Agent title, description, operational notes, price, status, media, identity, and update time stay at the offer layer.
+
+Discovery imagery prefers media attached to the selected accommodation type and
+falls back to property media. Do not promote an individual agent offer’s media onto
+an aggregated accommodation card.
 
 Public location is approximate: area and landmark only. Do not expose exact coordinates, directions, phone numbers, or direct contact details.
 
-Use factual status language. Do not claim verification, guaranteed availability, confirmed reservations, recommended agents, response times, ratings, inspections, or trust signals without contract-backed evidence. Workflow previews must say that nothing is submitted or saved.
+Use factual status language such as “2 available offers.” Do not claim verification, guaranteed availability, confirmed reservations, recommended agents, response times, ratings, inspections, or trust signals without contract-backed evidence. Workflow previews must say that nothing is submitted or saved.
 
 ## Responsive composition
 
