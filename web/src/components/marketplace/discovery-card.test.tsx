@@ -56,7 +56,7 @@ describe('DiscoveryCard', () => {
     render(<RouterProvider router={router} />)
 
     expect(screen.getByRole('heading', { name: 'Alice Lodge' })).toBeInTheDocument()
-    expect(screen.getByText('Self-contained')).toBeInTheDocument()
+    expect(screen.getAllByText('Self-contained')).toHaveLength(2)
     expect(screen.getByText('Obanla · Near South Gate')).toBeInTheDocument()
     expect(screen.getByText('₦350,000')).toBeInTheDocument()
     expect(screen.getByText('2 offers')).toBeInTheDocument()
@@ -65,5 +65,50 @@ describe('DiscoveryCard', () => {
       'href',
       '/properties/550e8400-e29b-41d4-a716-446655440010',
     )
+  })
+
+  it('represents missing price, location, and offers without fabricating values', async () => {
+    const edgeResult: DiscoveryResult = {
+      ...result,
+      property: {
+        ...result.property,
+        area: '',
+        landmark: null,
+      },
+      pricing: { lowest_price_naira: null },
+      offer_summary: { available_offer_count: 0 },
+      unit_type: {
+        ...result.unit_type,
+        name: '',
+        bedroom_count: null,
+        bathroom_type: 'unknown',
+        kitchen_type: null,
+      },
+    }
+    const rootRoute = createRootRoute({ component: Outlet })
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/',
+      component: () => <DiscoveryCard result={edgeResult} />,
+    })
+    const propertyRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/properties/$propertyId',
+      component: () => null,
+    })
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute, propertyRoute]),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    })
+
+    await router.load()
+    render(<RouterProvider router={router} />)
+
+    expect(screen.getByText('Approximate location unavailable')).toBeInTheDocument()
+    expect(screen.getByText('Price unavailable')).toBeInTheDocument()
+    expect(screen.getByText('0 offers')).toBeInTheDocument()
+    expect(screen.getByText('No available offers')).toBeInTheDocument()
+    expect(screen.getByText('Bathroom unknown')).toBeInTheDocument()
+    expect(screen.getByText('Kitchen unknown')).toBeInTheDocument()
   })
 })

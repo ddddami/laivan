@@ -12,13 +12,14 @@ type DiscoveryCardProps = {
 export function DiscoveryCard({ result }: DiscoveryCardProps) {
   const location = [result.property.area, result.property.landmark].filter(Boolean).join(' · ')
   const offerCount = result.offer_summary.available_offer_count
+  const category = unitCategoryLabel(result.unit_type.category)
 
   return (
-    <article className="bg-surface rounded-card overflow-hidden">
+    <article className="bg-surface rounded-card h-full overflow-hidden">
       <Link
         to="/properties/$propertyId"
         params={{ propertyId: result.property.id }}
-        className="focus-ring group rounded-card block"
+        className="focus-ring group rounded-card flex h-full flex-col"
       >
         <div className="bg-surface-strong relative aspect-[16/10] overflow-hidden">
           <ResponsiveImage
@@ -27,19 +28,22 @@ export function DiscoveryCard({ result }: DiscoveryCardProps) {
             className="duration-standard h-full w-full object-cover transition-transform group-hover:scale-[1.015]"
           />
           <span className="font-body rounded-control absolute bottom-3 left-3 bg-black/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-            {unitCategoryLabel(result.unit_type.category)}
+            {category}
           </span>
         </div>
 
-        <div className="px-4 pt-3.5 pb-4">
-          <h3 className="font-display text-foreground text-base leading-snug font-bold tracking-[-0.025em]">
+        <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
+          <h3 className="font-display text-foreground line-clamp-2 text-base leading-snug font-bold tracking-[-0.025em]">
             {result.property.name}
           </h3>
           <p className="font-body text-muted mt-1 text-xs">
             {location || 'Approximate location unavailable'}
           </p>
+          <p className="font-body text-foreground mt-3 text-sm font-semibold">
+            {result.unit_type.name || category}
+          </p>
 
-          <p className="font-body text-muted mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <p className="font-body text-muted mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             <span>{bathroomLabel(result.unit_type.bathroom_type)}</span>
             <span>{kitchenLabel(result.unit_type.kitchen_type)}</span>
             {result.unit_type.bedroom_count ? (
@@ -50,7 +54,7 @@ export function DiscoveryCard({ result }: DiscoveryCardProps) {
             ) : null}
           </p>
 
-          <div className="border-border mt-3.5 flex items-end justify-between gap-4 border-t pt-3">
+          <div className="border-border mt-auto flex items-end justify-between gap-4 border-t pt-3">
             <Price amount={result.pricing.lowest_price_naira} from />
             <div className="font-body text-right text-xs">
               <p className="text-foreground font-semibold">

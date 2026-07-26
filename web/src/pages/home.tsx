@@ -35,17 +35,21 @@ export function Home() {
       <section className="pt-5 sm:pt-7" aria-labelledby="discovery-heading">
         <div className="mb-3 flex items-end justify-between gap-4">
           <div>
-            <p className="font-body text-faint text-xs">Available around campus</p>
+            <p className="font-body text-faint text-xs">
+              {discoveryQuery.data
+                ? resultCountLabel(discoveryQuery.data.metadata.total_records)
+                : 'Available around campus'}
+            </p>
             <h2
               id="discovery-heading"
               className="font-display text-foreground mt-1 text-lg font-bold tracking-[-0.025em]"
             >
-              Start with a real place
+              Accommodation options
             </h2>
           </div>
         </div>
 
-        {campusQuery.isPending || discoveryQuery.isPending ? <DiscoverySkeleton /> : null}
+        {campusQuery.isPending || discoveryQuery.isPending ? <DiscoverySkeletons /> : null}
 
         {campusQuery.isError || discoveryQuery.isError ? (
           <FeedbackState
@@ -59,9 +63,11 @@ export function Home() {
           />
         ) : null}
 
-        {discoveryQuery.data?.results[0] ? (
-          <div className="max-w-xl">
-            <DiscoveryCard result={discoveryQuery.data.results[0]} />
+        {discoveryQuery.data?.results.length ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+            {discoveryQuery.data.results.map((result) => (
+              <DiscoveryCard key={`${result.property.id}:${result.unit_type.id}`} result={result} />
+            ))}
           </div>
         ) : null}
 
@@ -76,19 +82,30 @@ export function Home() {
   )
 }
 
-function DiscoverySkeleton() {
+function DiscoverySkeletons() {
   return (
-    <div className="bg-surface rounded-card overflow-hidden" aria-label="Loading accommodation">
-      <Skeleton className="aspect-[16/10] w-full rounded-none" />
-      <div className="space-y-3 p-4">
-        <Skeleton className="h-5 w-3/5" />
-        <Skeleton className="h-3 w-2/5" />
-        <Skeleton className="h-3 w-4/5" />
-        <div className="border-border flex justify-between border-t pt-3">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-5 w-20" />
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5"
+      aria-label="Loading accommodation"
+    >
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item} className="bg-surface rounded-card overflow-hidden">
+          <Skeleton className="aspect-[16/10] w-full rounded-none" />
+          <div className="space-y-3 p-4">
+            <Skeleton className="h-5 w-3/5" />
+            <Skeleton className="h-3 w-2/5" />
+            <Skeleton className="h-3 w-4/5" />
+            <div className="border-border flex justify-between border-t pt-3">
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   )
+}
+
+function resultCountLabel(count: number) {
+  return `${count.toLocaleString('en-NG')} ${count === 1 ? 'option' : 'options'} around FUTA`
 }
