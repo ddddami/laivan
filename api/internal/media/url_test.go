@@ -53,6 +53,24 @@ func TestURLBuilderUsesInternalSourceBaseURL(t *testing.T) {
 	}
 }
 
+func TestURLBuilderSupportsSameOriginProxyBasePath(t *testing.T) {
+	builder, err := NewURLBuilder(config.MediaConfig{
+		Imgproxy: config.ImgproxyConfig{
+			BaseURL: "/__imgproxy",
+			Key:     "abcd",
+			Salt:    "1234",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewURLBuilder returned error: %v", err)
+	}
+
+	got := builder.ThumbnailURL("https://media.example.test/room.jpg")
+	if !strings.HasPrefix(got, "/__imgproxy/") {
+		t.Fatalf("ThumbnailURL = %q, want same-origin proxy path", got)
+	}
+}
+
 func TestURLBuilderMediumURL(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
 		Imgproxy: config.ImgproxyConfig{

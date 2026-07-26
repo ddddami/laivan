@@ -21,6 +21,11 @@ description = "Run the API server with hot reload"
 dir = "api"
 run = "air"
 
+[tasks."api:dev:mobile"]
+description = "Run the API for mobile LAN preview"
+dir = "api"
+run = "LAIVAN_IMGPROXY_BASE_URL=/__imgproxy air"
+
 [tasks."api:test"]
 description = "Run API tests"
 dir = "api"
@@ -152,6 +157,11 @@ run = "pnpm install"
 description = "Run the web dev server"
 dir = "web"
 run = "pnpm dev"
+
+[tasks."web:dev:mobile"]
+description = "Expose the web dev server on the local network"
+dir = "web"
+run = "pnpm dev --host 0.0.0.0"
 
 [tasks."web:test"]
 description = "Run web tests"
