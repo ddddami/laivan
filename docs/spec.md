@@ -66,12 +66,12 @@ This is a planning aid, not a substitute for acceptance criteria.
 | --- | --- | --- |
 | Marketplace foundation and listing management API | Built | Core schema, repositories, endpoints, media, validation, and local infrastructure exist. |
 | Public discovery API | Built | Discovery, filtering, sorting, pagination, and property detail data exist. |
-| Public discovery UI | In progress | The frontend is currently a landing and waitlist experience. |
+| Public discovery UI | Built | Phase 1 provides accommodation-first discovery, shareable filters, property context, competing offers, responsive media, and honest workflow previews. |
 | Identity and authorization | Planned | Authentication, sessions, roles, ownership, and protected writes are not implemented. |
 | Inquiry, inspection, and reservation workflows | Planned | Domain types exist, but persistence and API workflows do not. |
 | Agent operations UI | Planned | Offer management and request queues are not available in the frontend. |
 | Trust and moderation | Planned | Concepts and domain types exist, but operational workflows do not. |
-| Launch readiness | Planned | PWA completion, production operations, monitoring, and pilot readiness remain. |
+| Launch readiness | In progress | The PWA shell and local phone-preview path exist; production operations, monitoring, security hardening, and pilot readiness remain. |
 
 ## Delivery Strategy
 
@@ -104,6 +104,8 @@ Each phase should produce a coherent, testable product capability. Later phases 
 
 **Dependencies:** Phase 0.
 
+**Status:** Complete.
+
 **Scope:**
 
 - build a mobile-first discovery feed backed by `/v1/discovery`
@@ -131,6 +133,11 @@ Do not introduce advanced recommendations, AI ranking, or separate search infras
 - the UI distinguishes property facts, unit types, and agent-specific offers
 - public location remains approximate
 - user-visible loading, empty, error, and retry behavior is verified
+
+Phase 1 closes with discovery presented in the order students use it:
+accommodation type first, property context second, and competing agent offers
+third. Property, accommodation, and offer media remain attached to their source
+layers, with unit media preferred over property fallback in discovery.
 
 ### Phase 2 — Identity, Ownership, and Protected Writes
 
