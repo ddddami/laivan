@@ -11,7 +11,9 @@ import { IconButton } from '../components/ui/icon-button'
 import { ProductIcon } from '../components/ui/product-icon'
 import { Sheet } from '../components/ui/sheet'
 import { Skeleton } from '../components/ui/skeleton'
+import { StatusLine } from '../components/ui/status-line'
 import { DiscoveryFilters } from '../features/discovery/discovery-filters'
+import { Pagination } from '../features/discovery/pagination'
 import {
   activeFilterCount,
   discoverySearchError,
@@ -47,6 +49,8 @@ export function Home({ search, onSearchChange }: HomeProps) {
     }),
     enabled: campusQuery.isSuccess && !searchError,
   })
+  const hardError =
+    (campusQuery.isError && !campusQuery.data) || (discoveryQuery.isError && !discoveryQuery.data)
 
   useEffect(() => {
     setArea(search.area ?? '')
@@ -76,6 +80,13 @@ export function Home({ search, onSearchChange }: HomeProps) {
       page: 1,
     })
     setArea('')
+  }
+
+  function changePage(page: number) {
+    onSearchChange({
+      ...search,
+      page,
+    })
   }
 
   return (
@@ -186,11 +197,13 @@ export function Home({ search, onSearchChange }: HomeProps) {
           <FeedbackState title="Check your price range" description={searchError} />
         ) : null}
 
-        {!searchError && (campusQuery.isPending || discoveryQuery.isPending) ? (
+        {!searchError &&
+        !discoveryQuery.data &&
+        (campusQuery.isPending || discoveryQuery.isPending) ? (
           <DiscoverySkeletons />
         ) : null}
 
-        {!searchError && (campusQuery.isError || discoveryQuery.isError) ? (
+        {!searchError && hardError ? (
           <FeedbackState
             title="We could not load accommodation"
             description="Check your connection and try again."
@@ -202,7 +215,34 @@ export function Home({ search, onSearchChange }: HomeProps) {
           />
         ) : null}
 
-        <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-7">
+        {!searchError && discoveryQuery.isError && discoveryQuery.data ? (
+          <StatusLine
+            tone="warning"
+            actionLabel="Try again"
+            onAction={() => void discoveryQuery.refetch()}
+          >
+            Showing saved results because the latest update could not be loaded.
+          </StatusLine>
+        ) : null}
+
+        {!searchError &&
+        discoveryQuery.data &&
+        discoveryQuery.isFetching &&
+        !discoveryQuery.isError ? (
+          <StatusLine>
+            {discoveryQuery.isPlaceholderData
+              ? 'Loading the updated result set…'
+              : 'Checking for newer accommodation information…'}
+          </StatusLine>
+        ) : null}
+
+        <div
+          className={
+            searchError
+              ? 'hidden'
+              : 'lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-7'
+          }
+        >
           <aside className="border-border rounded-card sticky top-5 hidden border lg:block">
             <div className="border-border border-b px-5 py-4">
               <h3 className="font-display text-foreground text-base font-bold">Filters</h3>
@@ -231,10 +271,26 @@ export function Home({ search, onSearchChange }: HomeProps) {
 
             {discoveryQuery.isSuccess && discoveryQuery.data.results.length === 0 ? (
               <FeedbackState
-                title="No accommodation matches"
-                description="Try widening your price range, changing the area, or clearing a filter."
+                title={
+                  filterCount > 0 ? 'No accommodation matches' : 'No accommodation is available yet'
+                }
+                description={
+                  filterCount > 0
+                    ? 'Try widening your price range, changing the area, or clearing a filter.'
+                    : 'New FUTA inventory will appear here as agents make offers available.'
+                }
                 actionLabel={filterCount > 0 ? 'Clear filters' : undefined}
                 onAction={filterCount > 0 ? clearFilters : undefined}
+              />
+            ) : null}
+
+            {discoveryQuery.data && discoveryQuery.data.results.length > 0 ? (
+              <Pagination
+                currentPage={discoveryQuery.data.metadata.current_page}
+                lastPage={discoveryQuery.data.metadata.last_page}
+                pageSize={discoveryQuery.data.metadata.page_size}
+                totalRecords={discoveryQuery.data.metadata.total_records}
+                onPageChange={changePage}
               />
             ) : null}
           </div>

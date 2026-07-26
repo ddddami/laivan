@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
   createPublicApiClient,
@@ -35,6 +35,7 @@ export function discoveryQueryOptions(
   return queryOptions({
     queryKey: publicQueryKeys.discovery(normalizedParams),
     queryFn: () => client.discover(normalizedParams),
+    placeholderData: keepPreviousData,
   })
 }
 
