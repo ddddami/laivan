@@ -3,9 +3,9 @@ import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/rea
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { DiscoveryResponse, PropertyDetail } from '../api/client'
-import { publicApiClient } from '../api/queries'
-import { routeTree } from '../routeTree.gen'
+import type { DiscoveryResponse, PropertyDetail } from '../../api/client'
+import { publicApiClient } from '../../api/queries'
+import { routeTree } from '../../routeTree.gen'
 
 afterEach(() => vi.restoreAllMocks())
 
