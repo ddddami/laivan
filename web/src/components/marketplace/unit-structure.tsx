@@ -4,12 +4,12 @@ import type { UnitTypeDetail } from '../../api/client'
 import { ProductIcon } from '../ui/product-icon'
 import { bathroomLabel, kitchenLabel } from './labels'
 
-type UnitFactsProps = {
+type UnitStructureProps = {
   unit: UnitTypeDetail
 }
 
-export function UnitFacts({ unit }: UnitFactsProps) {
-  const facts = [
+export function UnitStructure({ unit }: UnitStructureProps) {
+  const structure = [
     {
       label: 'Bedrooms',
       value: unit.bedroom_count === null ? 'Unknown' : String(unit.bedroom_count),
@@ -34,15 +34,15 @@ export function UnitFacts({ unit }: UnitFactsProps) {
 
   return (
     <dl className="bg-surface rounded-card grid grid-cols-2 gap-3 p-4">
-      {facts.map((fact) => (
-        <div key={fact.label} className="flex min-w-0 items-center gap-2.5">
+      {structure.map((detail) => (
+        <div key={detail.label} className="flex min-w-0 items-center gap-2.5">
           <span className="bg-background text-muted rounded-control flex size-9 shrink-0 items-center justify-center">
-            <ProductIcon icon={fact.icon} size={16} />
+            <ProductIcon icon={detail.icon} size={16} />
           </span>
           <div className="min-w-0">
-            <dt className="font-body text-muted text-xs">{fact.label}</dt>
+            <dt className="font-body text-muted text-xs">{detail.label}</dt>
             <dd className="font-body text-foreground mt-0.5 truncate text-xs font-semibold capitalize">
-              {fact.value}
+              {detail.value}
             </dd>
           </div>
         </div>

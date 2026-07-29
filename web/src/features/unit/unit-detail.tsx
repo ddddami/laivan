@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { PropertyDetail, UnitTypeDetail } from '../../api/client'
 import { AgentOfferCard } from '../../components/marketplace/agent-offer-card'
 import { unitCategoryLabel } from '../../components/marketplace/labels'
-import { UnitFacts } from '../../components/marketplace/unit-facts'
+import { UnitStructure } from '../../components/marketplace/unit-structure'
 import { MediaPlaceholder } from '../../components/ui/media-placeholder'
 import { ResponsiveImage } from '../../components/ui/responsive-image'
 import { navigationEntryPoint } from '../discovery/navigation-state'
@@ -48,7 +48,7 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.2fr)] lg:items-start lg:gap-10">
         <div className="space-y-5 lg:sticky lg:top-5">
           <UnitGallery unitName={unit.name || category} images={images} />
-          <UnitFacts unit={unit} />
+          <UnitStructure unit={unit} />
 
           {unit.description || unit.notes ? (
             <section className="border-border border-t pt-5" aria-labelledby="unit-details-heading">
