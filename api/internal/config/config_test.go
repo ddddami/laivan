@@ -2,6 +2,7 @@ package config
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -238,6 +239,12 @@ func TestLoadAllowsProductionWithDatabaseURL(t *testing.T) {
 
 	t.Setenv("LAIVAN_ENV", EnvProduction)
 	t.Setenv("LAIVAN_DB_URL", "postgres://laivan:laivan@localhost:5432/laivan?sslmode=disable")
+	t.Setenv("LAIVAN_GOOGLE_CLIENT_ID", "client-id")
+	t.Setenv("LAIVAN_GOOGLE_CLIENT_SECRET", "client-secret")
+	t.Setenv("LAIVAN_GOOGLE_REDIRECT_URL", "https://api.example.test/v1/auth/google/callback")
+	t.Setenv("LAIVAN_WEB_ORIGIN", "https://app.example.test")
+	t.Setenv("LAIVAN_OIDC_STATE_SIGNING_KEY", strings.Repeat("a", 32))
+	t.Setenv("LAIVAN_SECURE_COOKIES", "true")
 
 	_, err := Load()
 	if err != nil {
@@ -369,6 +376,16 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "")
+	t.Setenv("LAIVAN_GOOGLE_CLIENT_ID", "")
+	t.Setenv("LAIVAN_GOOGLE_CLIENT_SECRET", "")
+	t.Setenv("LAIVAN_GOOGLE_REDIRECT_URL", "")
+	t.Setenv("LAIVAN_WEB_ORIGIN", "")
+	t.Setenv("LAIVAN_SESSION_COOKIE_NAME", "")
+	t.Setenv("LAIVAN_CSRF_COOKIE_NAME", "")
+	t.Setenv("LAIVAN_OIDC_STATE_SIGNING_KEY", "")
+	t.Setenv("LAIVAN_OIDC_STATE_DURATION", "")
+	t.Setenv("LAIVAN_SESSION_DURATION", "")
+	t.Setenv("LAIVAN_SECURE_COOKIES", "")
 	t.Setenv("LAIVAN_MEDIA_ENABLED", "")
 	t.Setenv("LAIVAN_S3_ENDPOINT", "")
 	t.Setenv("LAIVAN_S3_BUCKET", "")

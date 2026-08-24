@@ -57,7 +57,7 @@ func (app *app) routes() http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   app.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -69,6 +69,13 @@ func (app *app) routes() http.Handler {
 	r.Get("/docs", app.docs)
 	r.Get("/docs/", app.docs)
 	r.Get("/openapi.yaml", app.openapi)
+
+	r.Route("/v1/auth", func(r chi.Router) {
+		r.Get("/google/start", app.googleAuthStart)
+		r.Get("/google/callback", app.googleAuthCallback)
+		r.Get("/session", app.authSession)
+		r.Post("/logout", app.authLogout)
+	})
 
 	r.Get("/v1/campuses/{slug}", app.getCampusBySlug)
 

@@ -417,7 +417,17 @@ Detailed directions may happen later in the workflow.
 
 ---
 
-# User Roles
+# Identity And Sessions
+
+`User` is the application identity created from a verified external identity. The current provider is Google, but provider identity is stored separately from the user record so another provider can be introduced without changing the user model. A user has a normalized email, display name, account status, and timestamps.
+
+An `ExternalIdentity` is the pair of provider name and provider subject linked to one user. The pair is unique, and a user has at most one identity per provider in this slice.
+
+The API stores only hashes of opaque session and CSRF tokens. The browser keeps the session in an HttpOnly cookie and receives the CSRF token through the session endpoint and a non-HttpOnly cookie. A missing, expired, revoked, or suspended session is anonymous.
+
+Google sign-in does not automatically claim a legacy agent. Agent applications, explicit operator activation, and role scope are later identity workflows.
+
+## User Roles
 
 ## Student
 

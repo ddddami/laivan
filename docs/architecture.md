@@ -152,6 +152,18 @@ Not competing against world-class SEO systems initially. Competing against weak 
 
 ---
 
+# Identity And Sessions
+
+**Decision:** Use Google OpenID Connect for the initial sign-in flow and opaque, revocable browser sessions stored server-side.
+
+The auth service depends on a provider interface for authorization URLs, code exchange, and verified identity claims. The Google OIDC adapter is wired in `cmd/api`; the callback validates the provider-issued ID token, verified email, nonce, and PKCE exchange before upserting the application user. PostgreSQL stores provider/subject identities separately from users, and stores SHA-256 hashes of session and CSRF tokens, never usable browser tokens.
+
+The session endpoint is anonymous-safe and returns effective identity state without making public browsing depend on authentication. Logout requires the session, CSRF token, and configured same-origin request.
+
+Agent linkage, roles, and protected marketplace writes are separate delivery slices. A Google identity never claims a seeded agent automatically.
+
+---
+
 # Workflow Philosophy
 
 "Contact Agent" is too generic.

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -24,7 +25,29 @@ type Config struct {
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
+	Auth            AuthConfig
 	Media           MediaConfig
+}
+
+type AuthConfig struct {
+	GoogleClientID      string
+	GoogleClientSecret  string
+	GoogleRedirectURL   string
+	WebOrigin           string
+	SessionCookieName   string
+	CSRFCookieName      string
+	OIDCStateSigningKey string
+	OIDCStateDuration   time.Duration
+	SessionDuration     time.Duration
+	SecureCookies       bool
+}
+
+func (c AuthConfig) OIDCStateCookieName() string {
+	return "laivan_oidc_attempt"
+}
+
+func (c AuthConfig) IsConfigured() bool {
+	return c.GoogleClientID != ""
 }
 
 type MediaConfig struct {
@@ -56,6 +79,12 @@ func Load() (Config, error) {
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     time.Minute,
 		ShutdownTimeout: 10 * time.Second,
+		Auth: AuthConfig{
+			SessionCookieName: "laivan_session",
+			CSRFCookieName:    "laivan_csrf",
+			OIDCStateDuration: 10 * time.Minute,
+			SessionDuration:   30 * 24 * time.Hour,
+		},
 		Media: MediaConfig{
 			S3Region:       "us-east-1",
 			MaxUploadBytes: 10 << 20,
@@ -67,6 +96,13 @@ func Load() (Config, error) {
 	cfg.Env = stringEnv("LAIVAN_ENV", cfg.Env)
 	cfg.DatabaseURL = stringEnv("LAIVAN_DB_URL", cfg.DatabaseURL)
 	cfg.AllowedOrigins = stringsEnv("LAIVAN_ALLOWED_ORIGINS", []string{"http://localhost:5173"})
+	cfg.Auth.GoogleClientID = stringEnv("LAIVAN_GOOGLE_CLIENT_ID", cfg.Auth.GoogleClientID)
+	cfg.Auth.GoogleClientSecret = stringEnv("LAIVAN_GOOGLE_CLIENT_SECRET", cfg.Auth.GoogleClientSecret)
+	cfg.Auth.GoogleRedirectURL = stringEnv("LAIVAN_GOOGLE_REDIRECT_URL", cfg.Auth.GoogleRedirectURL)
+	cfg.Auth.WebOrigin = stringEnv("LAIVAN_WEB_ORIGIN", firstString(cfg.AllowedOrigins))
+	cfg.Auth.SessionCookieName = stringEnv("LAIVAN_SESSION_COOKIE_NAME", cfg.Auth.SessionCookieName)
+	cfg.Auth.CSRFCookieName = stringEnv("LAIVAN_CSRF_COOKIE_NAME", cfg.Auth.CSRFCookieName)
+	cfg.Auth.OIDCStateSigningKey = stringEnv("LAIVAN_OIDC_STATE_SIGNING_KEY", cfg.Auth.OIDCStateSigningKey)
 	cfg.Media.S3Endpoint = stringEnv("LAIVAN_S3_ENDPOINT", cfg.Media.S3Endpoint)
 	cfg.Media.S3Bucket = stringEnv("LAIVAN_S3_BUCKET", cfg.Media.S3Bucket)
 	cfg.Media.S3Region = stringEnv("LAIVAN_S3_REGION", cfg.Media.S3Region)
@@ -114,6 +150,21 @@ func Load() (Config, error) {
 	}
 
 	cfg.ShutdownTimeout, err = durationEnv("LAIVAN_SHUTDOWN_TIMEOUT", cfg.ShutdownTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Auth.OIDCStateDuration, err = durationEnv("LAIVAN_OIDC_STATE_DURATION", cfg.Auth.OIDCStateDuration)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Auth.SessionDuration, err = durationEnv("LAIVAN_SESSION_DURATION", cfg.Auth.SessionDuration)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Auth.SecureCookies, err = boolEnv("LAIVAN_SECURE_COOKIES", cfg.Auth.SecureCookies)
 	if err != nil {
 		return Config{}, err
 	}
@@ -166,6 +217,44 @@ func (c Config) Validate() error {
 
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("LAIVAN_SHUTDOWN_TIMEOUT must be greater than zero")
+	}
+
+	if c.Auth.SessionCookieName == "" {
+		return fmt.Errorf("LAIVAN_SESSION_COOKIE_NAME is required")
+	}
+	if c.Auth.CSRFCookieName == "" {
+		return fmt.Errorf("LAIVAN_CSRF_COOKIE_NAME is required")
+	}
+	if c.Auth.OIDCStateDuration <= 0 || c.Auth.OIDCStateDuration > 15*time.Minute {
+		return fmt.Errorf("LAIVAN_OIDC_STATE_DURATION must be greater than zero and no more than 15m")
+	}
+	if c.Auth.SessionDuration <= 0 || c.Auth.SessionDuration > 30*24*time.Hour {
+		return fmt.Errorf("LAIVAN_SESSION_DURATION must be greater than zero and no more than 720h")
+	}
+	if err := validateOrigin(c.Auth.WebOrigin, c.IsProduction()); err != nil {
+		return fmt.Errorf("LAIVAN_WEB_ORIGIN %w", err)
+	}
+
+	googleConfigured := c.Auth.GoogleClientID != "" ||
+		c.Auth.GoogleClientSecret != "" ||
+		c.Auth.GoogleRedirectURL != "" ||
+		c.Auth.OIDCStateSigningKey != ""
+	if googleConfigured || c.IsProduction() {
+		if c.Auth.GoogleClientID == "" {
+			return fmt.Errorf("LAIVAN_GOOGLE_CLIENT_ID is required when Google auth is configured")
+		}
+		if c.Auth.GoogleClientSecret == "" {
+			return fmt.Errorf("LAIVAN_GOOGLE_CLIENT_SECRET is required when Google auth is configured")
+		}
+		if err := validateRedirectURL(c.Auth.GoogleRedirectURL, c.IsProduction()); err != nil {
+			return fmt.Errorf("LAIVAN_GOOGLE_REDIRECT_URL %w", err)
+		}
+		if len(c.Auth.OIDCStateSigningKey) < 32 {
+			return fmt.Errorf("LAIVAN_OIDC_STATE_SIGNING_KEY must be at least 32 characters when Google auth is configured")
+		}
+	}
+	if c.IsProduction() && !c.Auth.SecureCookies {
+		return fmt.Errorf("LAIVAN_SECURE_COOKIES must be true in production")
 	}
 
 	if c.Media.MaxUploadBytes <= 0 {
@@ -312,4 +401,48 @@ func durationEnv(key string, fallback time.Duration) (time.Duration, error) {
 	}
 
 	return parsed, nil
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	return values[0]
+}
+
+func validateOrigin(value string, requireHTTPS bool) error {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("must be a valid HTTP(S) origin")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("must use HTTP or HTTPS")
+	}
+	if requireHTTPS && parsed.Scheme != "https" {
+		return fmt.Errorf("must use HTTPS outside local development")
+	}
+	if parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("must contain only scheme and host")
+	}
+
+	return nil
+}
+
+func validateRedirectURL(value string, requireHTTPS bool) error {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("must be a valid HTTP(S) redirect URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("must use HTTP or HTTPS")
+	}
+	if requireHTTPS && parsed.Scheme != "https" {
+		return fmt.Errorf("must use HTTPS outside local development")
+	}
+	if parsed.User != nil || parsed.Fragment != "" {
+		return fmt.Errorf("must not contain credentials or a fragment")
+	}
+
+	return nil
 }
