@@ -59,6 +59,10 @@ Discovery imagery prefers media attached to the selected accommodation type and
 falls back to property media. Do not promote an individual agent offer’s media onto
 an aggregated accommodation card.
 
+Unit detail imagery follows the same preference. When a unit has no unit-level
+photos, it may show clearly labelled property-context photos instead. This fallback
+must not imply that a property photo depicts the selected unit.
+
 Marketplace search uses the shareable `q` URL parameter for property names, areas,
 landmarks, and accommodation-type language. It composes with the explicit area,
 category, price, structure, and availability filters and resets pagination to the

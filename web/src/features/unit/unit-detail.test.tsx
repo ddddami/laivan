@@ -19,7 +19,23 @@ const property: PropertyDetail = {
   area: 'Obanla',
   landmark: 'Near South Gate',
   description: 'Building-level description must stay on the property page.',
-  media: [],
+  media: [
+    {
+      id: 'property-media-1',
+      property_id: 'property-1',
+      property_unit_type_id: null,
+      agent_offer_id: null,
+      uploaded_by_agent_id: 'agent-1',
+      url: 'https://media.example.test/property.jpg',
+      thumbnail_url: 'https://media.example.test/property-thumb.webp',
+      medium_url: 'https://media.example.test/property-medium.webp',
+      kind: 'image',
+      caption: 'Alice Lodge compound',
+      content_type: 'image/jpeg',
+      size_bytes: 2048,
+      created_at: '2026-05-01T10:00:00Z',
+    },
+  ],
   created_at: '2026-05-01T10:00:00Z',
   updated_at: '2026-05-02T10:00:00Z',
   unit_types: [
@@ -138,6 +154,14 @@ describe('UnitDetail', () => {
     expect(image).toHaveAttribute('src', 'https://media.example.test/unit-medium.webp')
   })
 
+  it('falls back to clearly labelled property media when the unit has no photos', async () => {
+    await renderUnitDetail(property.unit_types[1]!)
+
+    const image = screen.getByRole('img', { name: 'Alice Lodge compound' })
+    expect(image).toHaveAttribute('src', 'https://media.example.test/property-medium.webp')
+    expect(screen.getByText('Property context photos')).toBeInTheDocument()
+  })
+
   it('visually demotes paused offers while preserving factual comparison details', async () => {
     await renderUnitDetail()
 
@@ -183,12 +207,12 @@ describe('UnitDetail', () => {
   })
 })
 
-async function renderUnitDetail() {
+async function renderUnitDetail(unit = property.unit_types[0]!) {
   const rootRoute = createRootRoute({ component: Outlet })
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
-    component: () => <UnitDetail property={property} unit={property.unit_types[0]!} />,
+    component: () => <UnitDetail property={property} unit={unit} />,
   })
   const propertyRoute = createRoute({
     getParentRoute: () => rootRoute,

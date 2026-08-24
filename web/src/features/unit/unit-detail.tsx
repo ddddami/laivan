@@ -15,7 +15,10 @@ type UnitDetailProps = {
 
 export function UnitDetail({ property, unit }: UnitDetailProps) {
   const category = unitCategoryLabel(unit.category)
-  const images = unit.media.filter((media) => media.kind === 'image')
+  const unitImages = unit.media.filter((media) => media.kind === 'image')
+  const propertyImages = property.media.filter((media) => media.kind === 'image')
+  const images = unitImages.length > 0 ? unitImages : propertyImages
+  const usingPropertyFallback = unitImages.length === 0 && propertyImages.length > 0
   const offers = [...unit.agent_offers].sort((first, second) => {
     const statusDifference = offerStatusOrder(first.status) - offerStatusOrder(second.status)
     if (statusDifference !== 0) return statusDifference
@@ -47,7 +50,12 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.2fr)] lg:items-start lg:gap-10">
         <div className="space-y-5 lg:sticky lg:top-5">
-          <UnitGallery unitName={unit.name || category} images={images} />
+          <UnitGallery
+            propertyName={property.name}
+            unitName={unit.name || category}
+            images={images}
+            usingPropertyFallback={usingPropertyFallback}
+          />
           <UnitStructure unit={unit} />
 
           {unit.description || unit.notes ? (
@@ -114,11 +122,13 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
 }
 
 type UnitGalleryProps = {
+  propertyName: string
   unitName: string
   images: UnitTypeDetail['media']
+  usingPropertyFallback: boolean
 }
 
-function UnitGallery({ unitName, images }: UnitGalleryProps) {
+function UnitGallery({ propertyName, unitName, images, usingPropertyFallback }: UnitGalleryProps) {
   if (images.length === 0) {
     return (
       <MediaPlaceholder
@@ -130,7 +140,17 @@ function UnitGallery({ unitName, images }: UnitGalleryProps) {
 
   const [hero, ...additional] = images
   return (
-    <section aria-label={`${unitName} unit photos`}>
+    <section
+      aria-label={`${unitName} ${usingPropertyFallback ? 'property context' : 'unit'} photos`}
+    >
+      {usingPropertyFallback ? (
+        <>
+          <p className="section-label">Property context photos</p>
+          <p className="font-body text-muted mt-1 text-xs leading-5">
+            These show {propertyName}; unit-specific photos are not available yet.
+          </p>
+        </>
+      ) : null}
       <ResponsiveImage
         src={hero?.medium_url}
         alt={hero?.caption || `${unitName} unit`}
