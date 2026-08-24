@@ -9,6 +9,18 @@ type Agent struct {
 	Timestamps
 }
 
+type AgentStatus string
+
+const (
+	AgentStatusActive    AgentStatus = "active"
+	AgentStatusSuspended AgentStatus = "suspended"
+)
+
+type LinkedAgent struct {
+	ID     ID
+	Status AgentStatus
+}
+
 type AgentSummary struct {
 	ID          ID
 	DisplayName string

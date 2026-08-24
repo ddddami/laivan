@@ -15,6 +15,23 @@ type Agent struct {
 	WhatsappNumber pgtype.Text
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	UserID         pgtype.UUID
+	Status         string
+}
+
+type AgentApplication struct {
+	ID              pgtype.UUID
+	ApplicantUserID pgtype.UUID
+	CampusID        pgtype.UUID
+	Name            string
+	PhoneNumber     string
+	Status          string
+	ReviewerUserID  pgtype.UUID
+	AgentID         pgtype.UUID
+	OperatorNote    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	DecidedAt       pgtype.Timestamptz
 }
 
 type AgentOffer struct {
@@ -30,6 +47,22 @@ type AgentOffer struct {
 	Notes              pgtype.Text
 }
 
+type AuditEvent struct {
+	ID           pgtype.UUID
+	ActorUserID  pgtype.UUID
+	Action       string
+	ResourceType string
+	ResourceID   pgtype.UUID
+	Metadata     []byte
+	CreatedAt    pgtype.Timestamptz
+}
+
+type CampusOperator struct {
+	UserID    pgtype.UUID
+	CampusID  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type Campuse struct {
 	ID        pgtype.UUID
 	Slug      string
@@ -38,6 +71,11 @@ type Campuse struct {
 	IsActive  bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type GlobalAdminRole struct {
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 type Medium struct {

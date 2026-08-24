@@ -36,3 +36,36 @@ type Session struct {
 	RevokedAt     *time.Time
 	LastUsedAt    *time.Time
 }
+
+type EffectiveAccess struct {
+	Roles             []string
+	Agent             *LinkedAgent
+	CampusOperatorIDs []ID
+	GlobalAdmin       bool
+}
+
+type AgentApplicationStatus string
+
+const (
+	AgentApplicationStatusPending   AgentApplicationStatus = "pending"
+	AgentApplicationStatusActive    AgentApplicationStatus = "active"
+	AgentApplicationStatusDeclined  AgentApplicationStatus = "declined"
+	AgentApplicationStatusSuspended AgentApplicationStatus = "suspended"
+)
+
+type AgentApplication struct {
+	ID                   ID
+	ApplicantUserID      ID
+	ApplicantEmail       string
+	ApplicantDisplayName string
+	CampusID             ID
+	Name                 string
+	PhoneNumber          string
+	Status               AgentApplicationStatus
+	ReviewerUserID       *ID
+	AgentID              *ID
+	OperatorNote         string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	DecidedAt            *time.Time
+}
