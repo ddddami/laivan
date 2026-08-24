@@ -110,8 +110,8 @@ describe('PropertyDetail', () => {
     expect(screen.getByText('Price unavailable')).toBeInTheDocument()
   })
 
-  it('does not repeat property media in unit cards without unit photos', async () => {
-    const propertyWithMedia: PropertyDetailData = {
+  it('keeps unit-card media specific to each accommodation type', async () => {
+    const propertyWithMixedMedia: PropertyDetailData = {
       ...property,
       media: [
         {
@@ -130,12 +130,35 @@ describe('PropertyDetail', () => {
           created_at: '2026-05-01T10:00:00Z',
         },
       ],
+      unit_types: [
+        {
+          ...property.unit_types[0],
+          media: [
+            {
+              id: 'unit-media-1',
+              property_id: null,
+              property_unit_type_id: property.unit_types[0].id,
+              agent_offer_id: null,
+              uploaded_by_agent_id: '550e8400-e29b-41d4-a716-446655440040',
+              url: 'https://media.example.test/unit.jpg',
+              thumbnail_url: 'https://media.example.test/unit-thumb.webp',
+              medium_url: 'https://media.example.test/unit-medium.webp',
+              kind: 'image',
+              caption: 'Premium self-contained interior',
+              content_type: 'image/jpeg',
+              size_bytes: 2048,
+              created_at: '2026-05-01T10:00:00Z',
+            },
+          ],
+        },
+        property.unit_types[1],
+      ],
     }
     const rootRoute = createRootRoute({ component: Outlet })
     const indexRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: '/',
-      component: () => <PropertyDetail property={propertyWithMedia} />,
+      component: () => <PropertyDetail property={propertyWithMixedMedia} />,
     })
     const unitRoute = createRoute({
       getParentRoute: () => rootRoute,
@@ -150,7 +173,9 @@ describe('PropertyDetail', () => {
     await router.load()
     render(<RouterProvider router={router} />)
 
-    expect(screen.getAllByRole('img', { name: 'Unit photos not available' })).toHaveLength(2)
-    expect(screen.queryByText('Property photo')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Premium self-contained at this property' }),
+    ).toHaveAttribute('src', 'https://media.example.test/unit-thumb.webp')
+    expect(screen.getByRole('img', { name: 'Unit photos not available' })).toBeInTheDocument()
   })
 })

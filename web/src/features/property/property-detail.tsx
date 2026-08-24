@@ -43,11 +43,7 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
         {property.unit_types.length > 0 ? (
           <div className="space-y-3">
             {property.unit_types.map((unit) => (
-              <UnitTypeCard
-                key={unit.id}
-                propertyId={property.id}
-                unit={unit}
-              />
+              <UnitTypeCard key={unit.id} propertyId={property.id} unit={unit} />
             ))}
           </div>
         ) : (
