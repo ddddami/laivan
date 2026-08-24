@@ -242,9 +242,9 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 			ID        string `json:"id"`
 			Name      string `json:"name"`
 			UnitTypes []struct {
-				ID          string `json:"id"`
-				Name        string `json:"name"`
-				Media       []struct {
+				ID    string `json:"id"`
+				Name  string `json:"name"`
+				Media []struct {
 					URL     string `json:"url"`
 					Caption string `json:"caption"`
 				} `json:"media"`
