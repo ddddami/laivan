@@ -53,6 +53,9 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.Media.Enabled {
 		t.Fatal("Media.Enabled = true, want false")
 	}
+	if cfg.Auth.GoogleAuthEnabled {
+		t.Fatal("Auth.GoogleAuthEnabled = true, want false")
+	}
 
 	if cfg.Media.S3Region != "us-east-1" {
 		t.Fatalf("Media.S3Region = %q, want us-east-1", cfg.Media.S3Region)
@@ -75,6 +78,7 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "4s")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "5s")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "http://localhost:5173, http://localhost:4173")
+	t.Setenv("LAIVAN_GOOGLE_AUTH_ENABLED", "false")
 	t.Setenv("LAIVAN_MEDIA_ENABLED", "true")
 	t.Setenv("LAIVAN_S3_ENDPOINT", "http://localhost:9000")
 	t.Setenv("LAIVAN_S3_BUCKET", "laivan-dev")
@@ -164,7 +168,7 @@ func TestLoadRejectsEnabledMediaWithoutRequiredConfig(t *testing.T) {
 }
 
 func TestLoadRejectsInvalidMediaBooleans(t *testing.T) {
-	tests := []string{"LAIVAN_MEDIA_ENABLED", "LAIVAN_S3_USE_SSL"}
+	tests := []string{"LAIVAN_GOOGLE_AUTH_ENABLED", "LAIVAN_MEDIA_ENABLED", "LAIVAN_S3_USE_SSL"}
 
 	for _, key := range tests {
 		t.Run(key, func(t *testing.T) {
@@ -239,6 +243,7 @@ func TestLoadAllowsProductionWithDatabaseURL(t *testing.T) {
 
 	t.Setenv("LAIVAN_ENV", EnvProduction)
 	t.Setenv("LAIVAN_DB_URL", "postgres://laivan:laivan@localhost:5432/laivan?sslmode=disable")
+	t.Setenv("LAIVAN_GOOGLE_AUTH_ENABLED", "true")
 	t.Setenv("LAIVAN_GOOGLE_CLIENT_ID", "client-id")
 	t.Setenv("LAIVAN_GOOGLE_CLIENT_SECRET", "client-secret")
 	t.Setenv("LAIVAN_GOOGLE_REDIRECT_URL", "https://api.example.test/v1/auth/google/callback")
@@ -249,6 +254,16 @@ func TestLoadAllowsProductionWithDatabaseURL(t *testing.T) {
 	_, err := Load()
 	if err != nil {
 		t.Fatalf("Load returned error: %v", err)
+	}
+}
+
+func TestLoadRejectsGoogleValuesWhenAuthIsDisabled(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("LAIVAN_GOOGLE_CLIENT_ID", "client-id")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load returned nil error")
 	}
 }
 
@@ -376,6 +391,7 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "")
+	t.Setenv("LAIVAN_GOOGLE_AUTH_ENABLED", "")
 	t.Setenv("LAIVAN_GOOGLE_CLIENT_ID", "")
 	t.Setenv("LAIVAN_GOOGLE_CLIENT_SECRET", "")
 	t.Setenv("LAIVAN_GOOGLE_REDIRECT_URL", "")

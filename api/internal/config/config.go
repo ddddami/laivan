@@ -30,6 +30,7 @@ type Config struct {
 }
 
 type AuthConfig struct {
+	GoogleAuthEnabled   bool
 	GoogleClientID      string
 	GoogleClientSecret  string
 	GoogleRedirectURL   string
@@ -47,7 +48,7 @@ func (c AuthConfig) OIDCStateCookieName() string {
 }
 
 func (c AuthConfig) IsConfigured() bool {
-	return c.GoogleClientID != ""
+	return c.GoogleAuthEnabled
 }
 
 type MediaConfig struct {
@@ -96,6 +97,10 @@ func Load() (Config, error) {
 	cfg.Env = stringEnv("LAIVAN_ENV", cfg.Env)
 	cfg.DatabaseURL = stringEnv("LAIVAN_DB_URL", cfg.DatabaseURL)
 	cfg.AllowedOrigins = stringsEnv("LAIVAN_ALLOWED_ORIGINS", []string{"http://localhost:5173"})
+	cfg.Auth.GoogleAuthEnabled, err = boolEnv("LAIVAN_GOOGLE_AUTH_ENABLED", cfg.Auth.GoogleAuthEnabled)
+	if err != nil {
+		return Config{}, err
+	}
 	cfg.Auth.GoogleClientID = stringEnv("LAIVAN_GOOGLE_CLIENT_ID", cfg.Auth.GoogleClientID)
 	cfg.Auth.GoogleClientSecret = stringEnv("LAIVAN_GOOGLE_CLIENT_SECRET", cfg.Auth.GoogleClientSecret)
 	cfg.Auth.GoogleRedirectURL = stringEnv("LAIVAN_GOOGLE_REDIRECT_URL", cfg.Auth.GoogleRedirectURL)
@@ -235,11 +240,17 @@ func (c Config) Validate() error {
 		return fmt.Errorf("LAIVAN_WEB_ORIGIN %w", err)
 	}
 
-	googleConfigured := c.Auth.GoogleClientID != "" ||
+	googleValuesProvided := c.Auth.GoogleClientID != "" ||
 		c.Auth.GoogleClientSecret != "" ||
 		c.Auth.GoogleRedirectURL != "" ||
 		c.Auth.OIDCStateSigningKey != ""
-	if googleConfigured || c.IsProduction() {
+	if !c.Auth.GoogleAuthEnabled && googleValuesProvided {
+		return fmt.Errorf("google auth values require LAIVAN_GOOGLE_AUTH_ENABLED=true")
+	}
+	if c.IsProduction() && !c.Auth.GoogleAuthEnabled {
+		return fmt.Errorf("LAIVAN_GOOGLE_AUTH_ENABLED must be true in production")
+	}
+	if c.Auth.GoogleAuthEnabled {
 		if c.Auth.GoogleClientID == "" {
 			return fmt.Errorf("LAIVAN_GOOGLE_CLIENT_ID is required when Google auth is configured")
 		}
