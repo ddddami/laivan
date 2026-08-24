@@ -30,6 +30,7 @@ const result: DiscoveryResult = {
   pricing: { lowest_price_naira: 350_000 },
   offer_summary: { available_offer_count: 2 },
   thumbnail_url: null,
+  thumbnail_source: 'none',
   created_at: '2026-05-01T10:00:00Z',
   updated_at: '2026-05-02T10:00:00Z',
 }
@@ -68,6 +69,38 @@ describe('DiscoveryCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
       '/properties/550e8400-e29b-41d4-a716-446655440010/unit-types/550e8400-e29b-41d4-a716-446655440020',
+    )
+  })
+
+  it('labels a property image used as contextual accommodation media', async () => {
+    const propertyMediaResult: DiscoveryResult = {
+      ...result,
+      thumbnail_url: 'https://media.example.test/property-thumb.webp',
+      thumbnail_source: 'property',
+    }
+    const rootRoute = createRootRoute({ component: Outlet })
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/',
+      component: () => <DiscoveryCard result={propertyMediaResult} />,
+    })
+    const unitRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/properties/$propertyId/unit-types/$unitTypeId',
+      component: () => null,
+    })
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute, unitRoute]),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    })
+
+    await router.load()
+    render(<RouterProvider router={router} />)
+
+    expect(screen.getByText('Property context photo')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Self-contained at Alice Lodge' })).toHaveAttribute(
+      'src',
+      'https://media.example.test/property-thumb.webp',
     )
   })
 

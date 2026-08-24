@@ -1,8 +1,7 @@
 import type { PropertyDetail as PropertyDetailData } from '../../api/client'
+import { MediaGallery } from '../../components/marketplace/media-gallery'
 import { PropertySummary } from '../../components/marketplace/property-summary'
 import { UnitTypeCard } from '../../components/marketplace/unit-type-card'
-import { MediaPlaceholder } from '../../components/ui/media-placeholder'
-import { ResponsiveImage } from '../../components/ui/responsive-image'
 
 type PropertyDetailProps = {
   property: PropertyDetailData
@@ -14,7 +13,14 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
   return (
     <article className="grid gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)] lg:gap-10">
       <div className="min-w-0">
-        <PropertyGallery propertyName={property.name} media={propertyImages} />
+        <MediaGallery
+          media={propertyImages}
+          emptyLabel={`No property photos available for ${property.name}`}
+          ariaLabel={`${property.name} property photos`}
+          altFallback={`${property.name} property`}
+          heroSizes="(max-width: 1023px) 100vw, 55vw"
+          thumbnailSizes="180px"
+        />
         <div className="mt-6">
           <PropertySummary property={property} />
         </div>
@@ -37,7 +43,11 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
         {property.unit_types.length > 0 ? (
           <div className="space-y-3">
             {property.unit_types.map((unit) => (
-              <UnitTypeCard key={unit.id} propertyId={property.id} unit={unit} />
+              <UnitTypeCard
+                key={unit.id}
+                propertyId={property.id}
+                unit={unit}
+              />
             ))}
           </div>
         ) : (
@@ -52,47 +62,5 @@ export function PropertyDetail({ property }: PropertyDetailProps) {
         )}
       </section>
     </article>
-  )
-}
-
-type PropertyGalleryProps = {
-  propertyName: string
-  media: PropertyDetailData['media']
-}
-
-function PropertyGallery({ propertyName, media }: PropertyGalleryProps) {
-  if (media.length === 0) {
-    return (
-      <MediaPlaceholder
-        label={`No property photos available for ${propertyName}`}
-        className="rounded-media aspect-[4/3]"
-      />
-    )
-  }
-
-  const [hero, ...additional] = media
-  return (
-    <section aria-label={`${propertyName} property photos`}>
-      <ResponsiveImage
-        src={hero?.medium_url}
-        alt={hero?.caption || `${propertyName} property`}
-        loading="eager"
-        className="bg-surface-strong rounded-media aspect-[4/3] w-full object-cover"
-        sizes="(max-width: 1023px) 100vw, 55vw"
-      />
-      {additional.length > 0 ? (
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {additional.slice(0, 3).map((mediaItem) => (
-            <ResponsiveImage
-              key={mediaItem.id}
-              src={mediaItem.thumbnail_url}
-              alt={mediaItem.caption || `${propertyName} property`}
-              className="bg-surface-strong rounded-control aspect-[4/3] w-full object-cover"
-              sizes="180px"
-            />
-          ))}
-        </div>
-      ) : null}
-    </section>
   )
 }

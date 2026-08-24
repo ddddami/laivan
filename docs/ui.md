@@ -53,7 +53,7 @@ context and the competing agent offers as market options. A discovery card opens
 that accommodation type directly; the property remains available through its
 context link.
 
-Property facts and property media stay at the property layer. Structural facts, notes, and unit media stay at the unit layer. Agent title, description, operational notes, price, status, media, identity, and update time stay at the offer layer.
+Property facts and property media stay at the property layer. Structural facts, notes, and unit media stay at the unit layer. Unit media represents examples for that accommodation type, not a guarantee about one exact physical room. Agent title, description, operational notes, price, status, media, identity, and update time stay at the offer layer.
 
 Discovery imagery prefers media attached to the selected accommodation type and
 falls back to property media. Do not promote an individual agent offer’s media onto
@@ -62,6 +62,11 @@ an aggregated accommodation card.
 Unit detail imagery follows the same preference. When a unit has no unit-level
 photos, it may show clearly labelled property-context photos instead. This fallback
 must not imply that a property photo depicts the selected unit.
+
+Offer media remains attached to its offer. It must not become the shared unit or
+property gallery simply because property and unit media are unavailable. Different
+agents may show different rooms or views, so offer photos stay beside the offer that
+submitted them.
 
 Marketplace search uses the shareable `q` URL parameter for property names, areas,
 landmarks, and accommodation-type language. It composes with the explicit area,
