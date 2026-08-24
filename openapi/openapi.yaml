@@ -91,12 +91,12 @@ paths:
       parameters:
         - name: code
           in: query
-          required: false
+          required: true
           schema:
             type: string
         - name: state
           in: query
-          required: false
+          required: true
           schema:
             type: string
       responses:

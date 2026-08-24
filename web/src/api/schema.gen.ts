@@ -911,9 +911,9 @@ export interface operations {
     };
     readonly completeGoogleAuth: {
         readonly parameters: {
-            readonly query?: {
-                readonly code?: string;
-                readonly state?: string;
+            readonly query: {
+                readonly code: string;
+                readonly state: string;
             };
             readonly header?: never;
             readonly path?: never;
