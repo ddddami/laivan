@@ -77,6 +77,19 @@ func (app *app) routes() http.Handler {
 		r.Post("/logout", app.authLogout)
 	})
 
+	r.Route("/v1/agent-applications", func(r chi.Router) {
+		r.Use(app.requireAuthenticatedUser, app.requireCSRF)
+		r.Post("/", app.createAgentApplication)
+		r.Get("/", app.listAgentApplications)
+	})
+
+	r.Route("/v1/operator/agent-applications", func(r chi.Router) {
+		r.Use(app.requireAuthenticatedUser, app.requireCampusOperator, app.requireCSRF)
+		r.Get("/", app.listOperatorAgentApplications)
+		r.Post("/{id}/activate", app.activateAgentApplication)
+		r.Post("/{id}/decline", app.declineAgentApplication)
+	})
+
 	r.Get("/v1/campuses/{slug}", app.getCampusBySlug)
 
 	r.Route("/v1/properties", func(r chi.Router) {

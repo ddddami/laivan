@@ -89,11 +89,27 @@ func (app *app) authSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app.setCSRFCookie(w, result.CSRFToken)
+	roles := []string{}
+	var agent any
+	if app.applications != nil {
+		access, err := app.applications.GetEffectiveAccess(r.Context(), result.User.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+		roles = access.Roles
+		if access.Agent != nil {
+			agent = map[string]any{
+				"id":     string(access.Agent.ID),
+				"status": string(access.Agent.Status),
+			}
+		}
+	}
 	data := envelope{
 		"authenticated": true,
 		"user":          userResponse(result.User),
-		"roles":         []string{},
-		"agent":         nil,
+		"roles":         roles,
+		"agent":         agent,
 		"csrf_token":    result.CSRFToken,
 	}
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {

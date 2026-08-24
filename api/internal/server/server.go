@@ -21,11 +21,21 @@ type app struct {
 	mediaUploader storage.ObjectStore
 	mediaURLs     MediaURLBuilder
 	auth          *auth.Service
+	applications  AgentApplicationStore
 }
 
 type MediaURLBuilder interface {
 	ThumbnailURL(sourceURL string) string
 	MediumURL(sourceURL string) string
+}
+
+type AgentApplicationStore interface {
+	GetEffectiveAccess(ctx context.Context, userID domain.ID) (domain.EffectiveAccess, error)
+	CreateApplication(ctx context.Context, application domain.AgentApplication) (domain.AgentApplication, error)
+	ListApplications(ctx context.Context, applicantID domain.ID) ([]domain.AgentApplication, error)
+	ListOperatorApplications(ctx context.Context, operatorID, campusID domain.ID, status domain.AgentApplicationStatus) ([]domain.AgentApplication, error)
+	ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, legacyAgentID *domain.ID, operatorNote string) (domain.AgentApplication, error)
+	DeclineApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error)
 }
 
 // NOTE: This repository boundary is intentionally consolidated for now.
@@ -48,7 +58,7 @@ type PropertyStore interface {
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore) *http.Server {
 	app := &app{
 		cfg:           cfg,
 		logger:        logger,
@@ -57,6 +67,7 @@ func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo Pr
 		mediaUploader: mediaUploader,
 		mediaURLs:     mediaURLs,
 		auth:          authService,
+		applications:  applications,
 	}
 
 	return &http.Server{

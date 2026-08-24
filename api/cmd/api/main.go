@@ -44,6 +44,7 @@ func main() {
 	logger.Info("database connection pool ready")
 	propertyRepo := repo.NewPropertyRepository(pool)
 	identityRepo := repo.NewIdentityRepository(pool)
+	applicationRepo := repo.NewAgentApplicationRepository(pool)
 	authService, err := newAuthService(cfg, identityRepo)
 	if err != nil {
 		logger.Error("create auth service", "error", err)
@@ -64,7 +65,7 @@ func main() {
 		mediaURLs = urlBuilder
 	}
 
-	srv := server.New(cfg, logger, version, propertyRepo, mediaUploader, mediaURLs, authService)
+	srv := server.New(cfg, logger, version, propertyRepo, mediaUploader, mediaURLs, authService, applicationRepo)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 
