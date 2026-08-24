@@ -37,6 +37,7 @@ func TestDiscoveryReturnsResults(t *testing.T) {
 			OfferSummary struct {
 				AvailableOfferCount int `json:"available_offer_count"`
 			} `json:"offer_summary"`
+			ThumbnailSource string `json:"thumbnail_source"`
 		} `json:"results"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
@@ -60,6 +61,9 @@ func TestDiscoveryReturnsResults(t *testing.T) {
 	}
 	if body.Results[0].OfferSummary.AvailableOfferCount != 2 {
 		t.Fatalf("available_offer_count = %d, want 2", body.Results[0].OfferSummary.AvailableOfferCount)
+	}
+	if body.Results[0].ThumbnailSource != "unit_type" {
+		t.Fatalf("thumbnail_source = %q, want unit_type", body.Results[0].ThumbnailSource)
 	}
 }
 

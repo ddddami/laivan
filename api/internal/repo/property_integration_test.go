@@ -997,12 +997,18 @@ func TestRepositoryDiscover(t *testing.T) {
 				result.ThumbnailURL,
 			)
 		}
+		if result.UnitTypeID == aliceSelfCon && result.ThumbnailSource != domain.DiscoveryThumbnailSourceUnitType {
+			t.Fatalf("Alice self-contained thumbnail source = %q, want unit_type", result.ThumbnailSource)
+		}
 		if result.UnitTypeID == aliceSingle &&
 			result.ThumbnailURL != "https://media.example.test/alice-property.jpg" {
 			t.Fatalf(
 				"Alice single-room thumbnail = %q, want property fallback",
 				result.ThumbnailURL,
 			)
+		}
+		if result.UnitTypeID == aliceSingle && result.ThumbnailSource != domain.DiscoveryThumbnailSourceProperty {
+			t.Fatalf("Alice single-room thumbnail source = %q, want property", result.ThumbnailSource)
 		}
 	}
 

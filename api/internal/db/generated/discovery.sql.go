@@ -43,6 +43,26 @@ WITH opportunities AS (
         m.id
       LIMIT 1
     ) AS thumbnail_url,
+    COALESCE(
+      (
+        SELECT CASE
+          WHEN m.property_unit_type_id = put.id THEN 'unit_type'
+          ELSE 'property'
+        END::text
+        FROM media m
+        WHERE m.kind = 'image'
+          AND (
+            m.property_id = p.id
+            OR m.property_unit_type_id = put.id
+          )
+        ORDER BY
+          CASE WHEN m.property_unit_type_id = put.id THEN 0 ELSE 1 END,
+          m.created_at,
+          m.id
+        LIMIT 1
+      ),
+      'none'::text
+    ) AS thumbnail_source,
     p.created_at,
     GREATEST(
       p.updated_at,
@@ -98,7 +118,7 @@ WITH opportunities AS (
   GROUP BY p.id, put.id
 ),
 filtered AS (
-  SELECT property_id, property_name, property_area, property_landmark, unit_type_id, category, unit_type_name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, lowest_price_kobo, available_offer_count, thumbnail_url, created_at, updated_at, completeness_score
+  SELECT property_id, property_name, property_area, property_landmark, unit_type_id, category, unit_type_name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, lowest_price_kobo, available_offer_count, thumbnail_url, thumbnail_source, created_at, updated_at, completeness_score
   FROM opportunities
   WHERE (
       $12::text = 'all'
@@ -130,6 +150,7 @@ SELECT
   COALESCE(lowest_price_kobo, 0)::integer AS lowest_price_kobo,
   available_offer_count,
   COALESCE(thumbnail_url, '')::text AS thumbnail_url,
+  thumbnail_source::text AS thumbnail_source,
   created_at,
   updated_at::timestamptz AS updated_at,
   COUNT(*) OVER() AS total_count
@@ -185,6 +206,7 @@ type DiscoverPropertiesRow struct {
 	LowestPriceKobo     int
 	AvailableOfferCount int
 	ThumbnailUrl        string
+	ThumbnailSource     string
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	TotalCount          int64
@@ -233,6 +255,7 @@ func (q *Queries) DiscoverProperties(ctx context.Context, arg DiscoverProperties
 			&i.LowestPriceKobo,
 			&i.AvailableOfferCount,
 			&i.ThumbnailUrl,
+			&i.ThumbnailSource,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TotalCount,

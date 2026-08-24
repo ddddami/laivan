@@ -80,15 +80,15 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 					},
 				},
 				Media: []domain.Media{{
-					ID:                domain.ID("550e8400-e29b-41d4-a716-446655440060"),
+					ID:                 domain.ID("550e8400-e29b-41d4-a716-446655440060"),
 					PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
 					UploadedByAgentID:  domain.ID("550e8400-e29b-41d4-a716-446655440040"),
-					URL:               "https://media.example.test/unit.jpg",
-					Kind:              domain.MediaKindImage,
-					Caption:           "Unit media",
-					ContentType:       "image/jpeg",
-					SizeBytes:         1024,
-					CreatedAt:         time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+					URL:                "https://media.example.test/unit.jpg",
+					Kind:               domain.MediaKindImage,
+					Caption:            "Unit media",
+					ContentType:        "image/jpeg",
+					SizeBytes:          1024,
+					CreatedAt:          time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				}},
 				AgentOffers: []domain.AgentOfferDetail{
 					{
@@ -164,6 +164,7 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 		},
 		LowestPrice:         domain.Money{AmountKobo: 35000000},
 		AvailableOfferCount: 2,
+		ThumbnailSource:     domain.DiscoveryThumbnailSourceUnitType,
 		CreatedAt:           time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 		UpdatedAt:           time.Date(2026, time.May, 2, 10, 0, 0, 0, time.UTC),
 	}
@@ -176,6 +177,7 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 		blueRoof.UnitTypeCategory = domain.UnitCategorySingleRoom
 		blueRoof.UnitTypeName = "Single room"
 		blueRoof.LowestPrice = domain.Money{AmountKobo: 30000000}
+		blueRoof.ThumbnailSource = domain.DiscoveryThumbnailSourceUnitType
 		results = append(results, blueRoof)
 	}
 	if filter.Availability != repo.DiscoveryAvailabilityAvailable {
@@ -193,8 +195,9 @@ func (s *stubPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFi
 				BathroomType: "shared",
 				KitchenType:  "shared",
 			},
-			CreatedAt: time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
-			UpdatedAt: time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
+			CreatedAt:       time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
+			UpdatedAt:       time.Date(2026, time.April, 30, 10, 0, 0, 0, time.UTC),
+			ThumbnailSource: domain.DiscoveryThumbnailSourceProperty,
 		}
 		results = append(results, unavailable)
 	}

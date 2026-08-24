@@ -30,6 +30,26 @@ WITH opportunities AS (
         m.id
       LIMIT 1
     ) AS thumbnail_url,
+    COALESCE(
+      (
+        SELECT CASE
+          WHEN m.property_unit_type_id = put.id THEN 'unit_type'
+          ELSE 'property'
+        END::text
+        FROM media m
+        WHERE m.kind = 'image'
+          AND (
+            m.property_id = p.id
+            OR m.property_unit_type_id = put.id
+          )
+        ORDER BY
+          CASE WHEN m.property_unit_type_id = put.id THEN 0 ELSE 1 END,
+          m.created_at,
+          m.id
+        LIMIT 1
+      ),
+      'none'::text
+    ) AS thumbnail_source,
     p.created_at,
     GREATEST(
       p.updated_at,
@@ -117,6 +137,7 @@ SELECT
   COALESCE(lowest_price_kobo, 0)::integer AS lowest_price_kobo,
   available_offer_count,
   COALESCE(thumbnail_url, '')::text AS thumbnail_url,
+  thumbnail_source::text AS thumbnail_source,
   created_at,
   updated_at::timestamptz AS updated_at,
   COUNT(*) OVER() AS total_count
