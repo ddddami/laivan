@@ -427,6 +427,16 @@ The API stores only hashes of opaque session and CSRF tokens. The browser keeps 
 
 Google sign-in does not automatically claim a legacy agent. Agent applications, explicit operator activation, and role scope are later identity workflows.
 
+## Agent Applications And Ownership
+
+An `AgentApplication` records a signed-in user's request to participate as an agent for one campus. The submitted name and normalized Nigerian phone number are application data until an operator decides the application. A user may have one pending application per campus.
+
+Activation has two explicit paths. The operator can create a new active agent linked to the applicant, or provide a selected legacy agent ID to link an existing active agent. Phone-number matches are review signals only; they never claim or link a legacy agent automatically. A legacy link does not overwrite the legacy agent's public fields.
+
+Applications move through `pending`, `active`, `declined`, or `suspended` lifecycle states. Activation, explicit legacy linking, and decline are audited with the operator as actor and are committed transactionally with the application transition.
+
+Effective access is derived from explicit global-admin roles, campus-operator assignments, and a linked agent profile. A linked agent's `active` or `suspended` status is returned separately from the role so callers do not mistake linkage for write permission.
+
 ## User Roles
 
 ## Student

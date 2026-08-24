@@ -162,6 +162,8 @@ The session endpoint is anonymous-safe and returns effective identity state with
 
 Agent linkage, roles, and protected marketplace writes are separate delivery slices. A Google identity never claims a seeded agent automatically.
 
+The first ownership slice stores `agents.user_id` and agent lifecycle status, explicit global-admin and campus-operator assignments, campus-scoped agent applications, and audit events. Application decisions live in a small repository workflow so operator scope, agent creation or explicit legacy linking, application state changes, and audit writes share one PostgreSQL transaction. Existing agent public fields are not overwritten during a legacy link, and phone conflicts remain review errors rather than automatic matches.
+
 ---
 
 # Workflow Philosophy

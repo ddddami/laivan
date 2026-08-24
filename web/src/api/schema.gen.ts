@@ -98,6 +98,81 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/agent-applications": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List the authenticated user's agent applications. */
+        readonly get: operations["listAgentApplications"];
+        readonly put?: never;
+        /**
+         * Submit an agent application.
+         * @description Submits a campus-scoped application using the authenticated user as the applicant.
+         */
+        readonly post: operations["submitAgentApplication"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/agent-applications": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List agent applications for an authorized campus. */
+        readonly get: operations["listOperatorAgentApplications"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/agent-applications/{id}/activate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Activate a pending agent application.
+         * @description Creates a new active agent unless an explicitly selected legacy agent ID is supplied. Phone numbers are never used for automatic linking.
+         */
+        readonly post: operations["activateAgentApplication"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/agent-applications/{id}/decline": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Decline a pending agent application. */
+        readonly post: operations["declineAgentApplication"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/campuses/{slug}": {
         readonly parameters: {
             readonly query?: never;
@@ -270,9 +345,67 @@ export interface components {
             readonly authenticated: boolean;
             readonly user: components["schemas"]["AuthUser"] | null;
             readonly roles: readonly string[];
-            readonly agent: null;
+            readonly agent: components["schemas"]["LinkedAgent"] | null;
             /** @description CSRF token for unsafe requests when authenticated. */
             readonly csrf_token: string | null;
+        };
+        readonly LinkedAgent: {
+            /** Format: uuid */
+            readonly id: string;
+            /** @enum {string} */
+            readonly status: "active" | "suspended";
+        };
+        /** @enum {string} */
+        readonly AgentApplicationStatus: "pending" | "active" | "declined" | "suspended";
+        readonly CreateAgentApplicationRequest: {
+            /** Format: uuid */
+            readonly campus_id: string;
+            readonly name: string;
+            /** @description Nigerian phone number accepted in local or international format. */
+            readonly phone_number: string;
+        };
+        readonly ActivateAgentApplicationRequest: {
+            /**
+             * Format: uuid
+             * @description Explicitly selected legacy agent to link. Omit to create a new agent.
+             */
+            readonly legacy_agent_id?: string;
+            readonly operator_note?: string;
+        };
+        readonly DeclineAgentApplicationRequest: {
+            readonly operator_note?: string;
+        };
+        readonly AgentApplication: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly campus_id: string;
+            readonly name: string;
+            readonly phone_number: string;
+            readonly status: components["schemas"]["AgentApplicationStatus"];
+            /** Format: uuid */
+            readonly agent_id: string | null;
+            readonly operator_note: string | null;
+            readonly applicant?: components["schemas"]["AgentApplicationApplicant"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            /** Format: date-time */
+            readonly decided_at: string | null;
+        };
+        readonly AgentApplicationApplicant: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            readonly email: string;
+            readonly display_name: string;
+        };
+        readonly AgentApplicationResponse: {
+            readonly application: components["schemas"]["AgentApplication"];
+        };
+        readonly AgentApplicationsResponse: {
+            readonly applications: readonly components["schemas"]["AgentApplication"][];
         };
         readonly HealthResponse: {
             /** @example ok */
@@ -663,8 +796,19 @@ export interface components {
                 readonly "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description The requested state transition conflicts with the current resource state. */
+        readonly Conflict: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
     };
     parameters: {
+        /** @description Agent application ID. */
+        readonly ApplicationID: string;
         /** @description CSRF token returned by the authenticated session endpoint. */
         readonly CSRFToken: string;
     };
@@ -787,6 +931,160 @@ export interface operations {
             readonly 403: components["responses"]["Forbidden"];
             readonly 500: components["responses"]["InternalServerError"];
             readonly 503: components["responses"]["AuthUnavailable"];
+        };
+    };
+    readonly listAgentApplications: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Applications returned successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentApplicationsResponse"];
+                };
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly submitAgentApplication: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CreateAgentApplicationRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Application submitted successfully. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentApplicationResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly listOperatorAgentApplications: {
+        readonly parameters: {
+            readonly query: {
+                readonly campus_id: string;
+                /** @description Filters applications by status. Defaults to pending. */
+                readonly status?: components["schemas"]["AgentApplicationStatus"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Campus applications returned successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentApplicationsResponse"];
+                };
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly activateAgentApplication: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent application ID. */
+                readonly id: components["parameters"]["ApplicationID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ActivateAgentApplicationRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Application activated successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentApplicationResponse"];
+                };
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly declineAgentApplication: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent application ID. */
+                readonly id: components["parameters"]["ApplicationID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["DeclineAgentApplicationRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Application declined successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentApplicationResponse"];
+                };
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
         };
     };
     readonly getCampusBySlug: {
