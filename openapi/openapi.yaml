@@ -1219,6 +1219,7 @@ components:
         - unit_type
         - pricing
         - offer_summary
+        - thumbnail_source
         - created_at
         - updated_at
       properties:
@@ -1303,6 +1304,10 @@ components:
             - string
             - "null"
           format: uri
+        thumbnail_source:
+          type: string
+          enum: [unit_type, property, none]
+          description: Source layer for the discovery thumbnail. `property` is contextual fallback media, not a claim about the exact unit.
         created_at:
           type: string
           format: date-time

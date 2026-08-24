@@ -110,6 +110,7 @@ func discoveryResultFromRow(row generateddb.DiscoverPropertiesRow) domain.Discov
 		LowestPrice:         domain.Money{AmountKobo: row.LowestPriceKobo},
 		AvailableOfferCount: row.AvailableOfferCount,
 		ThumbnailURL:        row.ThumbnailUrl,
+		ThumbnailSource:     domain.DiscoveryThumbnailSource(row.ThumbnailSource),
 		CreatedAt:           row.CreatedAt.Time,
 		UpdatedAt:           row.UpdatedAt.Time,
 	}

@@ -128,9 +128,10 @@ func (app *app) discoveryResultResponse(r domain.DiscoveryResult) map[string]any
 		"offer_summary": map[string]any{
 			"available_offer_count": r.AvailableOfferCount,
 		},
-		"thumbnail_url": app.thumbnailURL(r.ThumbnailURL),
-		"created_at":    r.CreatedAt.Format(time.RFC3339),
-		"updated_at":    r.UpdatedAt.Format(time.RFC3339),
+		"thumbnail_url":    app.thumbnailURL(r.ThumbnailURL),
+		"thumbnail_source": string(r.ThumbnailSource),
+		"created_at":       r.CreatedAt.Format(time.RFC3339),
+		"updated_at":       r.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

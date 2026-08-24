@@ -393,6 +393,11 @@ export interface components {
             };
             /** Format: uri */
             readonly thumbnail_url?: string | null;
+            /**
+             * @description Source layer for the discovery thumbnail. `property` is contextual fallback media, not a claim about the exact unit.
+             * @enum {string}
+             */
+            readonly thumbnail_source: "unit_type" | "property" | "none";
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
