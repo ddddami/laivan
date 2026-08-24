@@ -123,7 +123,7 @@ func (s *Service) Complete(ctx context.Context, code, state, cookieValue string)
 
 	identity, err := s.provider.Authenticate(ctx, code, attempt.Verifier)
 	if err != nil {
-		return SessionResult{}, fmt.Errorf("%w: authenticate with provider: %v", ErrInvalidAttempt, err)
+		return SessionResult{}, fmt.Errorf("%w: authenticate with provider: %w", ErrInvalidAttempt, err)
 	}
 	if identity.Nonce != attempt.Nonce || !identity.EmailVerified {
 		return SessionResult{}, ErrInvalidIdentity

@@ -422,23 +422,11 @@ func agentApplicationFromRow(row generateddb.GetAgentApplicationRow) domain.Agen
 }
 
 func agentApplicationFromApplicantRow(row generateddb.ListAgentApplicationsByApplicantRow) domain.AgentApplication {
-	return agentApplicationFromRow(generateddb.GetAgentApplicationRow{
-		ID: row.ID, ApplicantUserID: row.ApplicantUserID, CampusID: row.CampusID,
-		Name: row.Name, PhoneNumber: row.PhoneNumber, Status: row.Status,
-		ReviewerUserID: row.ReviewerUserID, AgentID: row.AgentID, OperatorNote: row.OperatorNote,
-		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, DecidedAt: row.DecidedAt,
-		ApplicantEmail: row.ApplicantEmail, ApplicantDisplayName: row.ApplicantDisplayName,
-	})
+	return agentApplicationFromRow(generateddb.GetAgentApplicationRow(row))
 }
 
 func agentApplicationFromCampusRow(row generateddb.ListAgentApplicationsByCampusRow) domain.AgentApplication {
-	return agentApplicationFromRow(generateddb.GetAgentApplicationRow{
-		ID: row.ID, ApplicantUserID: row.ApplicantUserID, CampusID: row.CampusID,
-		Name: row.Name, PhoneNumber: row.PhoneNumber, Status: row.Status,
-		ReviewerUserID: row.ReviewerUserID, AgentID: row.AgentID, OperatorNote: row.OperatorNote,
-		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, DecidedAt: row.DecidedAt,
-		ApplicantEmail: row.ApplicantEmail, ApplicantDisplayName: row.ApplicantDisplayName,
-	})
+	return agentApplicationFromRow(generateddb.GetAgentApplicationRow(row))
 }
 
 func nullableUUID(value pgtype.UUID) *domain.ID {
