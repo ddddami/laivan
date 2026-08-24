@@ -244,6 +244,10 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 			UnitTypes []struct {
 				ID          string `json:"id"`
 				Name        string `json:"name"`
+				Media       []struct {
+					URL     string `json:"url"`
+					Caption string `json:"caption"`
+				} `json:"media"`
 				AgentOffers []struct {
 					Title      string `json:"title"`
 					PriceNaira int    `json:"price_naira"`
@@ -270,6 +274,15 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 	}
 	if body.Property.UnitTypes[0].Name != "Self-contained" {
 		t.Fatalf("unit type name = %q, want Self-contained", body.Property.UnitTypes[0].Name)
+	}
+	if len(body.Property.UnitTypes[0].Media) != 1 {
+		t.Fatalf("unit media length = %d, want 1", len(body.Property.UnitTypes[0].Media))
+	}
+	if body.Property.UnitTypes[0].Media[0].URL != "https://media.example.test/unit.jpg" {
+		t.Fatalf("unit media URL = %q, want https://media.example.test/unit.jpg", body.Property.UnitTypes[0].Media[0].URL)
+	}
+	if body.Property.UnitTypes[0].Media[0].Caption != "Unit media" {
+		t.Fatalf("unit media caption = %q, want Unit media", body.Property.UnitTypes[0].Media[0].Caption)
 	}
 	if len(body.Property.UnitTypes[0].AgentOffers) != 1 {
 		t.Fatalf("agent offers length = %d, want 1", len(body.Property.UnitTypes[0].AgentOffers))
