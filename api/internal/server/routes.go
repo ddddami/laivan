@@ -90,6 +90,12 @@ func (app *app) routes() http.Handler {
 		r.Post("/{id}/decline", app.declineAgentApplication)
 	})
 
+	r.Route("/v1/operator/agents", func(r chi.Router) {
+		r.Use(app.requireAuthenticatedUser, app.requireCampusOperator, app.requireCSRF)
+		r.Post("/{id}/suspend", app.suspendAgent)
+		r.Post("/{id}/reinstate", app.reinstateAgent)
+	})
+
 	r.Get("/v1/campuses/{slug}", app.getCampusBySlug)
 
 	r.Route("/v1/properties", func(r chi.Router) {

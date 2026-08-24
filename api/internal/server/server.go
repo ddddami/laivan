@@ -36,6 +36,8 @@ type AgentApplicationStore interface {
 	ListOperatorApplications(ctx context.Context, operatorID, campusID domain.ID, status domain.AgentApplicationStatus) ([]domain.AgentApplication, error)
 	ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, legacyAgentID *domain.ID, operatorNote string) (domain.AgentApplication, error)
 	DeclineApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error)
+	SuspendAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)
+	ReinstateAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)
 }
 
 // NOTE: This repository boundary is intentionally consolidated for now.
