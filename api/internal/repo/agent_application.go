@@ -275,6 +275,13 @@ func (r *AgentApplicationRepository) ActivateApplication(ctx context.Context, ap
 		agentID = created.ID
 	}
 
+	if err := queries.AssociateAgentWithCampus(ctx, generateddb.AssociateAgentWithCampusParams{
+		AgentID:  agentID,
+		CampusID: row.CampusID,
+	}); err != nil {
+		return domain.AgentApplication{}, fmt.Errorf("associate agent with application campus: %w", err)
+	}
+
 	if _, err := queries.ActivateAgentApplication(ctx, generateddb.ActivateAgentApplicationParams{
 		ID:             applicationUUID,
 		ReviewerUserID: operatorUUID,

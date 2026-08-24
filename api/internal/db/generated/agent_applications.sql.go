@@ -42,6 +42,47 @@ func (q *Queries) ActivateAgentApplication(ctx context.Context, arg ActivateAgen
 	return id, err
 }
 
+const associateAgentWithCampus = `-- name: AssociateAgentWithCampus :exec
+INSERT INTO agent_campuses (agent_id, campus_id)
+VALUES ($1, $2)
+ON CONFLICT (agent_id, campus_id) DO NOTHING
+`
+
+type AssociateAgentWithCampusParams struct {
+	AgentID  pgtype.UUID
+	CampusID pgtype.UUID
+}
+
+func (q *Queries) AssociateAgentWithCampus(ctx context.Context, arg AssociateAgentWithCampusParams) error {
+	_, err := q.db.Exec(ctx, associateAgentWithCampus, arg.AgentID, arg.CampusID)
+	return err
+}
+
+const canManageAgent = `-- name: CanManageAgent :one
+SELECT EXISTS (
+    SELECT 1
+    FROM global_admin_roles
+    WHERE global_admin_roles.user_id = $1
+) OR EXISTS (
+    SELECT 1
+    FROM campus_operators co
+    JOIN agent_campuses ac ON ac.campus_id = co.campus_id
+    WHERE co.user_id = $1 AND ac.agent_id = $2
+) AS can_manage
+`
+
+type CanManageAgentParams struct {
+	UserID  pgtype.UUID
+	AgentID pgtype.UUID
+}
+
+func (q *Queries) CanManageAgent(ctx context.Context, arg CanManageAgentParams) (pgtype.Bool, error) {
+	row := q.db.QueryRow(ctx, canManageAgent, arg.UserID, arg.AgentID)
+	var can_manage pgtype.Bool
+	err := row.Scan(&can_manage)
+	return can_manage, err
+}
+
 const canReviewCampus = `-- name: CanReviewCampus :one
 SELECT EXISTS (
     SELECT 1
@@ -334,6 +375,26 @@ func (q *Queries) GetAgentApplicationForUpdate(ctx context.Context, id pgtype.UU
 	return i, err
 }
 
+const getAgentForLifecycleUpdate = `-- name: GetAgentForLifecycleUpdate :one
+SELECT id, user_id, status
+FROM agents
+WHERE id = $1
+FOR UPDATE
+`
+
+type GetAgentForLifecycleUpdateRow struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+	Status string
+}
+
+func (q *Queries) GetAgentForLifecycleUpdate(ctx context.Context, id pgtype.UUID) (GetAgentForLifecycleUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getAgentForLifecycleUpdate, id)
+	var i GetAgentForLifecycleUpdateRow
+	err := row.Scan(&i.ID, &i.UserID, &i.Status)
+	return i, err
+}
+
 const getLinkedAgentAccess = `-- name: GetLinkedAgentAccess :one
 SELECT id, status
 FROM agents
@@ -597,4 +658,77 @@ func (q *Queries) LockUserForAgentApplication(ctx context.Context, id pgtype.UUI
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const reinstateAgent = `-- name: ReinstateAgent :one
+UPDATE agents
+SET status = 'active', updated_at = now()
+WHERE id = $1 AND status = 'suspended'
+RETURNING id, user_id, status
+`
+
+type ReinstateAgentRow struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+	Status string
+}
+
+func (q *Queries) ReinstateAgent(ctx context.Context, id pgtype.UUID) (ReinstateAgentRow, error) {
+	row := q.db.QueryRow(ctx, reinstateAgent, id)
+	var i ReinstateAgentRow
+	err := row.Scan(&i.ID, &i.UserID, &i.Status)
+	return i, err
+}
+
+const reinstateSuspendedAgentApplications = `-- name: ReinstateSuspendedAgentApplications :exec
+UPDATE agent_applications
+SET status = 'active', updated_at = now()
+WHERE agent_id = $1 AND status = 'suspended'
+`
+
+func (q *Queries) ReinstateSuspendedAgentApplications(ctx context.Context, agentID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, reinstateSuspendedAgentApplications, agentID)
+	return err
+}
+
+const revokeUserSessions = `-- name: RevokeUserSessions :exec
+UPDATE sessions
+SET revoked_at = now()
+WHERE sessions.user_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeUserSessions(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeUserSessions, userID)
+	return err
+}
+
+const suspendActiveAgentApplications = `-- name: SuspendActiveAgentApplications :exec
+UPDATE agent_applications
+SET status = 'suspended', updated_at = now()
+WHERE agent_id = $1 AND status = 'active'
+`
+
+func (q *Queries) SuspendActiveAgentApplications(ctx context.Context, agentID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, suspendActiveAgentApplications, agentID)
+	return err
+}
+
+const suspendAgent = `-- name: SuspendAgent :one
+UPDATE agents
+SET status = 'suspended', updated_at = now()
+WHERE id = $1 AND status = 'active'
+RETURNING id, user_id, status
+`
+
+type SuspendAgentRow struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+	Status string
+}
+
+func (q *Queries) SuspendAgent(ctx context.Context, id pgtype.UUID) (SuspendAgentRow, error) {
+	row := q.db.QueryRow(ctx, suspendAgent, id)
+	var i SuspendAgentRow
+	err := row.Scan(&i.ID, &i.UserID, &i.Status)
+	return i, err
 }

@@ -34,6 +34,12 @@ type AgentApplication struct {
 	DecidedAt       pgtype.Timestamptz
 }
 
+type AgentCampuse struct {
+	AgentID   pgtype.UUID
+	CampusID  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type AgentOffer struct {
 	ID                 pgtype.UUID
 	PropertyUnitTypeID pgtype.UUID
