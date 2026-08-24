@@ -21,6 +21,83 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/auth/google/start": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Start Google sign-in.
+         * @description Creates a short-lived signed OIDC attempt cookie and redirects the browser to Google.
+         */
+        readonly get: operations["startGoogleAuth"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/auth/google/callback": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Complete Google sign-in.
+         * @description Validates the OIDC callback, creates an opaque browser session, and redirects to the configured web origin.
+         */
+        readonly get: operations["completeGoogleAuth"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/auth/session": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get the current browser session.
+         * @description Returns authenticated identity state, or anonymous state when no valid session exists.
+         */
+        readonly get: operations["getAuthSession"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/auth/logout": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Revoke the current browser session. */
+        readonly post: operations["logoutAuthSession"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/campuses/{slug}": {
         readonly parameters: {
             readonly query?: never;
@@ -180,6 +257,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        readonly AuthUser: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            readonly email: string;
+            readonly display_name: string;
+            /** @enum {string} */
+            readonly status: "active" | "suspended";
+        };
+        readonly AuthSessionResponse: {
+            readonly authenticated: boolean;
+            readonly user: components["schemas"]["AuthUser"] | null;
+            readonly roles: readonly string[];
+            readonly agent: null;
+            /** @description CSRF token for unsafe requests when authenticated. */
+            readonly csrf_token: string | null;
+        };
         readonly HealthResponse: {
             /** @example ok */
             readonly status: string;
@@ -533,8 +627,47 @@ export interface components {
                 readonly "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description Authentication is not configured for this environment. */
+        readonly AuthUnavailable: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The Google sign-in callback is invalid or expired. */
+        readonly InvalidAuthCallback: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Authentication is required or the session is invalid. */
+        readonly Unauthenticated: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The request is not allowed. */
+        readonly Forbidden: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
     };
-    parameters: never;
+    parameters: {
+        /** @description CSRF token returned by the authenticated session endpoint. */
+        readonly CSRFToken: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -561,6 +694,99 @@ export interface operations {
             };
             readonly 405: components["responses"]["MethodNotAllowed"];
             readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly startGoogleAuth: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redirect to Google sign-in. */
+            readonly 302: {
+                headers: {
+                    readonly Location?: string;
+                    readonly "Set-Cookie"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 503: components["responses"]["AuthUnavailable"];
+        };
+    };
+    readonly completeGoogleAuth: {
+        readonly parameters: {
+            readonly query?: {
+                readonly code?: string;
+                readonly state?: string;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redirect to the configured web origin after successful sign-in. */
+            readonly 302: {
+                headers: {
+                    readonly Location?: string;
+                    readonly "Set-Cookie"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["InvalidAuthCallback"];
+            readonly 500: components["responses"]["InternalServerError"];
+            readonly 503: components["responses"]["AuthUnavailable"];
+        };
+    };
+    readonly getAuthSession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current session state. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AuthSessionResponse"];
+                };
+            };
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly logoutAuthSession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Session revoked and browser cookies cleared. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 500: components["responses"]["InternalServerError"];
+            readonly 503: components["responses"]["AuthUnavailable"];
         };
     };
     readonly getCampusBySlug: {

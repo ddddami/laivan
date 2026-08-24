@@ -80,3 +80,29 @@ type PropertyUnitType struct {
 	KitchenType  pgtype.Text
 	Notes        pgtype.Text
 }
+
+type Session struct {
+	ID            pgtype.UUID
+	UserID        pgtype.UUID
+	TokenHash     []byte
+	CsrfTokenHash []byte
+	CreatedAt     pgtype.Timestamptz
+	ExpiresAt     pgtype.Timestamptz
+	RevokedAt     pgtype.Timestamptz
+	LastUsedAt    pgtype.Timestamptz
+}
+
+type User struct {
+	ID          pgtype.UUID
+	Email       string
+	DisplayName string
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type UserIdentity struct {
+	UserID   pgtype.UUID
+	Provider string
+	Subject  string
+}

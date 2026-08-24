@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/ddddami/laivan/internal/auth"
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/domain"
 	"github.com/ddddami/laivan/internal/repo"
@@ -19,6 +20,7 @@ type app struct {
 	propertyRepo  PropertyStore
 	mediaUploader storage.ObjectStore
 	mediaURLs     MediaURLBuilder
+	auth          *auth.Service
 }
 
 type MediaURLBuilder interface {
@@ -46,7 +48,7 @@ type PropertyStore interface {
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service) *http.Server {
 	app := &app{
 		cfg:           cfg,
 		logger:        logger,
@@ -54,6 +56,7 @@ func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo Pr
 		propertyRepo:  propertyRepo,
 		mediaUploader: mediaUploader,
 		mediaURLs:     mediaURLs,
+		auth:          authService,
 	}
 
 	return &http.Server{

@@ -8,7 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/ddddami/laivan/internal/auth"
+	"github.com/ddddami/laivan/internal/auth/google"
 	"github.com/ddddami/laivan/internal/config"
 	"github.com/ddddami/laivan/internal/db"
 	"github.com/ddddami/laivan/internal/media"
@@ -40,6 +43,12 @@ func main() {
 
 	logger.Info("database connection pool ready")
 	propertyRepo := repo.NewPropertyRepository(pool)
+	identityRepo := repo.NewIdentityRepository(pool)
+	authService, err := newAuthService(cfg, identityRepo)
+	if err != nil {
+		logger.Error("create auth service", "error", err)
+		os.Exit(1)
+	}
 	if cfg.Media.Enabled {
 		uploader, err := storage.NewS3Uploader(context.Background(), cfg.Media)
 		if err != nil {
@@ -55,7 +64,7 @@ func main() {
 		mediaURLs = urlBuilder
 	}
 
-	srv := server.New(cfg, logger, version, propertyRepo, mediaUploader, mediaURLs)
+	srv := server.New(cfg, logger, version, propertyRepo, mediaUploader, mediaURLs, authService)
 
 	logger.Info("starting api server", "addr", srv.Addr, "env", cfg.Env, "version", version)
 
@@ -92,6 +101,30 @@ func main() {
 
 		logger.Info("api server stopped")
 	}
+}
+
+func newAuthService(cfg config.Config, store auth.Store) (*auth.Service, error) {
+	if !cfg.Auth.IsConfigured() {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	provider, err := google.New(ctx, google.Config{
+		ClientID:     cfg.Auth.GoogleClientID,
+		ClientSecret: cfg.Auth.GoogleClientSecret,
+		RedirectURL:  cfg.Auth.GoogleRedirectURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return auth.NewService(auth.Config{
+		StateSigningKey: cfg.Auth.OIDCStateSigningKey,
+		StateDuration:   cfg.Auth.OIDCStateDuration,
+		SessionDuration: cfg.Auth.SessionDuration,
+	}, store, provider), nil
 }
 
 func newLogger(cfg config.Config) *slog.Logger {
