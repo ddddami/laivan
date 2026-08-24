@@ -34,7 +34,23 @@ const property: PropertyDetail = {
       has_parlour: false,
       bathroom_type: 'private',
       kitchen_type: 'private',
-      media: [],
+      media: [
+        {
+          id: 'unit-media-1',
+          property_id: null,
+          property_unit_type_id: 'unit-1',
+          agent_offer_id: null,
+          uploaded_by_agent_id: 'agent-1',
+          url: 'https://media.example.test/unit.jpg',
+          thumbnail_url: 'https://media.example.test/unit-thumb.webp',
+          medium_url: 'https://media.example.test/unit-medium.webp',
+          kind: 'image',
+          caption: 'Bright self-contained room',
+          content_type: 'image/jpeg',
+          size_bytes: 1024,
+          created_at: '2026-05-01T10:00:00Z',
+        },
+      ],
       agent_offers: [
         {
           id: 'offer-paused',
@@ -113,6 +129,13 @@ describe('UnitDetail', () => {
     expect(
       screen.queryByText('Building-level description must stay on the property page.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('renders media attached to the selected unit type', async () => {
+    await renderUnitDetail()
+
+    const image = screen.getByRole('img', { name: 'Bright self-contained room' })
+    expect(image).toHaveAttribute('src', 'https://media.example.test/unit-medium.webp')
   })
 
   it('visually demotes paused offers while preserving factual comparison details', async () => {

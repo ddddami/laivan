@@ -26,7 +26,23 @@ const property: PropertyDetail = {
       has_parlour: false,
       bathroom_type: 'private',
       kitchen_type: 'private',
-      media: [],
+      media: [
+        {
+          id: 'unit-media-1',
+          property_id: null,
+          property_unit_type_id: 'unit-1',
+          agent_offer_id: null,
+          uploaded_by_agent_id: 'agent-1',
+          url: 'https://media.example.test/unit.jpg',
+          thumbnail_url: 'https://media.example.test/unit-thumb.webp',
+          medium_url: 'https://media.example.test/unit-medium.webp',
+          kind: 'image',
+          caption: 'Bright self-contained room',
+          content_type: 'image/jpeg',
+          size_bytes: 1024,
+          created_at: '2026-05-01T10:00:00Z',
+        },
+      ],
       agent_offers: [
         {
           id: 'offer-1',
@@ -105,6 +121,10 @@ describe('property and unit routes', () => {
     expect(screen.getByRole('link', { name: 'Alice Lodge' })).toHaveAttribute(
       'href',
       '/properties/property-1',
+    )
+    expect(screen.getByRole('img', { name: 'Bright self-contained room' })).toHaveAttribute(
+      'src',
+      'https://media.example.test/unit-medium.webp',
     )
     expect(screen.getByLabelText('Ade Martins offer')).toBeInTheDocument()
     expect(screen.queryByText('Bola Ajayi')).not.toBeInTheDocument()

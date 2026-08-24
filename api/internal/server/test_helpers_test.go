@@ -79,6 +79,17 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 						UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 					},
 				},
+				Media: []domain.Media{{
+					ID:                domain.ID("550e8400-e29b-41d4-a716-446655440060"),
+					PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+					UploadedByAgentID:  domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+					URL:               "https://media.example.test/unit.jpg",
+					Kind:              domain.MediaKindImage,
+					Caption:           "Unit media",
+					ContentType:       "image/jpeg",
+					SizeBytes:         1024,
+					CreatedAt:         time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
+				}},
 				AgentOffers: []domain.AgentOfferDetail{
 					{
 						AgentOffer: domain.AgentOffer{
