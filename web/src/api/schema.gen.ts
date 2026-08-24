@@ -173,6 +173,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/operator/agents/{id}/suspend": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Suspend an agent profile.
+         * @description Suspends an agent within the operator's campus scope, suspends linked active applications, revokes linked-user sessions, and records an audit event. Public marketplace records remain visible through their own lifecycle status.
+         */
+        readonly post: operations["suspendAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/v1/operator/agents/{id}/reinstate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Reinstate a suspended agent profile.
+         * @description Reinstates a suspended agent within the operator's campus scope, restores linked suspended applications, and records an audit event. Sessions are not created automatically.
+         */
+        readonly post: operations["reinstateAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/campuses/{slug}": {
         readonly parameters: {
             readonly query?: never;
@@ -374,6 +414,12 @@ export interface components {
         };
         readonly DeclineAgentApplicationRequest: {
             readonly operator_note?: string;
+        };
+        readonly AgentLifecycleRequest: {
+            readonly operator_note?: string;
+        };
+        readonly AgentLifecycleResponse: {
+            readonly agent: components["schemas"]["LinkedAgent"];
         };
         readonly AgentApplication: {
             /** Format: uuid */
@@ -809,6 +855,8 @@ export interface components {
     parameters: {
         /** @description Agent application ID. */
         readonly ApplicationID: string;
+        /** @description Agent profile ID. */
+        readonly AgentID: string;
         /** @description CSRF token returned by the authenticated session endpoint. */
         readonly CSRFToken: string;
     };
@@ -1079,6 +1127,80 @@ export interface operations {
                     readonly "application/json": components["schemas"]["AgentApplicationResponse"];
                 };
             };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly suspendAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent profile ID. */
+                readonly id: components["parameters"]["AgentID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentLifecycleRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Agent suspended successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentLifecycleResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly reinstateAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent profile ID. */
+                readonly id: components["parameters"]["AgentID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentLifecycleRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Agent reinstated successfully. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentLifecycleResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
             readonly 401: components["responses"]["Unauthenticated"];
             readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
