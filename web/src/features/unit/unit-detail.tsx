@@ -3,9 +3,9 @@ import { Link } from '@tanstack/react-router'
 import type { PropertyDetail, UnitTypeDetail } from '../../api/client'
 import { AgentOfferCard } from '../../components/marketplace/agent-offer-card'
 import { unitCategoryLabel } from '../../components/marketplace/labels'
+import { MediaGallery } from '../../components/marketplace/media-gallery'
+import { selectAccommodationMedia } from '../../components/marketplace/media-policy'
 import { UnitStructure } from '../../components/marketplace/unit-structure'
-import { MediaPlaceholder } from '../../components/ui/media-placeholder'
-import { ResponsiveImage } from '../../components/ui/responsive-image'
 import { navigationEntryPoint } from '../discovery/navigation-state'
 
 type UnitDetailProps = {
@@ -15,10 +15,7 @@ type UnitDetailProps = {
 
 export function UnitDetail({ property, unit }: UnitDetailProps) {
   const category = unitCategoryLabel(unit.category)
-  const unitImages = unit.media.filter((media) => media.kind === 'image')
-  const propertyImages = property.media.filter((media) => media.kind === 'image')
-  const images = unitImages.length > 0 ? unitImages : propertyImages
-  const usingPropertyFallback = unitImages.length === 0 && propertyImages.length > 0
+  const mediaSelection = selectAccommodationMedia(unit.media, property.media)
   const offers = [...unit.agent_offers].sort((first, second) => {
     const statusDifference = offerStatusOrder(first.status) - offerStatusOrder(second.status)
     if (statusDifference !== 0) return statusDifference
@@ -50,11 +47,21 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.2fr)] lg:items-start lg:gap-10">
         <div className="space-y-5 lg:sticky lg:top-5">
-          <UnitGallery
-            propertyName={property.name}
-            unitName={unit.name || category}
-            images={images}
-            usingPropertyFallback={usingPropertyFallback}
+          <MediaGallery
+            media={mediaSelection.items}
+            emptyLabel={`No unit photos available for ${unit.name || category}`}
+            ariaLabel={`${unit.name || category} ${mediaSelection.source === 'property' ? 'property context' : 'unit'} photos`}
+            altFallback={`${unit.name || category} unit`}
+            heroSizes="(max-width: 1023px) 100vw, 40vw"
+            thumbnailSizes="160px"
+            notice={
+              mediaSelection.source === 'property'
+                ? {
+                    label: 'Property context photos',
+                    description: `These show ${property.name}; unit-specific photos are not available yet.`,
+                  }
+                : undefined
+            }
           />
           <UnitStructure unit={unit} />
 
@@ -118,60 +125,6 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
         </section>
       </div>
     </article>
-  )
-}
-
-type UnitGalleryProps = {
-  propertyName: string
-  unitName: string
-  images: UnitTypeDetail['media']
-  usingPropertyFallback: boolean
-}
-
-function UnitGallery({ propertyName, unitName, images, usingPropertyFallback }: UnitGalleryProps) {
-  if (images.length === 0) {
-    return (
-      <MediaPlaceholder
-        label={`No unit photos available for ${unitName}`}
-        className="rounded-media aspect-[4/3]"
-      />
-    )
-  }
-
-  const [hero, ...additional] = images
-  return (
-    <section
-      aria-label={`${unitName} ${usingPropertyFallback ? 'property context' : 'unit'} photos`}
-    >
-      {usingPropertyFallback ? (
-        <>
-          <p className="section-label">Property context photos</p>
-          <p className="font-body text-muted mt-1 text-xs leading-5">
-            These show {propertyName}; unit-specific photos are not available yet.
-          </p>
-        </>
-      ) : null}
-      <ResponsiveImage
-        src={hero?.medium_url}
-        alt={hero?.caption || `${unitName} unit`}
-        loading="eager"
-        className="bg-surface-strong rounded-media aspect-[4/3] w-full object-cover"
-        sizes="(max-width: 1023px) 100vw, 40vw"
-      />
-      {additional.length > 0 ? (
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {additional.slice(0, 3).map((media) => (
-            <ResponsiveImage
-              key={media.id}
-              src={media.thumbnail_url}
-              alt={media.caption || `${unitName} unit`}
-              className="bg-surface-strong rounded-control aspect-[4/3] w-full object-cover"
-              sizes="160px"
-            />
-          ))}
-        </div>
-      ) : null}
-    </section>
   )
 }
 

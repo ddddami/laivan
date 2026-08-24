@@ -34,6 +34,7 @@ const discoveryResponse: DiscoveryResponse = {
       pricing: { lowest_price_naira: 350_000 },
       offer_summary: { available_offer_count: 2 },
       thumbnail_url: null,
+      thumbnail_source: 'none',
       created_at: '2026-05-01T10:00:00Z',
       updated_at: '2026-05-02T10:00:00Z',
     },

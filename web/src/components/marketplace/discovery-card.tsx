@@ -36,6 +36,9 @@ export function DiscoveryCard({ result }: DiscoveryCardProps) {
             className="duration-standard h-full w-full object-cover transition-transform group-hover:scale-[1.015]"
           />
         </div>
+        {result.thumbnail_source === 'property' ? (
+          <p className="font-body text-muted px-4 pt-2 text-xs">Property context photo</p>
+        ) : null}
 
         <div className="flex flex-1 flex-col px-4 pt-3.5 pb-4">
           {hasCustomName ? <p className="section-label">{category}</p> : null}

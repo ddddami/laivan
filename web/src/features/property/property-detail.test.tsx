@@ -109,4 +109,48 @@ describe('PropertyDetail', () => {
     )
     expect(screen.getByText('Price unavailable')).toBeInTheDocument()
   })
+
+  it('does not repeat property media in unit cards without unit photos', async () => {
+    const propertyWithMedia: PropertyDetailData = {
+      ...property,
+      media: [
+        {
+          id: 'property-media-1',
+          property_id: property.id,
+          property_unit_type_id: null,
+          agent_offer_id: null,
+          uploaded_by_agent_id: '550e8400-e29b-41d4-a716-446655440040',
+          url: 'https://media.example.test/property.jpg',
+          thumbnail_url: 'https://media.example.test/property-thumb.webp',
+          medium_url: 'https://media.example.test/property-medium.webp',
+          kind: 'image',
+          caption: 'Alice Lodge compound',
+          content_type: 'image/jpeg',
+          size_bytes: 2048,
+          created_at: '2026-05-01T10:00:00Z',
+        },
+      ],
+    }
+    const rootRoute = createRootRoute({ component: Outlet })
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/',
+      component: () => <PropertyDetail property={propertyWithMedia} />,
+    })
+    const unitRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: '/properties/$propertyId/unit-types/$unitTypeId',
+      component: () => null,
+    })
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute, unitRoute]),
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+    })
+
+    await router.load()
+    render(<RouterProvider router={router} />)
+
+    expect(screen.getAllByRole('img', { name: 'Unit photos not available' })).toHaveLength(2)
+    expect(screen.queryByText('Property photo')).not.toBeInTheDocument()
+  })
 })

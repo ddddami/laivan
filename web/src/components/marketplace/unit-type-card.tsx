@@ -3,6 +3,7 @@ import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 
 import type { UnitTypeDetail } from '../../api/client'
 import { navigationEntryPoint } from '../../features/discovery/navigation-state'
+import { MediaPlaceholder } from '../ui/media-placeholder'
 import { Price } from '../ui/price'
 import { ProductIcon } from '../ui/product-icon'
 import { ResponsiveImage } from '../ui/responsive-image'
@@ -30,12 +31,19 @@ export function UnitTypeCard({ propertyId, unit }: UnitTypeCardProps) {
         state={(current) => ({ ...current, entryPoint: navigationEntryPoint.property })}
         className="focus-ring group rounded-card grid min-h-40 grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)]"
       >
-        <ResponsiveImage
-          src={unitImage?.thumbnail_url}
-          alt={`${unit.name || category} at this property`}
-          className="bg-surface-strong h-full min-h-40 w-full object-cover"
-          sizes="144px"
-        />
+        {unitImage ? (
+          <ResponsiveImage
+            src={unitImage.thumbnail_url}
+            alt={`${unit.name || category} at this property`}
+            className="bg-surface-strong h-full min-h-40 w-full object-cover"
+            sizes="144px"
+          />
+        ) : (
+          <MediaPlaceholder
+            label="Unit photos not available"
+            className="h-full min-h-40 w-full text-center"
+          />
+        )}
 
         <div className="flex min-w-0 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
