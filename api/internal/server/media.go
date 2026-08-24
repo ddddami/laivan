@@ -92,7 +92,7 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 
 	created := make([]domain.Media, 0, len(files))
 	for _, file := range validatedFiles {
-		media, err := app.processMediaFile(r.Context(), file, mediaUploadTarget{
+		media, err := app.uploadMediaFile(r.Context(), file, mediaUploadTarget{
 			TargetType:         targetType,
 			TargetID:           targetID,
 			PropertyID:         propertyID,
@@ -102,20 +102,29 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			Caption:            caption,
 		})
 		if err != nil {
-			if errors.Is(err, repo.ErrForeignKeyViolation) {
-				app.badRequestResponse(w, r, fmt.Errorf("referenced resource does not exist"))
-				return
-			}
-			if errors.Is(err, repo.ErrNotFound) {
-				app.notFoundResponse(w, r)
-				return
-			}
-
+			app.cleanupMediaObjects(r.Context(), created, err)
 			app.serverErrorResponse(w, r, fmt.Errorf("upload media: %w", err))
 			return
 		}
 		created = append(created, media)
 	}
+
+	persisted, err := app.propertyRepo.CreateMediaBatch(r.Context(), created)
+	if err != nil {
+		app.cleanupMediaObjects(r.Context(), created, err)
+		if errors.Is(err, repo.ErrForeignKeyViolation) {
+			app.badRequestResponse(w, r, fmt.Errorf("referenced resource does not exist"))
+			return
+		}
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+
+		app.serverErrorResponse(w, r, fmt.Errorf("create media records: %w", err))
+		return
+	}
+	created = persisted
 
 	data := envelope{"media": app.mediaListResponse(created)}
 	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
@@ -145,7 +154,7 @@ type validatedMediaFile struct {
 	ContentType string
 }
 
-func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, target mediaUploadTarget) (domain.Media, error) {
+func (app *app) uploadMediaFile(ctx context.Context, file validatedMediaFile, target mediaUploadTarget) (domain.Media, error) {
 	objectID, err := randomUUIDString()
 	if err != nil {
 		return domain.Media{}, fmt.Errorf("generate media object id: %w", err)
@@ -161,7 +170,7 @@ func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, t
 		return domain.Media{}, fmt.Errorf("upload object: %w", err)
 	}
 
-	media, err := app.propertyRepo.CreateMedia(ctx, domain.Media{
+	return domain.Media{
 		PropertyID:         domain.ID(target.PropertyID),
 		PropertyUnitTypeID: domain.ID(target.PropertyUnitTypeID),
 		AgentOfferID:       domain.ID(target.AgentOfferID),
@@ -172,18 +181,19 @@ func (app *app) processMediaFile(ctx context.Context, file validatedMediaFile, t
 		Caption:            target.Caption,
 		ContentType:        file.ContentType,
 		SizeBytes:          int64(len(file.Data)),
-	})
-	if err != nil {
-		app.logger.Error("media object orphaned after database insert failed",
-			"object_key", objectKey,
-			"target_type", target.TargetType,
-			"target_id", target.TargetID,
-			"error", err,
-		)
-		return domain.Media{}, err
-	}
+	}, nil
+}
 
-	return media, nil
+func (app *app) cleanupMediaObjects(ctx context.Context, media []domain.Media, operationErr error) {
+	for _, item := range media {
+		if err := app.mediaUploader.Delete(ctx, item.ObjectKey); err != nil {
+			app.logger.Error("clean up media object",
+				"object_key", item.ObjectKey,
+				"operation_error", operationErr,
+				"cleanup_error", err,
+			)
+		}
+	}
 }
 
 func readMediaFile(fileHeader *multipart.FileHeader, maxBytes int64) ([]byte, string, error) {

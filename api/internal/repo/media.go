@@ -15,24 +15,81 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	propertyID, err := optionalUUIDParam(media.PropertyID)
-	if err != nil {
-		return domain.Media{}, fmt.Errorf("invalid property id: %w", err)
-	}
-	propertyUnitTypeID, err := optionalUUIDParam(media.PropertyUnitTypeID)
-	if err != nil {
-		return domain.Media{}, fmt.Errorf("invalid property unit type id: %w", err)
-	}
-	agentOfferID, err := optionalUUIDParam(media.AgentOfferID)
-	if err != nil {
-		return domain.Media{}, fmt.Errorf("invalid agent offer id: %w", err)
-	}
-	uploadedByAgentID, err := uuidParam(media.UploadedByAgentID)
+	params, err := mediaCreateParams(media)
 	if err != nil {
 		return domain.Media{}, err
 	}
 
-	row, err := r.queries.CreateMedia(ctx, generateddb.CreateMediaParams{
+	row, err := r.queries.CreateMedia(ctx, params)
+	if err != nil {
+		return domain.Media{}, createMediaError(err)
+	}
+
+	return mediaFromCreateRow(row), nil
+}
+
+func (r *PropertyRepository) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	params := make([]generateddb.CreateMediaParams, 0, len(media))
+	for _, item := range media {
+		param, err := mediaCreateParams(item)
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, param)
+	}
+
+	beginner, ok := r.db.(interface {
+		Begin(context.Context) (pgx.Tx, error)
+	})
+	if !ok {
+		return nil, errors.New("database does not support transactions")
+	}
+
+	tx, err := beginner.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin media transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	queries := r.queries.WithTx(tx)
+	created := make([]domain.Media, 0, len(params))
+	for _, param := range params {
+		row, err := queries.CreateMedia(ctx, param)
+		if err != nil {
+			return nil, createMediaError(err)
+		}
+		created = append(created, mediaFromCreateRow(row))
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit media transaction: %w", err)
+	}
+
+	return created, nil
+}
+
+func mediaCreateParams(media domain.Media) (generateddb.CreateMediaParams, error) {
+	propertyID, err := optionalUUIDParam(media.PropertyID)
+	if err != nil {
+		return generateddb.CreateMediaParams{}, fmt.Errorf("invalid property id: %w", err)
+	}
+	propertyUnitTypeID, err := optionalUUIDParam(media.PropertyUnitTypeID)
+	if err != nil {
+		return generateddb.CreateMediaParams{}, fmt.Errorf("invalid property unit type id: %w", err)
+	}
+	agentOfferID, err := optionalUUIDParam(media.AgentOfferID)
+	if err != nil {
+		return generateddb.CreateMediaParams{}, fmt.Errorf("invalid agent offer id: %w", err)
+	}
+	uploadedByAgentID, err := uuidParam(media.UploadedByAgentID)
+	if err != nil {
+		return generateddb.CreateMediaParams{}, err
+	}
+
+	return generateddb.CreateMediaParams{
 		PropertyID:         propertyID,
 		PropertyUnitTypeID: propertyUnitTypeID,
 		AgentOfferID:       agentOfferID,
@@ -43,15 +100,14 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 		Caption:            textParam(media.Caption),
 		ContentType:        textParam(media.ContentType),
 		SizeBytes:          int64Param(media.SizeBytes),
-	})
-	if err != nil {
-		if isForeignKeyViolation(err) {
-			return domain.Media{}, ErrForeignKeyViolation
-		}
-		return domain.Media{}, fmt.Errorf("create media: %w", err)
-	}
+	}, nil
+}
 
-	return mediaFromCreateRow(row), nil
+func createMediaError(err error) error {
+	if isForeignKeyViolation(err) {
+		return ErrForeignKeyViolation
+	}
+	return fmt.Errorf("create media: %w", err)
 }
 
 func (r *PropertyRepository) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {

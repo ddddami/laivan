@@ -29,7 +29,7 @@ func main() {
 
 	logger := newLogger(cfg)
 
-	var mediaUploader storage.Uploader
+	var mediaUploader storage.ObjectStore
 	var mediaURLs server.MediaURLBuilder
 	pool, err := db.Open(context.Background(), cfg.DatabaseURL, cfg.DBMaxConns)
 	if err != nil {

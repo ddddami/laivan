@@ -200,6 +200,18 @@ func (s *stubPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) 
 	return media, nil
 }
 
+func (s *stubPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	created := make([]domain.Media, 0, len(media))
+	for _, item := range media {
+		item, err := s.CreateMedia(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		created = append(created, item)
+	}
+	return created, nil
+}
+
 func (s *stubPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
 	return []domain.Media{{
 		ID:                domain.ID("550e8400-e29b-41d4-a716-446655440050"),
@@ -338,6 +350,11 @@ func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (
 	return s.stub.CreateMedia(ctx, media)
 }
 
+func (s *spyPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	s.createdMedia = append(s.createdMedia, media...)
+	return s.stub.CreateMediaBatch(ctx, media)
+}
+
 func (s *spyPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
 	return s.stub.ListMediaByProperty(ctx, propertyID)
 }
@@ -393,6 +410,9 @@ func (s *duplicateAgentOfferRepo) Discover(ctx context.Context, filter repo.Disc
 }
 func (s *duplicateAgentOfferRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
 	return s.stub.CreateMedia(ctx, media)
+}
+func (s *duplicateAgentOfferRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	return s.stub.CreateMediaBatch(ctx, media)
 }
 func (s *duplicateAgentOfferRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
 	return s.stub.ListMediaByProperty(ctx, propertyID)

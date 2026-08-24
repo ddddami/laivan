@@ -112,6 +112,50 @@ func TestPropertyRepositoryGetCampusBySlug(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryCreateMediaBatchRollsBackOnFailure(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Atomic Lodge", time.Now().UTC())
+	agentID := insertAgent(t, ctx, pool, "Atomic Agent")
+	repository := NewPropertyRepository(pool)
+
+	_, err := repository.CreateMediaBatch(ctx, []domain.Media{
+		{
+			PropertyID:        propertyID,
+			UploadedByAgentID: agentID,
+			URL:               "https://media.example.test/first.jpg",
+			Kind:              domain.MediaKindImage,
+		},
+		{
+			PropertyID:        propertyID,
+			UploadedByAgentID: agentID,
+			URL:               "https://media.example.test/second.jpg",
+			Kind:              domain.MediaKind("invalid"),
+		},
+	})
+	if err == nil {
+		t.Fatal("CreateMediaBatch error = nil, want constraint error")
+	}
+
+	media, err := repository.ListMediaByProperty(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("list media after failed batch: %v", err)
+	}
+	if len(media) != 0 {
+		t.Fatalf("media after failed batch = %#v, want no records", media)
+	}
+}
+
 func TestPropertyRepositoryGetWithDetails(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
