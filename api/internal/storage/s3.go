@@ -26,6 +26,11 @@ type Uploader interface {
 	Upload(ctx context.Context, input UploadInput) (string, error)
 }
 
+type ObjectStore interface {
+	Uploader
+	Delete(ctx context.Context, key string) error
+}
+
 type S3Uploader struct {
 	client        *s3.Client
 	bucket        string
@@ -72,6 +77,22 @@ func (u *S3Uploader) Upload(ctx context.Context, input UploadInput) (string, err
 	}
 
 	return u.publicBaseURL + "/" + strings.TrimLeft(input.Key, "/"), nil
+}
+
+func (u *S3Uploader) Delete(ctx context.Context, key string) error {
+	if strings.TrimSpace(key) == "" {
+		return fmt.Errorf("object key is required")
+	}
+
+	_, err := u.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(u.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("delete object: %w", err)
+	}
+
+	return nil
 }
 
 func MediaObjectKey(targetType, targetID, mediaID, filename string) string {

@@ -17,14 +17,25 @@ import (
 )
 
 type stubUploader struct {
-	input  storage.UploadInput
-	inputs []storage.UploadInput
+	input        storage.UploadInput
+	inputs       []storage.UploadInput
+	deletedKeys  []string
+	failUploadAt int
+	deleteErr    error
 }
 
 func (s *stubUploader) Upload(ctx context.Context, input storage.UploadInput) (string, error) {
+	if s.failUploadAt == len(s.inputs)+1 {
+		return "", errors.New("storage unavailable")
+	}
 	s.input = input
 	s.inputs = append(s.inputs, input)
 	return "https://media.example.test/" + input.Key, nil
+}
+
+func (s *stubUploader) Delete(ctx context.Context, key string) error {
+	s.deletedKeys = append(s.deletedKeys, key)
+	return s.deleteErr
 }
 
 func TestUploadMediaValidationRequiresOneTarget(t *testing.T) {
@@ -153,6 +164,115 @@ func TestUploadMediaCreatesMediaRecord(t *testing.T) {
 	}
 	if decoded.Media[0].Caption != "Front view" {
 		t.Fatalf("caption = %q, want Front view", decoded.Media[0].Caption)
+	}
+}
+
+func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
+	uploader := &stubUploader{}
+	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = repository
+	app.mediaUploader = uploader
+
+	body, contentType := multipartBodyFiles(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, []multipartTestFile{
+		{filename: "first.jpg", data: tinyJPEG()},
+		{filename: "second.jpg", data: tinyJPEG()},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
+	}
+	if len(repository.createdMedia) != 2 {
+		t.Fatalf("created media = %d, want 2", len(repository.createdMedia))
+	}
+
+	var decoded struct {
+		Media []struct {
+			URL string `json:"url"`
+		} `json:"media"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(decoded.Media) != 2 {
+		t.Fatalf("media length = %d, want 2", len(decoded.Media))
+	}
+	for i, input := range uploader.inputs {
+		want := "https://media.example.test/" + input.Key
+		if decoded.Media[i].URL != want {
+			t.Fatalf("media URL %d = %q, want %q", i, decoded.Media[i].URL, want)
+		}
+	}
+}
+
+func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
+	uploader := &stubUploader{failUploadAt: 2}
+	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = repository
+	app.mediaUploader = uploader
+
+	body, contentType := multipartBodyFiles(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, []multipartTestFile{
+		{filename: "first.jpg", data: tinyJPEG()},
+		{filename: "second.jpg", data: tinyJPEG()},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+	if len(repository.createdMedia) != 0 {
+		t.Fatalf("created media = %d, want 0", len(repository.createdMedia))
+	}
+	if len(uploader.deletedKeys) != 1 || uploader.deletedKeys[0] != uploader.inputs[0].Key {
+		t.Fatalf("deleted keys = %#v, want uploaded object %q", uploader.deletedKeys, uploader.inputs[0].Key)
+	}
+}
+
+func TestUploadMediaRemovesUploadedObjectsWhenPersistenceFails(t *testing.T) {
+	uploader := &stubUploader{}
+	app := testApp()
+	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
+	app.mediaUploader = uploader
+
+	body, contentType := multipartBodyFiles(t, map[string]string{
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
+	}, []multipartTestFile{
+		{filename: "first.jpg", data: tinyJPEG()},
+		{filename: "second.jpg", data: tinyJPEG()},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+	if len(uploader.deletedKeys) != 2 {
+		t.Fatalf("deleted keys = %#v, want 2", uploader.deletedKeys)
+	}
+	for i, input := range uploader.inputs {
+		if uploader.deletedKeys[i] != input.Key {
+			t.Fatalf("deleted key %d = %q, want %q", i, uploader.deletedKeys[i], input.Key)
+		}
 	}
 }
 
@@ -389,6 +509,10 @@ func (f *failUploader) Upload(ctx context.Context, input storage.UploadInput) (s
 	return "", f.err
 }
 
+func (f *failUploader) Delete(ctx context.Context, key string) error {
+	return f.err
+}
+
 type fkViolationRepo struct {
 	stub *stubPropertyRepo
 }
@@ -414,6 +538,9 @@ func (s *fkViolationRepo) Discover(ctx context.Context, filter repo.DiscoveryFil
 }
 func (s *fkViolationRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
 	return domain.Media{}, repo.ErrForeignKeyViolation
+}
+func (s *fkViolationRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	return nil, repo.ErrForeignKeyViolation
 }
 func (s *fkViolationRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
 	return s.stub.ListMediaByProperty(ctx, propertyID)

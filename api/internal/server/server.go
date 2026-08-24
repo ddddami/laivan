@@ -17,7 +17,7 @@ type app struct {
 	logger        *slog.Logger
 	version       string
 	propertyRepo  PropertyStore
-	mediaUploader storage.Uploader
+	mediaUploader storage.ObjectStore
 	mediaURLs     MediaURLBuilder
 }
 
@@ -36,7 +36,7 @@ type PropertyStore interface {
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error)
 	Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error)
-	CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error)
+	CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error)
 	ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error)
 	ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error)
 	ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error)
@@ -46,7 +46,7 @@ type PropertyStore interface {
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.Uploader, mediaURLs MediaURLBuilder) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder) *http.Server {
 	app := &app{
 		cfg:           cfg,
 		logger:        logger,
