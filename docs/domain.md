@@ -437,6 +437,14 @@ Applications move through `pending`, `active`, `declined`, or `suspended` lifecy
 
 Effective access is derived from explicit global-admin roles, campus-operator assignments, and a linked agent profile. A linked agent's `active` or `suspended` status is returned separately from the role so callers do not mistake linkage for write permission.
 
+## Agent Campus Scope And Lifecycle
+
+`AgentCampus` is an explicit association between an agent and a campus. It is not inferred from the agent's current offers. Migration backfills associations from existing offers through their property unit types and properties, while activation idempotently associates the resulting or explicitly linked agent with the application's campus. An agent may later be associated with more than one campus without changing the offer model.
+
+Campus operators may suspend or reinstate agents only when `agent_campuses` places the target in one of their assigned campuses. Global admins may act across campuses. Suspension is a transactional lifecycle change: the agent becomes `suspended`, linked active applications become `suspended`, all non-revoked sessions for the linked user are revoked, and an audit event records the actor, transition, and note. Unlinked legacy agents have no user sessions to revoke. Reinstatement restores linked suspended applications and writes an audit event, but never creates a session automatically.
+
+Invalid lifecycle transitions are conflicts rather than idempotent successes. Suspension does not currently protect the public property, offer, or media write routes; those ownership and protected-write rules are a later slice. Public records and their visibility remain controlled by their own lifecycle status.
+
 ## User Roles
 
 ## Student
