@@ -101,6 +101,8 @@ type fakeAgentApplicationStore struct {
 	applications    []domain.AgentApplication
 	listApplicantID domain.ID
 	listErr         error
+	lifecycleAgent  domain.LinkedAgent
+	lifecycleErr    error
 }
 
 func (f *fakeAgentApplicationStore) GetEffectiveAccess(context.Context, domain.ID) (domain.EffectiveAccess, error) {
@@ -126,6 +128,14 @@ func (f *fakeAgentApplicationStore) ActivateApplication(context.Context, domain.
 
 func (f *fakeAgentApplicationStore) DeclineApplication(context.Context, domain.ID, domain.ID, string) (domain.AgentApplication, error) {
 	return domain.AgentApplication{}, nil
+}
+
+func (f *fakeAgentApplicationStore) SuspendAgent(context.Context, domain.ID, domain.ID, string) (domain.LinkedAgent, error) {
+	return f.lifecycleAgent, f.lifecycleErr
+}
+
+func (f *fakeAgentApplicationStore) ReinstateAgent(context.Context, domain.ID, domain.ID, string) (domain.LinkedAgent, error) {
+	return f.lifecycleAgent, f.lifecycleErr
 }
 
 type fakePrincipalSessionStore struct {
