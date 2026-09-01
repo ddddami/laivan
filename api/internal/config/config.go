@@ -61,7 +61,7 @@ type MediaConfig struct {
 	S3UseSSL       bool
 	PublicBaseURL  string
 	MaxUploadBytes int64
-	Imgproxy       ImgproxyConfig
+	Imgproxy       *ImgproxyConfig
 }
 
 type ImgproxyConfig struct {
@@ -89,6 +89,7 @@ func Load() (Config, error) {
 		Media: MediaConfig{
 			S3Region:       "us-east-1",
 			MaxUploadBytes: 10 << 20,
+			Imgproxy:       &ImgproxyConfig{},
 		},
 	}
 
@@ -273,6 +274,9 @@ func (c Config) Validate() error {
 	}
 
 	if c.Media.Enabled {
+		if c.Media.Imgproxy == nil {
+			return fmt.Errorf("LAIVAN_IMGPROXY_* settings are required when media is enabled")
+		}
 		if c.Media.S3Endpoint == "" {
 			return fmt.Errorf("LAIVAN_S3_ENDPOINT is required when media is enabled")
 		}

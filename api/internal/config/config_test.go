@@ -167,6 +167,20 @@ func TestLoadRejectsEnabledMediaWithoutRequiredConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsEnabledMediaWithoutImgproxyConfig(t *testing.T) {
+	clearConfigEnv(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	cfg.Media.Enabled = true
+	cfg.Media.Imgproxy = nil
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+}
+
 func TestLoadRejectsInvalidMediaBooleans(t *testing.T) {
 	tests := []string{"LAIVAN_GOOGLE_AUTH_ENABLED", "LAIVAN_MEDIA_ENABLED", "LAIVAN_S3_USE_SSL"}
 

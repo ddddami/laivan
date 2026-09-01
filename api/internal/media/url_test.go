@@ -9,7 +9,7 @@ import (
 
 func TestURLBuilderBuildsSignedThumbnailURL(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
-		Imgproxy: config.ImgproxyConfig{
+		Imgproxy: &config.ImgproxyConfig{
 			BaseURL: "https://images.example.test/",
 			Key:     "00112233445566778899aabbccddeeff",
 			Salt:    "ffeeddccbbaa99887766554433221100",
@@ -35,7 +35,7 @@ func TestURLBuilderBuildsSignedThumbnailURL(t *testing.T) {
 func TestURLBuilderUsesInternalSourceBaseURL(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
 		PublicBaseURL: "http://localhost:9000/laivan-dev",
-		Imgproxy: config.ImgproxyConfig{
+		Imgproxy: &config.ImgproxyConfig{
 			BaseURL:       "http://localhost:8080",
 			SourceBaseURL: "http://minio:9000/laivan-dev",
 			Key:           "00112233445566778899aabbccddeeff",
@@ -55,7 +55,7 @@ func TestURLBuilderUsesInternalSourceBaseURL(t *testing.T) {
 
 func TestURLBuilderSupportsSameOriginProxyBasePath(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
-		Imgproxy: config.ImgproxyConfig{
+		Imgproxy: &config.ImgproxyConfig{
 			BaseURL: "/__imgproxy",
 			Key:     "abcd",
 			Salt:    "1234",
@@ -73,7 +73,7 @@ func TestURLBuilderSupportsSameOriginProxyBasePath(t *testing.T) {
 
 func TestURLBuilderMediumURL(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
-		Imgproxy: config.ImgproxyConfig{
+		Imgproxy: &config.ImgproxyConfig{
 			BaseURL: "https://images.example.test/",
 			Key:     "00112233445566778899aabbccddeeff",
 			Salt:    "ffeeddccbbaa99887766554433221100",
@@ -95,7 +95,7 @@ func TestURLBuilderMediumURL(t *testing.T) {
 
 func TestURLBuilderReturnsEmptyForEmptySource(t *testing.T) {
 	builder, err := NewURLBuilder(config.MediaConfig{
-		Imgproxy: config.ImgproxyConfig{
+		Imgproxy: &config.ImgproxyConfig{
 			BaseURL: "https://images.example.test/",
 			Key:     "00112233445566778899aabbccddeeff",
 			Salt:    "ffeeddccbbaa99887766554433221100",
@@ -118,9 +118,10 @@ func TestURLBuilderRejectsInvalidSigningConfig(t *testing.T) {
 		name string
 		cfg  config.MediaConfig
 	}{
-		{name: "missing base URL", cfg: config.MediaConfig{Imgproxy: config.ImgproxyConfig{Key: "abcd", Salt: "1234"}}},
-		{name: "invalid key", cfg: config.MediaConfig{Imgproxy: config.ImgproxyConfig{BaseURL: "https://images.example.test", Key: "not-hex", Salt: "1234"}}},
-		{name: "invalid salt", cfg: config.MediaConfig{Imgproxy: config.ImgproxyConfig{BaseURL: "https://images.example.test", Key: "abcd", Salt: "not-hex"}}},
+		{name: "missing base URL", cfg: config.MediaConfig{Imgproxy: &config.ImgproxyConfig{Key: "abcd", Salt: "1234"}}},
+		{name: "invalid key", cfg: config.MediaConfig{Imgproxy: &config.ImgproxyConfig{BaseURL: "https://images.example.test", Key: "not-hex", Salt: "1234"}}},
+		{name: "invalid salt", cfg: config.MediaConfig{Imgproxy: &config.ImgproxyConfig{BaseURL: "https://images.example.test", Key: "abcd", Salt: "not-hex"}}},
+		{name: "nil config", cfg: config.MediaConfig{Imgproxy: nil}},
 	}
 
 	for _, tt := range tests {
