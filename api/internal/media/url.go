@@ -22,6 +22,9 @@ type URLBuilder struct {
 }
 
 func NewURLBuilder(cfg config.MediaConfig) (*URLBuilder, error) {
+	if cfg.Imgproxy == nil {
+		return nil, errors.New("imgproxy config is required")
+	}
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.Imgproxy.BaseURL), "/")
 	if baseURL == "" {
 		return nil, errors.New("imgproxy base URL is required")
