@@ -425,23 +425,23 @@ An `ExternalIdentity` is the pair of provider name and provider subject linked t
 
 The API stores only hashes of opaque session and CSRF tokens. The browser keeps the session in an HttpOnly cookie and receives the CSRF token through the session endpoint and a non-HttpOnly cookie. A missing, expired, revoked, or suspended session is anonymous.
 
-Google sign-in does not automatically claim a legacy agent. Agent applications, explicit operator activation, and role scope are separate identity workflows.
+Google sign-in does not automatically claim an agent. Agent applications and operator activation are separate identity workflows, and every active agent must be linked to exactly one application user.
 
 ## Agent Applications And Ownership
 
 An `AgentApplication` records a signed-in user's request to participate as an agent for one campus. The submitted name and normalized Nigerian phone number are application data until an operator decides the application. A user may have one pending application per campus.
 
-Activation has two explicit paths. The operator can create a new active agent linked to the applicant, or provide a selected legacy agent ID to link an existing active agent. Phone-number matches are review signals only; they never claim or link a legacy agent automatically. A legacy link does not overwrite the legacy agent's public fields.
+Activation creates a new active agent linked to the applicant. Phone-number matches are review signals only; they never claim an existing agent automatically. The former explicit legacy-link path was intentionally removed because the remaining unlinked agents were dummy seed data rather than valid application identities.
 
-Applications move through `pending`, `active`, `declined`, or `suspended` lifecycle states. Activation, explicit legacy linking, and decline are audited with the operator as actor and are committed transactionally with the application transition.
+Applications move through `pending`, `active`, `declined`, or `suspended` lifecycle states. Activation and decline are audited with the operator as actor and are committed transactionally with the application transition.
 
 Effective access is derived from explicit global-admin roles, campus-operator assignments, and a linked agent profile. A linked agent's `active` or `suspended` status is returned separately from the role so callers do not mistake linkage for write permission.
 
 ## Agent Campus Scope And Lifecycle
 
-`AgentCampus` is an explicit association between an agent and a campus. It is not inferred from the agent's current offers. Migration backfills associations from existing offers through their property unit types and properties, while activation idempotently associates the resulting or explicitly linked agent with the application's campus. An agent may later be associated with more than one campus without changing the offer model.
+`AgentCampus` is an explicit association between an agent and a campus. It is not inferred from the agent's current offers. Migration backfills associations from existing offers through their property unit types and properties, while activation idempotently associates the new agent with the application's campus. An agent may later be associated with more than one campus without changing the offer model.
 
-Campus operators may suspend or reinstate agents only when `agent_campuses` places the target in one of their assigned campuses. Global admins may act across campuses. Suspension is a transactional lifecycle change: the agent becomes `suspended`, linked active applications become `suspended`, all non-revoked sessions for the linked user are revoked, and an audit event records the actor, transition, and note. Unlinked legacy agents have no user sessions to revoke. Reinstatement restores linked suspended applications and writes an audit event, but never creates a session automatically.
+Campus operators may suspend or reinstate agents only when `agent_campuses` places the target in one of their assigned campuses. Global admins may act across campuses. Suspension is a transactional lifecycle change: the agent becomes `suspended`, linked active applications become `suspended`, all non-revoked sessions for the linked user are revoked, and an audit event records the actor, transition, and note. Reinstatement restores linked suspended applications and writes an audit event, but never creates a session automatically.
 
 Invalid lifecycle transitions are conflicts rather than idempotent successes. Creating an agent offer requires an authenticated active agent and derives the agent from the linked user; the target unit type must also belong to a campus associated with that agent. Property, unit-type, and media write ownership rules remain later slices. Public records and their visibility remain controlled by their own lifecycle status.
 
