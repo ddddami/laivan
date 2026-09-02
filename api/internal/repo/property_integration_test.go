@@ -644,6 +644,14 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	if !errors.Is(err, ErrStaleUpdate) {
 		t.Fatalf("stale agent offer update error = %v, want %v", err, ErrStaleUpdate)
 	}
+
+	archived, err := repository.ArchiveAgentOffer(ctx, created.ID, updated.Version)
+	if err != nil {
+		t.Fatalf("archive agent offer: %v", err)
+	}
+	if archived.Status != domain.AgentOfferStatusUnavailable || archived.Version != 3 || archived.ArchivedAt == nil {
+		t.Fatalf("archived agent offer = %#v, want unavailable at version 3", archived)
+	}
 }
 
 func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {

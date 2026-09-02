@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const archiveAgentOffer = `-- name: ArchiveAgentOffer :one
+UPDATE agent_offers
+SET status = 'unavailable',
+    archived_at = now(),
+    version = version + 1,
+    updated_at = now()
+WHERE id = $1
+  AND version = $2
+  AND archived_at IS NULL
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
+`
+
+type ArchiveAgentOfferParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int
+}
+
+func (q *Queries) ArchiveAgentOffer(ctx context.Context, arg ArchiveAgentOfferParams) (AgentOffer, error) {
+	row := q.db.QueryRow(ctx, archiveAgentOffer, arg.ID, arg.ExpectedVersion)
+	var i AgentOffer
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyUnitTypeID,
+		&i.AgentID,
+		&i.Title,
+		&i.Description,
+		&i.PriceKobo,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Notes,
+		&i.Version,
+		&i.ArchivedAt,
+	)
+	return i, err
+}
+
 const createAuthorizedAgentOffer = `-- name: CreateAuthorizedAgentOffer :one
 INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
 SELECT $1, $2, $3, $4, $5, $6, $7
@@ -19,7 +56,7 @@ JOIN properties p ON p.id = put.property_id
 JOIN agents a ON a.id = $2 AND a.status = 'active'
 JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
 WHERE put.id = $1
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 `
 
 type CreateAuthorizedAgentOfferParams struct {
@@ -55,6 +92,7 @@ func (q *Queries) CreateAuthorizedAgentOffer(ctx context.Context, arg CreateAuth
 		&i.UpdatedAt,
 		&i.Notes,
 		&i.Version,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -146,7 +184,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 }
 
 const getAgentOffer = `-- name: GetAgentOffer :one
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 FROM agent_offers
 WHERE id = $1
 `
@@ -166,6 +204,7 @@ func (q *Queries) GetAgentOffer(ctx context.Context, id pgtype.UUID) (AgentOffer
 		&i.UpdatedAt,
 		&i.Notes,
 		&i.Version,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -282,6 +321,7 @@ SELECT
   ao.updated_at,
   ao.notes,
   ao.version,
+  ao.archived_at,
   a.display_name AS agent_display_name
 FROM agent_offers ao
 JOIN agents a ON a.id = ao.agent_id
@@ -301,6 +341,7 @@ type ListAgentOfferDetailsByPropertyUnitTypeIDsRow struct {
 	UpdatedAt          pgtype.Timestamptz
 	Notes              pgtype.Text
 	Version            int
+	ArchivedAt         pgtype.Timestamptz
 	AgentDisplayName   string
 }
 
@@ -325,6 +366,7 @@ func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context
 			&i.UpdatedAt,
 			&i.Notes,
 			&i.Version,
+			&i.ArchivedAt,
 			&i.AgentDisplayName,
 		); err != nil {
 			return nil, err
@@ -338,7 +380,7 @@ func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context
 }
 
 const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC
@@ -365,6 +407,7 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 			&i.UpdatedAt,
 			&i.Notes,
 			&i.Version,
+			&i.ArchivedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -549,7 +592,8 @@ SET title = COALESCE($1, title),
     updated_at = now()
 WHERE id = $6
   AND version = $7
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+  AND archived_at IS NULL
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 `
 
 type UpdateAgentOfferParams struct {
@@ -585,6 +629,7 @@ func (q *Queries) UpdateAgentOffer(ctx context.Context, arg UpdateAgentOfferPara
 		&i.UpdatedAt,
 		&i.Notes,
 		&i.Version,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

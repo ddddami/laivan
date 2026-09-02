@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type AgentOfferStatus string
 
 const (
@@ -18,6 +20,7 @@ type AgentOffer struct {
 	Price              Money
 	Status             AgentOfferStatus
 	Version            int
+	ArchivedAt         *time.Time
 	Timestamps
 }
 

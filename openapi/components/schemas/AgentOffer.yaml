@@ -46,6 +46,12 @@ properties:
     type: integer
     minimum: 1
     description: Current optimistic-concurrency version.
+  archived_at:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: Time at which the offer was archived, if applicable.
   created_at:
     type: string
     format: date-time

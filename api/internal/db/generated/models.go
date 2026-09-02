@@ -52,6 +52,7 @@ type AgentOffer struct {
 	UpdatedAt          pgtype.Timestamptz
 	Notes              pgtype.Text
 	Version            int
+	ArchivedAt         pgtype.Timestamptz
 }
 
 type AuditEvent struct {

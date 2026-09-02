@@ -215,6 +215,29 @@ func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID,
 	return agentOfferFromRow(row), nil
 }
 
+func (r *PropertyRepository) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	offerUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+
+	row, err := r.queries.ArchiveAgentOffer(ctx, generateddb.ArchiveAgentOfferParams{
+		ID:              offerUUID,
+		ExpectedVersion: expectedVersion,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrStaleUpdate
+		}
+		return domain.AgentOffer{}, fmt.Errorf("archive agent offer: %w", err)
+	}
+
+	return agentOfferFromRow(row), nil
+}
+
 func agentOfferStatusValue(value *domain.AgentOfferStatus) *string {
 	if value == nil {
 		return nil
@@ -704,6 +727,7 @@ func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
 		Price:              domain.Money{AmountKobo: row.PriceKobo},
 		Status:             domain.AgentOfferStatus(row.Status),
 		Version:            row.Version,
+		ArchivedAt:         timestamptzPointer(row.ArchivedAt),
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
@@ -723,6 +747,7 @@ func agentOfferDetailFromRow(row generateddb.ListAgentOfferDetailsByPropertyUnit
 			Price:              domain.Money{AmountKobo: row.PriceKobo},
 			Status:             domain.AgentOfferStatus(row.Status),
 			Version:            row.Version,
+			ArchivedAt:         timestamptzPointer(row.ArchivedAt),
 			Timestamps: domain.Timestamps{
 				CreatedAt: row.CreatedAt.Time,
 				UpdatedAt: row.UpdatedAt.Time,

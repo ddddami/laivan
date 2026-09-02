@@ -80,16 +80,16 @@ JOIN properties p ON p.id = put.property_id
 JOIN agents a ON a.id = $2 AND a.status = 'active'
 JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
 WHERE put.id = $1
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version;
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at;
 
 -- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC;
 
 -- name: GetAgentOffer :one
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 FROM agent_offers
 WHERE id = $1;
 
@@ -104,7 +104,19 @@ SET title = COALESCE(sqlc.narg('title'), title),
     updated_at = now()
 WHERE id = sqlc.arg('id')
   AND version = sqlc.arg('expected_version')
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version;
+  AND archived_at IS NULL
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at;
+
+-- name: ArchiveAgentOffer :one
+UPDATE agent_offers
+SET status = 'unavailable',
+    archived_at = now(),
+    version = version + 1,
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+  AND version = sqlc.arg('expected_version')
+  AND archived_at IS NULL
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at;
 
 -- name: ListAgentOfferDetailsByPropertyUnitTypeIDs :many
 SELECT
@@ -119,6 +131,7 @@ SELECT
   ao.updated_at,
   ao.notes,
   ao.version,
+  ao.archived_at,
   a.display_name AS agent_display_name
 FROM agent_offers ao
 JOIN agents a ON a.id = ao.agent_id

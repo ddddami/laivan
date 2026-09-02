@@ -252,6 +252,38 @@ func TestUpdateAgentOfferReturnsNewVersionAndETag(t *testing.T) {
 	}
 }
 
+func TestArchiveAgentOfferReturnsArchivedVersionAndETag(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	req := authenticatedRequest(http.MethodPost, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", "", true)
+	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("ETag"); got != `"agent-offer-550e8400-e29b-41d4-a716-446655440030-2"` {
+		t.Fatalf("ETag = %q, want archived agent offer ETag", got)
+	}
+	var body struct {
+		AgentOffer struct {
+			Status     string `json:"status"`
+			Version    int    `json:"version"`
+			ArchivedAt string `json:"archived_at"`
+		} `json:"agent_offer"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.AgentOffer.Status != "unavailable" {
+		t.Fatalf("status = %q, want unavailable", body.AgentOffer.Status)
+	}
+	if body.AgentOffer.Version != 2 || body.AgentOffer.ArchivedAt == "" {
+		t.Fatalf("archived offer = %#v, want version 2 and archive timestamp", body.AgentOffer)
+	}
+}
+
 func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)
