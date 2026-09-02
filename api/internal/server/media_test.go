@@ -105,7 +105,7 @@ func TestUploadMediaRejectsUnsupportedFileType(t *testing.T) {
 
 func TestUploadMediaValidatesAllFilesBeforeUploading(t *testing.T) {
 	uploader := &stubUploader{}
-	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
@@ -181,7 +181,7 @@ func TestUploadMediaCreatesMediaRecord(t *testing.T) {
 
 func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 	uploader := &stubUploader{}
-	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
@@ -226,7 +226,7 @@ func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 
 func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
 	uploader := &stubUploader{failUploadAt: 2}
-	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
@@ -257,7 +257,7 @@ func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
 func TestUploadMediaRemovesUploadedObjectsWhenPersistenceFails(t *testing.T) {
 	uploader := &stubUploader{}
 	app := testAppWithActiveAgentRepo()
-	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
+	app.propertyRepo = &fkViolationRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app.mediaUploader = uploader
 
 	body, contentType := multipartBodyFiles(t, map[string]string{
@@ -376,7 +376,7 @@ func TestUploadMediaRejectsTooManyFiles(t *testing.T) {
 }
 
 func TestUploadMediaDerivesAgentProvenanceFromSession(t *testing.T) {
-	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = &stubUploader{}
@@ -407,7 +407,7 @@ func TestUploadMediaRejectsAnotherAgentsOffer(t *testing.T) {
 		Agent:          &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440041"), Status: domain.AgentStatusActive},
 		AgentCampusIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
 	}})
-	app.propertyRepo = &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app.propertyRepo = &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app.mediaUploader = uploader
 	body, contentType := multipartBody(t, map[string]string{
 		"agent_offer_id": "550e8400-e29b-41d4-a716-446655440030",
@@ -475,7 +475,7 @@ func TestUploadMediaRejectsCaptionTooLong(t *testing.T) {
 
 func TestUploadMediaReturnsBadRequestOnForeignKeyViolation(t *testing.T) {
 	app := testAppWithActiveAgentRepo()
-	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
+	app.propertyRepo = &fkViolationRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
@@ -530,78 +530,6 @@ func (f *failUploader) Upload(ctx context.Context, input storage.UploadInput) (s
 
 func (f *failUploader) Delete(ctx context.Context, key string) error {
 	return f.err
-}
-
-type fkViolationRepo struct {
-	stub *stubPropertyRepo
-}
-
-func (s *fkViolationRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
-	return s.stub.GetCampusBySlug(ctx, slug)
-}
-
-func (s *fkViolationRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
-	return s.stub.Create(ctx, property)
-}
-func (s *fkViolationRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
-	return s.stub.Get(ctx, id)
-}
-func (s *fkViolationRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
-	return s.stub.Update(ctx, id, expectedVersion, patch)
-}
-func (s *fkViolationRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
-	return s.stub.GetPropertyUnitType(ctx, id)
-}
-func (s *fkViolationRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
-	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
-}
-func (s *fkViolationRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
-	return s.stub.GetAgentOffer(ctx, id)
-}
-func (s *fkViolationRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
-	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
-}
-func (s *fkViolationRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
-	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
-}
-func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
-	return s.stub.GetWithDetails(ctx, id)
-}
-func (s *fkViolationRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
-	return s.stub.GetMediaTarget(ctx, targetType, id)
-}
-func (s *fkViolationRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
-	return s.stub.ListWithSummary(ctx, filter)
-}
-func (s *fkViolationRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
-	return s.stub.Discover(ctx, filter)
-}
-func (s *fkViolationRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
-	return domain.Media{}, repo.ErrForeignKeyViolation
-}
-func (s *fkViolationRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
-	return nil, repo.ErrForeignKeyViolation
-}
-func (s *fkViolationRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByProperty(ctx, propertyID)
-}
-func (s *fkViolationRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
-}
-func (s *fkViolationRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
-}
-func (s *fkViolationRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
-	return s.stub.CreatePropertyUnitType(ctx, unitType)
-}
-func (s *fkViolationRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
-	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
-}
-func (s *fkViolationRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
-	return s.stub.CreateAgentOffer(ctx, offer)
-}
-func (s *fkViolationRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
-	return s.stub.ListAgentOffers(ctx, unitTypeID)
 }
 
 func multipartBody(t *testing.T, fields map[string]string, filename string, file []byte) (*bytes.Buffer, string) {
@@ -661,4 +589,16 @@ func tinyJPEG() []byte {
 		0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 		0xff, 0xd9,
 	}
+}
+
+type fkViolationRepo struct {
+	*stubPropertyRepo
+}
+
+func (s *fkViolationRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
+	return domain.Media{}, repo.ErrForeignKeyViolation
+}
+
+func (s *fkViolationRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+	return nil, repo.ErrForeignKeyViolation
 }

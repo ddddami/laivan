@@ -82,7 +82,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 }
 
 func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
-	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = spy
 
@@ -102,7 +102,7 @@ func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 }
 
 func TestCreateAgentOfferDuplicateReturnsConflict(t *testing.T) {
-	dupRepo := &duplicateAgentOfferRepo{stub: &stubPropertyRepo{}}
+	dupRepo := &duplicateAgentOfferRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = dupRepo
 
@@ -164,7 +164,7 @@ func TestCreateAgentOfferRejectsPriceOverflow(t *testing.T) {
 }
 
 func TestCreateAgentOfferAcceptsMaxPrice(t *testing.T) {
-	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = spy
 

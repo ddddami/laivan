@@ -100,7 +100,7 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 }
 
 func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
-	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = spy
 

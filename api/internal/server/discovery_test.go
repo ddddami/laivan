@@ -68,7 +68,7 @@ func TestDiscoveryReturnsResults(t *testing.T) {
 }
 
 func TestDiscoveryAcceptsMarketplaceSearch(t *testing.T) {
-	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testApp()
 	app.propertyRepo = repository
 	req := httptest.NewRequest(
