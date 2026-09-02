@@ -88,6 +88,24 @@ FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC;
 
+-- name: GetAgentOffer :one
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+FROM agent_offers
+WHERE id = $1;
+
+-- name: UpdateAgentOffer :one
+UPDATE agent_offers
+SET title = COALESCE(sqlc.narg('title'), title),
+    description = COALESCE(sqlc.narg('description'), description),
+    notes = COALESCE(sqlc.narg('notes'), notes),
+    price_kobo = COALESCE(sqlc.narg('price_kobo'), price_kobo),
+    status = COALESCE(sqlc.narg('status'), status),
+    version = version + 1,
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+  AND version = sqlc.arg('expected_version')
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version;
+
 -- name: ListAgentOfferDetailsByPropertyUnitTypeIDs :many
 SELECT
   ao.id,

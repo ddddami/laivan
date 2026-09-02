@@ -1029,6 +1029,11 @@ paths:
       responses:
         '201':
           description: Agent offer created successfully.
+          headers:
+            ETag:
+              description: Current agent offer version.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -1088,6 +1093,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnitTypeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/agent-offers/{id}:
+    patch:
+      operationId: updateAgentOffer
+      tags:
+        - Agent Offers
+      summary: Update an agent offer.
+      description: Updates an offer owned by the authenticated active agent or managed by a campus operator using an optimistic-concurrency version precondition.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent offer ID.
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          description: ETag returned by the latest agent offer read.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAgentOfferRequest'
+      responses:
+        '200':
+          description: Agent offer updated successfully.
+          headers:
+            ETag:
+              description: Current agent offer version after the update.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOfferResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -2334,3 +2398,28 @@ components:
           $ref: '#/components/schemas/BathroomType'
         kitchen_type:
           $ref: '#/components/schemas/KitchenType'
+    UpdateAgentOfferRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        notes:
+          type: string
+          maxLength: 2000
+        price_naira:
+          type: integer
+          minimum: 1
+          maximum: 21474836
+        status:
+          type: string
+          enum:
+            - available
+            - unavailable
+            - paused

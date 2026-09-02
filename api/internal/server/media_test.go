@@ -555,6 +555,12 @@ func (s *fkViolationRepo) GetPropertyUnitType(ctx context.Context, id domain.ID)
 func (s *fkViolationRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
 	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
 }
+func (s *fkViolationRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
+	return s.stub.GetAgentOffer(ctx, id)
+}
+func (s *fkViolationRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
+}
 func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }

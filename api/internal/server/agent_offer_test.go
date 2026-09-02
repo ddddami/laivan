@@ -196,6 +196,62 @@ func TestCreateAgentOfferRejectsClientSuppliedAgentID(t *testing.T) {
 	}
 }
 
+func TestUpdateAgentOfferRequiresOwnership(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440041"), Status: domain.AgentStatusActive},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
+	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
+}
+
+func TestUpdateAgentOfferRequiresIfMatch(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+}
+
+func TestUpdateAgentOfferReturnsNewVersionAndETag(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer","price_naira":360000}`, true)
+	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("ETag"); got != `"agent-offer-550e8400-e29b-41d4-a716-446655440030-2"` {
+		t.Fatalf("ETag = %q, want updated agent offer ETag", got)
+	}
+	var body struct {
+		AgentOffer struct {
+			Title      string `json:"title"`
+			PriceNaira int    `json:"price_naira"`
+			Version    int    `json:"version"`
+		} `json:"agent_offer"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.AgentOffer.Title != "Updated offer" || body.AgentOffer.PriceNaira != 360000 {
+		t.Fatalf("updated offer = %#v, want changed fields", body.AgentOffer)
+	}
+	if body.AgentOffer.Version != 2 {
+		t.Fatalf("version = %d, want 2", body.AgentOffer.Version)
+	}
+}
+
 func TestListAgentOffersReturnsAgentOffers(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", nil)

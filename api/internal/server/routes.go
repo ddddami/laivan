@@ -112,6 +112,7 @@ func (app *app) routes() http.Handler {
 		r.Get("/{id}/agent-offers", app.listAgentOffers)
 		r.With(app.requireAuthenticatedUser, app.requireActiveAgent, app.requireCSRF).Post("/{id}/agent-offers", app.createAgentOffer)
 	})
+	r.With(app.requireAuthenticatedUser, app.requireCSRF).Patch("/v1/agent-offers/{id}", app.updateAgentOffer)
 
 	r.Get("/v1/discovery", app.discover)
 	r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/v1/media", app.uploadMedia)

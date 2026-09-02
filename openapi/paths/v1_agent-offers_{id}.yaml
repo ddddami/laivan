@@ -1,0 +1,60 @@
+patch:
+  operationId: updateAgentOffer
+  tags:
+    - Agent Offers
+  summary: Update an agent offer.
+  description: >-
+    Updates an offer owned by the authenticated active agent or managed by a
+    campus operator using an optimistic-concurrency version precondition.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Agent offer ID.
+      schema:
+        type: string
+        format: uuid
+    - name: If-Match
+      in: header
+      required: true
+      description: ETag returned by the latest agent offer read.
+      schema:
+        type: string
+        minLength: 1
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UpdateAgentOfferRequest.yaml
+  responses:
+    '200':
+      description: Agent offer updated successfully.
+      headers:
+        ETag:
+          description: Current agent offer version after the update.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentOfferResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '412':
+      $ref: ../components/responses/PreconditionFailed.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '428':
+      $ref: ../components/responses/PreconditionRequired.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

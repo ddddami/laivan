@@ -594,6 +594,9 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	if created.ID == "" {
 		t.Fatal("created agent offer ID is empty")
 	}
+	if created.Version != 1 {
+		t.Fatalf("created version = %d, want 1", created.Version)
+	}
 	if created.PropertyUnitTypeID != unitTypeID {
 		t.Fatalf("property unit type ID = %q, want %q", created.PropertyUnitTypeID, unitTypeID)
 	}
@@ -622,6 +625,24 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	}
 	if listed[0].Notes != "2 left. Inspection tomorrow only." {
 		t.Fatalf("listed notes = %q, want 2 left. Inspection tomorrow only.", listed[0].Notes)
+	}
+
+	updatedTitle := "Corrected self-contained room"
+	updatedPrice := domain.Kobo(360000)
+	updated, err := repository.UpdateAgentOffer(ctx, created.ID, created.Version, domain.AgentOfferPatch{
+		Title:     &updatedTitle,
+		PriceKobo: &updatedPrice,
+	})
+	if err != nil {
+		t.Fatalf("update agent offer: %v", err)
+	}
+	if updated.Title != updatedTitle || updated.Price.AmountKobo != updatedPrice || updated.Version != 2 {
+		t.Fatalf("updated agent offer = %#v, want changed fields at version 2", updated)
+	}
+
+	_, err = repository.UpdateAgentOffer(ctx, created.ID, created.Version, domain.AgentOfferPatch{Title: &updatedTitle})
+	if !errors.Is(err, ErrStaleUpdate) {
+		t.Fatalf("stale agent offer update error = %v, want %v", err, ErrStaleUpdate)
 	}
 }
 

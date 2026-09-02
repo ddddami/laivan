@@ -145,6 +145,31 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 	return i, err
 }
 
+const getAgentOffer = `-- name: GetAgentOffer :one
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+FROM agent_offers
+WHERE id = $1
+`
+
+func (q *Queries) GetAgentOffer(ctx context.Context, id pgtype.UUID) (AgentOffer, error) {
+	row := q.db.QueryRow(ctx, getAgentOffer, id)
+	var i AgentOffer
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyUnitTypeID,
+		&i.AgentID,
+		&i.Title,
+		&i.Description,
+		&i.PriceKobo,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Notes,
+		&i.Version,
+	)
+	return i, err
+}
+
 const getAgentOfferMediaTarget = `-- name: GetAgentOfferMediaTarget :one
 SELECT ao.id AS agent_offer_id, ao.property_unit_type_id, put.property_id, p.campus_id, ao.agent_id
 FROM agent_offers ao
@@ -511,6 +536,57 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAgentOffer = `-- name: UpdateAgentOffer :one
+UPDATE agent_offers
+SET title = COALESCE($1, title),
+    description = COALESCE($2, description),
+    notes = COALESCE($3, notes),
+    price_kobo = COALESCE($4, price_kobo),
+    status = COALESCE($5, status),
+    version = version + 1,
+    updated_at = now()
+WHERE id = $6
+  AND version = $7
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
+`
+
+type UpdateAgentOfferParams struct {
+	Title           pgtype.Text
+	Description     pgtype.Text
+	Notes           pgtype.Text
+	PriceKobo       pgtype.Int4
+	Status          pgtype.Text
+	ID              pgtype.UUID
+	ExpectedVersion int
+}
+
+func (q *Queries) UpdateAgentOffer(ctx context.Context, arg UpdateAgentOfferParams) (AgentOffer, error) {
+	row := q.db.QueryRow(ctx, updateAgentOffer,
+		arg.Title,
+		arg.Description,
+		arg.Notes,
+		arg.PriceKobo,
+		arg.Status,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	var i AgentOffer
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyUnitTypeID,
+		&i.AgentID,
+		&i.Title,
+		&i.Description,
+		&i.PriceKobo,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Notes,
+		&i.Version,
+	)
+	return i, err
 }
 
 const updateProperty = `-- name: UpdateProperty :one
