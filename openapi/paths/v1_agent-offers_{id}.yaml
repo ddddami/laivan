@@ -4,8 +4,10 @@ patch:
     - Agent Offers
   summary: Update an agent offer.
   description: >-
-    Updates an offer owned by the authenticated active agent or managed by a
-    campus operator using an optimistic-concurrency version precondition.
+    Updates an offer owned by the authenticated active agent currently assigned
+    to the property's campus, managed by an operator for that campus, or
+    managed by a global admin, using an optimistic-concurrency version
+    precondition.
   security:
     - sessionAuth: []
   parameters:

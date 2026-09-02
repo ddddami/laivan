@@ -5,8 +5,9 @@ post:
   summary: Archive an agent offer.
   description: >-
     Archives an agent offer without physically deleting its history or
-    provenance. The operation requires the authenticated owner or a campus
-    operator and an optimistic-concurrency version precondition.
+    provenance. The operation requires the authenticated active owner currently
+    assigned to the property's campus, an operator for that campus, or a global
+    admin, plus an optimistic-concurrency version precondition.
   security:
     - sessionAuth: []
   parameters:

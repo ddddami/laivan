@@ -4,8 +4,9 @@ patch:
     - Unit Types
   summary: Correct a unit type.
   description: >-
-    Updates shared canonical unit type data for a campus operator using an
-    optimistic-concurrency version precondition.
+    Updates shared canonical unit type data for an operator of the property's
+    campus or a global admin using an optimistic-concurrency version
+    precondition.
   security:
     - sessionAuth: []
   parameters:

@@ -35,8 +35,9 @@ patch:
     - Properties
   summary: Correct a property.
   description: >-
-    Updates shared canonical property data for a campus operator using an
-    optimistic-concurrency version precondition.
+    Updates shared canonical property data for an operator of the property's
+    campus or a global admin using an optimistic-concurrency version
+    precondition.
   security:
     - sessionAuth: []
   parameters:
