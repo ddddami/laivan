@@ -70,6 +70,7 @@ WITH opportunities AS (
   LEFT JOIN agent_offers ao
     ON ao.property_unit_type_id = put.id
     AND ao.status = 'available'
+    AND ao.archived_at IS NULL
   WHERE p.campus_id = sqlc.arg(campus_id)
     AND (
       sqlc.arg(search)::text = ''
