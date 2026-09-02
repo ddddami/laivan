@@ -3,3 +3,4 @@
 !.env.example
 .envrc
 .DS_Store
+/bin/

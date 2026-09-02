@@ -26,6 +26,11 @@ description = "Run the API for mobile LAN preview"
 dir = "api"
 run = "LAIVAN_IMGPROXY_BASE_URL=/__imgproxy air"
 
+[tasks."admin:build"]
+description = "Build the admin CLI binary"
+dir = "api"
+run = "mkdir -p ../bin && go build -o ../bin/laivan-admin ./cmd/admin"
+
 [tasks."api:test"]
 description = "Run API tests"
 dir = "api"
