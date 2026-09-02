@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -180,26 +178,6 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type optionalPropertyString struct {
-	value   string
-	present bool
-}
-
-func (s *optionalPropertyString) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("property patch fields must not be null")
-	}
-
-	var value string
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("property patch fields must be strings")
-	}
-
-	s.value = value
-	s.present = true
-	return nil
-}
-
 func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	v := validator.New()
@@ -222,30 +200,30 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Name        optionalPropertyString `json:"name"`
-		Area        optionalPropertyString `json:"area"`
-		Landmark    optionalPropertyString `json:"landmark"`
-		Description optionalPropertyString `json:"description"`
+		Name        PatchField[string] `json:"name"`
+		Area        PatchField[string] `json:"area"`
+		Landmark    PatchField[string] `json:"landmark"`
+		Description PatchField[string] `json:"description"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
 		return
 	}
 
-	v.Check(input.Name.present || input.Area.present || input.Landmark.present || input.Description.present, "body", "At least one property field is required")
-	if input.Name.present {
-		v.Check(validator.NotBlank(input.Name.value), "name", "Name is required")
-		v.Check(validator.MaxChars(input.Name.value, 255), "name", "Name must not exceed 255 characters")
+	v.Check(input.Name.Present || input.Area.Present || input.Landmark.Present || input.Description.Present, "body", "At least one property field is required")
+	if input.Name.Present {
+		v.Check(validator.NotBlank(input.Name.Value), "name", "Name is required")
+		v.Check(validator.MaxChars(input.Name.Value, 255), "name", "Name must not exceed 255 characters")
 	}
-	if input.Area.present {
-		v.Check(validator.NotBlank(input.Area.value), "area", "Area is required")
-		v.Check(validator.MaxChars(input.Area.value, 100), "area", "Area must not exceed 100 characters")
+	if input.Area.Present {
+		v.Check(validator.NotBlank(input.Area.Value), "area", "Area is required")
+		v.Check(validator.MaxChars(input.Area.Value, 100), "area", "Area must not exceed 100 characters")
 	}
-	if input.Landmark.present {
-		v.Check(validator.MaxChars(input.Landmark.value, 100), "landmark", "Landmark must not exceed 100 characters")
+	if input.Landmark.Present {
+		v.Check(validator.MaxChars(input.Landmark.Value, 100), "landmark", "Landmark must not exceed 100 characters")
 	}
-	if input.Description.present {
-		v.Check(validator.MaxChars(input.Description.value, 1000), "description", "Description must not exceed 1000 characters")
+	if input.Description.Present {
+		v.Check(validator.MaxChars(input.Description.Value, 1000), "description", "Description must not exceed 1000 characters")
 	}
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
@@ -269,10 +247,10 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err := app.propertyRepo.Update(r.Context(), domain.ID(id), expectedVersion, domain.PropertyPatch{
-		Name:        optionalPropertyValue(input.Name),
-		Area:        optionalPropertyValue(input.Area),
-		Landmark:    optionalPropertyValue(input.Landmark),
-		Description: optionalPropertyValue(input.Description),
+		Name:        OptionalValue(input.Name),
+		Area:        OptionalValue(input.Area),
+		Landmark:    OptionalValue(input.Landmark),
+		Description: OptionalValue(input.Description),
 	})
 	if err != nil {
 		if errors.Is(err, repo.ErrStaleUpdate) {
@@ -287,13 +265,6 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, envelope{"property": propertyResponse(updated)}, nil); err != nil {
 		app.logger.Error("write updated property response", "error", err)
 	}
-}
-
-func optionalPropertyValue(value optionalPropertyString) *string {
-	if !value.present {
-		return nil
-	}
-	return &value.value
 }
 
 func propertyETag(id domain.ID, version int) string {

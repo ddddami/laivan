@@ -1,9 +1,7 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -100,44 +98,6 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type optionalOfferString struct {
-	value   string
-	present bool
-}
-
-func (s *optionalOfferString) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("agent offer patch fields must not be null")
-	}
-
-	var value string
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("agent offer patch fields must be strings")
-	}
-	s.value = value
-	s.present = true
-	return nil
-}
-
-type optionalOfferInt struct {
-	value   int
-	present bool
-}
-
-func (i *optionalOfferInt) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("agent offer patch fields must not be null")
-	}
-
-	var value int
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("agent offer patch fields must be numbers")
-	}
-	i.value = value
-	i.present = true
-	return nil
-}
-
 func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	v := validator.New()
@@ -160,34 +120,34 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Title       optionalOfferString `json:"title"`
-		Description optionalOfferString `json:"description"`
-		Notes       optionalOfferString `json:"notes"`
-		PriceNaira  optionalOfferInt    `json:"price_naira"`
-		Status      optionalOfferString `json:"status"`
+		Title       PatchField[string] `json:"title"`
+		Description PatchField[string] `json:"description"`
+		Notes       PatchField[string] `json:"notes"`
+		PriceNaira  PatchField[int]    `json:"price_naira"`
+		Status      PatchField[string] `json:"status"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
 		return
 	}
 
-	v.Check(input.Title.present || input.Description.present || input.Notes.present || input.PriceNaira.present || input.Status.present, "body", "At least one agent offer field is required")
-	if input.Title.present {
-		v.Check(validator.NotBlank(input.Title.value), "title", "Title is required")
-		v.Check(validator.MaxChars(input.Title.value, 255), "title", "Title must not exceed 255 characters")
+	v.Check(input.Title.Present || input.Description.Present || input.Notes.Present || input.PriceNaira.Present || input.Status.Present, "body", "At least one agent offer field is required")
+	if input.Title.Present {
+		v.Check(validator.NotBlank(input.Title.Value), "title", "Title is required")
+		v.Check(validator.MaxChars(input.Title.Value, 255), "title", "Title must not exceed 255 characters")
 	}
-	if input.Description.present {
-		v.Check(validator.MaxChars(input.Description.value, 1000), "description", "Description must not exceed 1000 characters")
+	if input.Description.Present {
+		v.Check(validator.MaxChars(input.Description.Value, 1000), "description", "Description must not exceed 1000 characters")
 	}
-	if input.Notes.present {
-		v.Check(validator.MaxChars(input.Notes.value, 2000), "notes", "Notes must not exceed 2000 characters")
+	if input.Notes.Present {
+		v.Check(validator.MaxChars(input.Notes.Value, 2000), "notes", "Notes must not exceed 2000 characters")
 	}
-	if input.PriceNaira.present {
-		v.Check(input.PriceNaira.value > 0, "price_naira", "Price must be greater than 0")
-		v.Check(validator.MaxValue(input.PriceNaira.value, domain.MaxNaira), "price_naira", "Price exceeds maximum allowed value")
+	if input.PriceNaira.Present {
+		v.Check(input.PriceNaira.Value > 0, "price_naira", "Price must be greater than 0")
+		v.Check(validator.MaxValue(input.PriceNaira.Value, domain.MaxNaira), "price_naira", "Price exceeds maximum allowed value")
 	}
-	if input.Status.present {
-		v.Check(validAgentOfferStatus(input.Status.value), "status", "Status must be available, unavailable, or paused")
+	if input.Status.Present {
+		v.Check(validAgentOfferStatus(input.Status.Value), "status", "Status must be available, unavailable, or paused")
 	}
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
@@ -214,13 +174,13 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var priceKobo *int
-	if input.PriceNaira.present {
-		value := domain.Kobo(input.PriceNaira.value)
+	if input.PriceNaira.Present {
+		value := domain.Kobo(input.PriceNaira.Value)
 		priceKobo = &value
 	}
 	var status *domain.AgentOfferStatus
-	if input.Status.present {
-		value := domain.AgentOfferStatus(input.Status.value)
+	if input.Status.Present {
+		value := domain.AgentOfferStatus(input.Status.Value)
 		status = &value
 	}
 	updated, err := app.propertyRepo.UpdateAgentOffer(r.Context(), domain.ID(id), expectedVersion, domain.AgentOfferPatch{
@@ -318,11 +278,11 @@ func (app *app) authorizedAgentOffer(ctx context.Context, id domain.ID, p princi
 	return offer, isOperator || isOwner, nil
 }
 
-func optionalOfferValue(value optionalOfferString) *string {
-	if !value.present {
+func optionalOfferValue(value PatchField[string]) *string {
+	if !value.Present {
 		return nil
 	}
-	return &value.value
+	return &value.Value
 }
 
 func agentOfferETag(offer domain.AgentOffer) string {
