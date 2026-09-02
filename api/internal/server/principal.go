@@ -66,6 +66,21 @@ func (app *app) requireCampusOperator(next http.Handler) http.Handler {
 	})
 }
 
+func (app *app) requireActiveAgent(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, ok := principalFromContext(r.Context())
+		if !ok {
+			app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+			return
+		}
+		if p.Access.Agent == nil || p.Access.Agent.Status != domain.AgentStatusActive {
+			app.errorResponse(w, r, http.StatusForbidden, "agent_required", "An active agent profile is required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (app *app) requireCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {

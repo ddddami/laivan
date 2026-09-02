@@ -425,7 +425,7 @@ An `ExternalIdentity` is the pair of provider name and provider subject linked t
 
 The API stores only hashes of opaque session and CSRF tokens. The browser keeps the session in an HttpOnly cookie and receives the CSRF token through the session endpoint and a non-HttpOnly cookie. A missing, expired, revoked, or suspended session is anonymous.
 
-Google sign-in does not automatically claim a legacy agent. Agent applications, explicit operator activation, and role scope are later identity workflows.
+Google sign-in does not automatically claim a legacy agent. Agent applications, explicit operator activation, and role scope are separate identity workflows.
 
 ## Agent Applications And Ownership
 
@@ -443,7 +443,7 @@ Effective access is derived from explicit global-admin roles, campus-operator as
 
 Campus operators may suspend or reinstate agents only when `agent_campuses` places the target in one of their assigned campuses. Global admins may act across campuses. Suspension is a transactional lifecycle change: the agent becomes `suspended`, linked active applications become `suspended`, all non-revoked sessions for the linked user are revoked, and an audit event records the actor, transition, and note. Unlinked legacy agents have no user sessions to revoke. Reinstatement restores linked suspended applications and writes an audit event, but never creates a session automatically.
 
-Invalid lifecycle transitions are conflicts rather than idempotent successes. Suspension does not currently protect the public property, offer, or media write routes; those ownership and protected-write rules are a later slice. Public records and their visibility remain controlled by their own lifecycle status.
+Invalid lifecycle transitions are conflicts rather than idempotent successes. Creating an agent offer requires an authenticated active agent and derives the agent from the linked user; the target unit type must also belong to a campus associated with that agent. Property, unit-type, and media write ownership rules remain later slices. Public records and their visibility remain controlled by their own lifecycle status.
 
 ## User Roles
 

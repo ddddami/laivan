@@ -326,6 +326,18 @@ func testAppWithRepo() *app {
 	return a
 }
 
+func testAppWithActiveAgentRepo() *app {
+	userID := domain.ID("550e8400-e29b-41d4-a716-446655440001")
+	app := authenticatedTestApp(userID, &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Agent: &domain.LinkedAgent{
+			ID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+			Status: domain.AgentStatusActive,
+		},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	return app
+}
+
 type spyPropertyRepo struct {
 	stub            *stubPropertyRepo
 	createdUnitType domain.PropertyUnitType

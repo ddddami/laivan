@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/ddddami/laivan/internal/domain"
 )
 
 func TestCreateAgentOfferValidationErrors(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"agent_id":"","title":"","price_naira":0,"status":"gone"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/not-a-uuid/agent-offers", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"title":"","price_naira":0,"status":"gone"}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/not-a-uuid/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -30,7 +31,7 @@ func TestCreateAgentOfferValidationErrors(t *testing.T) {
 		t.Fatalf("decode response body: %v", err)
 	}
 
-	for _, field := range []string{"id", "agent_id", "title", "price_naira", "status"} {
+	for _, field := range []string{"id", "title", "price_naira", "status"} {
 		if bodyDecoded.Error.Fields[field] == "" {
 			t.Fatalf("%s validation error missing", field)
 		}
@@ -38,9 +39,9 @@ func TestCreateAgentOfferValidationErrors(t *testing.T) {
 }
 
 func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"title":"Fresh self-contained room","description":"Recently painted room with private bathroom.","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -65,6 +66,9 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 	if bodyDecoded.AgentOffer.Title != "Fresh self-contained room" {
 		t.Fatalf("title = %q, want Fresh self-contained room", bodyDecoded.AgentOffer.Title)
 	}
+	if bodyDecoded.AgentOffer.AgentID != "550e8400-e29b-41d4-a716-446655440040" {
+		t.Fatalf("agent_id = %q, want authenticated agent", bodyDecoded.AgentOffer.AgentID)
+	}
 	if bodyDecoded.AgentOffer.PriceNaira != 350000 {
 		t.Fatalf("price_naira = %d, want 350000", bodyDecoded.AgentOffer.PriceNaira)
 	}
@@ -75,11 +79,11 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 
 func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = spy
 
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	body := `{"title":"Fresh self-contained room","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -95,11 +99,11 @@ func TestCreateAgentOfferConvertsNairaToKobo(t *testing.T) {
 
 func TestCreateAgentOfferDuplicateReturnsConflict(t *testing.T) {
 	dupRepo := &duplicateAgentOfferRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = dupRepo
 
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Duplicate offer","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	body := `{"title":"Duplicate offer","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -108,9 +112,9 @@ func TestCreateAgentOfferDuplicateReturnsConflict(t *testing.T) {
 }
 
 func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Fresh self-contained room","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/11111111-1111-1111-1111-111111111111/agent-offers", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"title":"Fresh self-contained room","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/11111111-1111-1111-1111-111111111111/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -118,39 +122,22 @@ func TestCreateAgentOfferUnitTypeNotFound(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
 }
 
-func TestCreateAgentOfferAgentNotFound(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"agent_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Fresh self-contained room","price_naira":350000}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+func TestCreateAgentOfferRequiresActiveAgent(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{})
+	app.propertyRepo = &stubPropertyRepo{}
+	body := `{"title":"Fresh self-contained room","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
-	}
-
-	var bodyDecoded struct {
-		Error struct {
-			Code   string            `json:"code"`
-			Fields map[string]string `json:"fields"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
-		t.Fatalf("decode response body: %v", err)
-	}
-	if bodyDecoded.Error.Code != "validation_failed" {
-		t.Fatalf("code = %q, want validation_failed", bodyDecoded.Error.Code)
-	}
-	if bodyDecoded.Error.Fields["agent_id"] != "Agent does not exist" {
-		t.Fatalf("agent_id error = %q, want Agent does not exist", bodyDecoded.Error.Fields["agent_id"])
-	}
+	assertErrorResponse(t, rr, http.StatusForbidden, "agent_required", "An active agent profile is required")
 }
 
 func TestCreateAgentOfferRejectsPriceOverflow(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Premium room","price_naira":21474837}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"title":"Premium room","price_naira":21474837}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -174,11 +161,11 @@ func TestCreateAgentOfferRejectsPriceOverflow(t *testing.T) {
 
 func TestCreateAgentOfferAcceptsMaxPrice(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive}}})
 	app.propertyRepo = spy
 
-	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440040","title":"Premium room","price_naira":21474836}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", strings.NewReader(body))
+	body := `{"title":"Premium room","price_naira":21474836}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -189,6 +176,19 @@ func TestCreateAgentOfferAcceptsMaxPrice(t *testing.T) {
 
 	if spy.createdOffer.Price.AmountKobo != 2147483600 {
 		t.Fatalf("stored price = %d kobo, want 2147483600", spy.createdOffer.Price.AmountKobo)
+	}
+}
+
+func TestCreateAgentOfferRejectsClientSuppliedAgentID(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	body := `{"agent_id":"550e8400-e29b-41d4-a716-446655440099","title":"Premium room","price_naira":350000}`
+	req := authenticatedRequest(http.MethodPost, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020/agent-offers", body, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusBadRequest)
 	}
 }
 

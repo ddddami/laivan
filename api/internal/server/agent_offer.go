@@ -14,9 +14,13 @@ import (
 
 func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	unitTypeID := chi.URLParam(r, "id")
+	p, ok := principalFromContext(r.Context())
+	if !ok || p.Access.Agent == nil {
+		app.errorResponse(w, r, http.StatusForbidden, "agent_required", "An active agent profile is required")
+		return
+	}
 
 	var input struct {
-		AgentID     string `json:"agent_id"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
 		Notes       string `json:"notes"`
@@ -36,8 +40,6 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 	v.Check(validator.NotBlank(unitTypeID), "id", "ID is required")
 	v.Check(validator.ValidUUID(unitTypeID), "id", "ID must be a valid UUID")
-	v.Check(validator.NotBlank(input.AgentID), "agent_id", "Agent ID is required")
-	v.Check(validator.ValidUUID(input.AgentID), "agent_id", "Agent ID must be a valid UUID")
 	v.Check(validator.NotBlank(input.Title), "title", "Title is required")
 	v.Check(validator.MaxChars(input.Title, 255), "title", "Title must not exceed 255 characters")
 	v.Check(validator.MaxChars(input.Description, 1000), "description", "Description must not exceed 1000 characters")
@@ -53,7 +55,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 
 	created, err := app.propertyRepo.CreateAgentOffer(r.Context(), domain.AgentOffer{
 		PropertyUnitTypeID: domain.ID(unitTypeID),
-		AgentID:            domain.ID(input.AgentID),
+		AgentID:            p.Access.Agent.ID,
 		Title:              input.Title,
 		Description:        input.Description,
 		Notes:              input.Notes,
@@ -66,7 +68,10 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 			app.notFoundResponse(w, r)
 			return
 		case errors.Is(err, repo.ErrAgentNotFound):
-			app.validationFailedResponse(w, r, map[string]string{"agent_id": "Agent does not exist"})
+			app.errorResponse(w, r, http.StatusForbidden, "agent_required", "An active agent profile is required")
+			return
+		case errors.Is(err, repo.ErrAgentForbidden):
+			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "The agent is not authorized for this campus")
 			return
 		case errors.Is(err, repo.ErrNotFound):
 			app.notFoundResponse(w, r)

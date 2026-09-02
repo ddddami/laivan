@@ -31,9 +31,14 @@ SELECT id, property_id, name, description, created_at, updated_at, category, bed
 FROM property_unit_types
 WHERE id = $1;
 
--- name: CreateAgentOffer :one
+-- name: CreateAuthorizedAgentOffer :one
 INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT $1, $2, $3, $4, $5, $6, $7
+FROM property_unit_types put
+JOIN properties p ON p.id = put.property_id
+JOIN agents a ON a.id = $2 AND a.status = 'active'
+JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
+WHERE put.id = $1
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes;
 
 -- name: ListAgentOffersByPropertyUnitType :many

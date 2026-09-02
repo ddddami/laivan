@@ -108,7 +108,7 @@ func (app *app) routes() http.Handler {
 
 	r.Route("/v1/unit-types", func(r chi.Router) {
 		r.Get("/{id}/agent-offers", app.listAgentOffers)
-		r.Post("/{id}/agent-offers", app.createAgentOffer)
+		r.With(app.requireAuthenticatedUser, app.requireActiveAgent, app.requireCSRF).Post("/{id}/agent-offers", app.createAgentOffer)
 	})
 
 	r.Get("/v1/discovery", app.discover)

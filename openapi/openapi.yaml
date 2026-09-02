@@ -908,7 +908,9 @@ paths:
       tags:
         - Agent Offers
       summary: Create an agent offer for a unit type.
-      description: Creates an agent-specific offer for a property unit type, including price and current availability status.
+      description: Creates an offer for the authenticated user's active agent profile, including price and current availability status.
+      security:
+        - sessionAuth: []
       parameters:
         - name: id
           in: path
@@ -917,6 +919,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
@@ -926,7 +929,6 @@ paths:
             examples:
               agentOffer:
                 value:
-                  agent_id: 550e8400-e29b-41d4-a716-446655440040
                   title: Fresh self-contained room
                   description: Recently painted room with private bathroom.
                   notes: 2 left. Inspection tomorrow only.
@@ -941,6 +943,10 @@ paths:
                 $ref: "#/components/schemas/AgentOfferResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
@@ -1597,13 +1603,9 @@ components:
       type: object
       additionalProperties: false
       required:
-        - agent_id
         - title
         - price_naira
       properties:
-        agent_id:
-          type: string
-          format: uuid
         title:
           type: string
           minLength: 1

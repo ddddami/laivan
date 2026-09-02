@@ -338,7 +338,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Create an agent offer for a unit type.
-         * @description Creates an agent-specific offer for a property unit type, including price and current availability status.
+         * @description Creates an offer for the authenticated user's active agent profile, including price and current availability status.
          */
         readonly post: operations["createAgentOffer"];
         readonly delete?: never;
@@ -545,8 +545,6 @@ export interface components {
             readonly updated_at: string;
         };
         readonly CreateAgentOfferRequest: {
-            /** Format: uuid */
-            readonly agent_id: string;
             readonly title: string;
             readonly description?: string;
             /** @description Operational notes about the offer. Examples include "2 left" or "Inspection tomorrow only." */
@@ -1490,7 +1488,10 @@ export interface operations {
     readonly createAgentOffer: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path: {
                 /** @description Unit type ID. */
                 readonly id: string;
@@ -1513,6 +1514,8 @@ export interface operations {
                 };
             };
             readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];
