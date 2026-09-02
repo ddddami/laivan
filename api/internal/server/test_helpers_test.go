@@ -26,6 +26,7 @@ func (s *stubPropertyRepo) GetCampusBySlug(ctx context.Context, slug string) (do
 
 func (s *stubPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
 	property.ID = domain.ID("550e8400-e29b-41d4-a716-446655440001")
+	property.Version = 1
 	property.CreatedAt = time.Now()
 	property.UpdatedAt = time.Now()
 	return property, nil
@@ -281,6 +282,7 @@ func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType 
 	}
 
 	unitType.ID = domain.ID("550e8400-e29b-41d4-a716-446655440020")
+	unitType.Version = 1
 	unitType.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 	unitType.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 	return unitType, nil
@@ -321,6 +323,7 @@ func (s *stubPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.Ag
 	}
 
 	offer.ID = domain.ID("550e8400-e29b-41d4-a716-446655440030")
+	offer.Version = 1
 	offer.CreatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 	offer.UpdatedAt = time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC)
 	return offer, nil

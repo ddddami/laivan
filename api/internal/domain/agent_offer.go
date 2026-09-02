@@ -17,6 +17,7 @@ type AgentOffer struct {
 	Notes              string
 	Price              Money
 	Status             AgentOfferStatus
+	Version            int
 	Timestamps
 }
 

@@ -1,10 +1,10 @@
 -- name: CreateProperty :one
 INSERT INTO properties (campus_id, name, area, landmark, description)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at;
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version;
 
 -- name: GetProperty :one
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version
 FROM properties
 WHERE id = $1;
 
@@ -18,16 +18,16 @@ LIMIT $2;
 -- name: CreatePropertyUnitType :one
 INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes;
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version;
 
 -- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC;
 
 -- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 FROM property_unit_types
 WHERE id = $1;
 
@@ -52,10 +52,10 @@ JOIN properties p ON p.id = put.property_id
 JOIN agents a ON a.id = $2 AND a.status = 'active'
 JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
 WHERE put.id = $1
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes;
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version;
 
 -- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC;
@@ -72,6 +72,7 @@ SELECT
   ao.created_at,
   ao.updated_at,
   ao.notes,
+  ao.version,
   a.display_name AS agent_display_name
 FROM agent_offers ao
 JOIN agents a ON a.id = ao.agent_id
@@ -80,7 +81,7 @@ ORDER BY ao.property_unit_type_id, ao.created_at DESC, ao.id DESC;
 
 -- name: ListPropertiesWithSummary :many
 SELECT
-  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
   COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
   COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
   COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,

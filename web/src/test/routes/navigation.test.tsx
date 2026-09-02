@@ -144,6 +144,7 @@ const property: PropertyDetail = {
   area: 'Obanla',
   landmark: 'Near South Gate',
   description: 'A factual property description.',
+  version: 1,
   media: [],
   unit_types: [
     {
@@ -166,6 +167,7 @@ const property: PropertyDetail = {
           description: 'Annual offer for this accommodation.',
           price_naira: 350_000,
           status: 'available',
+          version: 1,
           agent: { id: 'agent-1', display_name: 'Ade Martins' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',

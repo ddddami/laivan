@@ -14,6 +14,7 @@ const property: PropertyDetail = {
   area: 'Obanla',
   landmark: 'Near South Gate',
   description: 'A factual property description.',
+  version: 1,
   media: [
     {
       id: 'property-media-1',
@@ -68,6 +69,7 @@ const property: PropertyDetail = {
           description: 'Offer attached to the selected unit.',
           price_naira: 350_000,
           status: 'available',
+          version: 1,
           agent: { id: 'agent-1', display_name: 'Ade Martins' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',
@@ -97,6 +99,7 @@ const property: PropertyDetail = {
           description: 'Must not appear for unit one.',
           price_naira: 180_000,
           status: 'available',
+          version: 1,
           agent: { id: 'agent-2', display_name: 'Bola Ajayi' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',

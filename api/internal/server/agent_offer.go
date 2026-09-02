@@ -139,6 +139,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"notes":                 nullableString(offer.Notes),
 		"price_naira":           offer.Price.Naira(),
 		"status":                string(offer.Status),
+		"version":               offer.Version,
 		"created_at":            offer.CreatedAt.Format(time.RFC3339),
 		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
 	}

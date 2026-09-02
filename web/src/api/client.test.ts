@@ -204,6 +204,7 @@ describe('public API client', () => {
       area: 'Obanla',
       landmark: 'Near South Gate',
       description: 'Gated student lodge.',
+      version: 1,
       unit_types: [],
       media: [],
       created_at: '2026-05-01T10:00:00Z',

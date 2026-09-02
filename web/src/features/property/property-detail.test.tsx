@@ -19,6 +19,7 @@ const property: PropertyDetailData = {
   area: 'Obanla',
   landmark: 'Near South Gate',
   description: 'A quiet building with borehole water.',
+  version: 1,
   media: [],
   created_at: '2026-05-01T10:00:00Z',
   updated_at: '2026-05-02T10:00:00Z',
@@ -43,6 +44,7 @@ const property: PropertyDetailData = {
           description: '',
           price_naira: 350_000,
           status: 'available',
+          version: 1,
           agent: {
             id: '550e8400-e29b-41d4-a716-446655440040',
             display_name: 'Ade Agent',

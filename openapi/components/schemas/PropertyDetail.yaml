@@ -6,6 +6,7 @@ required:
   - area
   - landmark
   - description
+  - version
   - unit_types
   - media
   - created_at
@@ -27,6 +28,10 @@ properties:
   description:
     type: string
     description: Building-level notes. May be empty when unavailable.
+  version:
+    type: integer
+    minimum: 1
+    description: Current optimistic-concurrency version.
   unit_types:
     type: array
     items:

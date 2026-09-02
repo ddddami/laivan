@@ -9,6 +9,7 @@ required:
   - unit_type_count
   - available_offer_count
   - lowest_price_naira
+  - version
   - created_at
   - updated_at
 properties:
@@ -42,6 +43,10 @@ properties:
     description: >-
       Lowest price among available offers in whole Naira. 0 when no offers
       exist.
+  version:
+    type: integer
+    minimum: 1
+    description: Current optimistic-concurrency version.
   thumbnail_url:
     type:
       - string

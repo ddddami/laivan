@@ -146,6 +146,7 @@ func propertyUnitTypeResponse(ut domain.PropertyUnitType) map[string]any {
 		"category":      string(ut.Category),
 		"name":          unitTypeDisplayName(ut),
 		"description":   ut.Description,
+		"version":       ut.Version,
 		"notes":         nullableString(ut.Notes),
 		"bedroom_count": ut.Structure.BedroomCount,
 		"has_parlour":   ut.Structure.HasParlour,

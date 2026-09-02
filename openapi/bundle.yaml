@@ -700,6 +700,7 @@ paths:
                         unit_type_count: 3
                         available_offer_count: 5
                         lowest_price_naira: 250000
+                        version: 1
                         created_at: '2026-05-01T10:00:00Z'
                         updated_at: '2026-05-01T10:00:00Z'
                     metadata:
@@ -816,6 +817,7 @@ paths:
                         has_parlour: false
                         bathroom_type: private
                         kitchen_type: private
+                        version: 1
                         created_at: '2026-05-01T10:00:00Z'
                         updated_at: '2026-05-01T10:00:00Z'
         '404':
@@ -911,6 +913,7 @@ paths:
                         notes: 2 left. Inspection tomorrow only.
                         price_naira: 350000
                         status: available
+                        version: 1
                         created_at: '2026-05-01T10:00:00Z'
                         updated_at: '2026-05-01T10:00:00Z'
         '404':
@@ -1446,6 +1449,7 @@ components:
         - unit_type_count
         - available_offer_count
         - lowest_price_naira
+        - version
         - created_at
         - updated_at
       properties:
@@ -1477,6 +1481,10 @@ components:
           type: integer
           minimum: 0
           description: Lowest price among available offers in whole Naira. 0 when no offers exist.
+        version:
+          type: integer
+          minimum: 1
+          description: Current optimistic-concurrency version.
         thumbnail_url:
           type:
             - string
@@ -1553,6 +1561,7 @@ components:
         - has_parlour
         - bathroom_type
         - kitchen_type
+        - version
         - created_at
         - updated_at
       properties:
@@ -1592,6 +1601,10 @@ components:
           anyOf:
             - $ref: '#/components/schemas/KitchenType'
             - type: 'null'
+        version:
+          type: integer
+          minimum: 1
+          description: Current optimistic-concurrency version.
         created_at:
           type: string
           format: date-time
@@ -1636,6 +1649,7 @@ components:
         - description
         - price_naira
         - status
+        - version
         - created_at
         - updated_at
       properties:
@@ -1668,6 +1682,10 @@ components:
             - available
             - unavailable
             - paused
+        version:
+          type: integer
+          minimum: 1
+          description: Current optimistic-concurrency version.
         created_at:
           type: string
           format: date-time
@@ -1775,6 +1793,7 @@ components:
         - area
         - landmark
         - description
+        - version
         - unit_types
         - media
         - created_at
@@ -1796,6 +1815,10 @@ components:
         description:
           type: string
           description: Building-level notes. May be empty when unavailable.
+        version:
+          type: integer
+          minimum: 1
+          description: Current optimistic-concurrency version.
         unit_types:
           type: array
           items:
