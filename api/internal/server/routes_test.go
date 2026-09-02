@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,24 @@ func (h *capturingHandler) Handle(_ context.Context, r slog.Record) error {
 }
 func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
 func (h *capturingHandler) WithGroup(_ string) slog.Handler      { return h }
+
+func TestRoutesCORSAllowsIfMatch(t *testing.T) {
+	app := testApp()
+	req := httptest.NewRequest(http.MethodOptions, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	req.Header.Set("Access-Control-Request-Method", http.MethodPatch)
+	req.Header.Set("Access-Control-Request-Headers", "If-Match")
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "If-Match") {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want If-Match", got)
+	}
+}
 
 func TestLogRequestCapturesStatusAndDuration(t *testing.T) {
 	handler := &capturingHandler{}
