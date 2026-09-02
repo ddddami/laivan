@@ -59,7 +59,7 @@ func runApproveAgent(ctx context.Context, agentAppRepo *repo.AgentApplicationRep
 		os.Exit(1)
 	}
 
-	agent, err := agentAppRepo.ActivateApplication(ctx, domain.ID(*appID), domain.ID(*actorID), nil, *note)
+	agent, err := agentAppRepo.ActivateApplication(ctx, domain.ID(*appID), domain.ID(*actorID), *note)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to approve application: %v\n", err)
 		os.Exit(1)

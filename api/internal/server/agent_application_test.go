@@ -122,7 +122,7 @@ func (f *fakeAgentApplicationStore) ListOperatorApplications(context.Context, do
 	return nil, f.listErr
 }
 
-func (f *fakeAgentApplicationStore) ActivateApplication(context.Context, domain.ID, domain.ID, *domain.ID, string) (domain.AgentApplication, error) {
+func (f *fakeAgentApplicationStore) ActivateApplication(context.Context, domain.ID, domain.ID, string) (domain.AgentApplication, error) {
 	return domain.AgentApplication{}, nil
 }
 

@@ -141,8 +141,7 @@ func (app *app) respondToAgentApplication(w http.ResponseWriter, r *http.Request
 	v.Check(validator.ValidUUID(applicationID), "id", "ID must be a valid UUID")
 
 	var input struct {
-		LegacyAgentID *string `json:"legacy_agent_id"`
-		OperatorNote  string  `json:"operator_note"`
+		OperatorNote string `json:"operator_note"`
 	}
 	if r.Body != nil && r.Body != http.NoBody {
 		if err := readJSON(w, r, &input); err != nil && err.Error() != "request body must not be empty" {
@@ -152,15 +151,6 @@ func (app *app) respondToAgentApplication(w http.ResponseWriter, r *http.Request
 	}
 	input.OperatorNote = strings.TrimSpace(input.OperatorNote)
 	v.Check(validator.MaxChars(input.OperatorNote, 2000), "operator_note", "Operator note must not exceed 2000 characters")
-	var legacyAgentID *domain.ID
-	if input.LegacyAgentID != nil {
-		v.Check(validator.NotBlank(*input.LegacyAgentID), "legacy_agent_id", "Legacy agent ID must not be empty")
-		v.Check(validator.ValidUUID(*input.LegacyAgentID), "legacy_agent_id", "Legacy agent ID must be a valid UUID")
-		if validator.ValidUUID(*input.LegacyAgentID) {
-			id := domain.ID(*input.LegacyAgentID)
-			legacyAgentID = &id
-		}
-	}
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
 		return
@@ -169,7 +159,7 @@ func (app *app) respondToAgentApplication(w http.ResponseWriter, r *http.Request
 	var application domain.AgentApplication
 	var err error
 	if activate {
-		application, err = app.applications.ActivateApplication(r.Context(), domain.ID(applicationID), p.User.ID, legacyAgentID, input.OperatorNote)
+		application, err = app.applications.ActivateApplication(r.Context(), domain.ID(applicationID), p.User.ID, input.OperatorNote)
 	} else {
 		application, err = app.applications.DeclineApplication(r.Context(), domain.ID(applicationID), p.User.ID, input.OperatorNote)
 	}
