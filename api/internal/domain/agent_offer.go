@@ -21,6 +21,14 @@ type AgentOffer struct {
 	Timestamps
 }
 
+type AgentOfferPatch struct {
+	Title       *string
+	Description *string
+	Notes       *string
+	PriceKobo   *int
+	Status      *AgentOfferStatus
+}
+
 type AgentOfferDetail struct {
 	AgentOffer
 	Agent AgentSummary

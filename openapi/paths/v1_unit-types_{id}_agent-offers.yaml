@@ -78,6 +78,11 @@ post:
   responses:
     '201':
       description: Agent offer created successfully.
+      headers:
+        ETag:
+          description: Current agent offer version.
+          schema:
+            type: string
       content:
         application/json:
           schema:

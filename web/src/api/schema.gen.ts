@@ -371,6 +371,26 @@ export interface paths {
         readonly patch: operations["updatePropertyUnitType"];
         readonly trace?: never;
     };
+    readonly "/v1/agent-offers/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /**
+         * Update an agent offer.
+         * @description Updates an offer owned by the authenticated active agent or managed by a campus operator using an optimistic-concurrency version precondition.
+         */
+        readonly patch: operations["updateAgentOffer"];
+        readonly trace?: never;
+    };
     readonly "/v1/media": {
         readonly parameters: {
             readonly query?: never;
@@ -804,6 +824,14 @@ export interface components {
             readonly has_parlour?: boolean;
             readonly bathroom_type?: components["schemas"]["BathroomType"];
             readonly kitchen_type?: components["schemas"]["KitchenType"];
+        };
+        readonly UpdateAgentOfferRequest: {
+            readonly title?: string;
+            readonly description?: string;
+            readonly notes?: string;
+            readonly price_naira?: number;
+            /** @enum {string} */
+            readonly status?: "available" | "unavailable" | "paused";
         };
     };
     responses: {
@@ -1631,6 +1659,8 @@ export interface operations {
             /** @description Agent offer created successfully. */
             readonly 201: {
                 headers: {
+                    /** @description Current agent offer version. */
+                    readonly ETag?: string;
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -1675,6 +1705,48 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["UnitTypeResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly updateAgentOffer: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description ETag returned by the latest agent offer read. */
+                readonly "If-Match": string;
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent offer ID. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateAgentOfferRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Agent offer updated successfully. */
+            readonly 200: {
+                headers: {
+                    /** @description Current agent offer version after the update. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentOfferResponse"];
                 };
             };
             readonly 400: components["responses"]["BadRequest"];

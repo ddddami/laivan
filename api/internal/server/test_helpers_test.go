@@ -421,12 +421,54 @@ func (s *stubPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domai
 			Description:        "Recently painted room with private bathroom.",
 			Price:              domain.Money{AmountKobo: 35000000},
 			Status:             domain.AgentOfferStatusAvailable,
+			Version:            1,
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 			},
 		},
 	}, nil
+}
+
+func (s *stubPropertyRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
+	offers, err := s.ListAgentOffers(ctx, domain.ID("550e8400-e29b-41d4-a716-446655440020"))
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+	for _, offer := range offers {
+		if offer.ID == id {
+			return offer, nil
+		}
+	}
+	return domain.AgentOffer{}, repo.ErrNotFound
+}
+
+func (s *stubPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+	offer, err := s.GetAgentOffer(ctx, id)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+	if offer.Version != expectedVersion {
+		return domain.AgentOffer{}, repo.ErrStaleUpdate
+	}
+	if patch.Title != nil {
+		offer.Title = *patch.Title
+	}
+	if patch.Description != nil {
+		offer.Description = *patch.Description
+	}
+	if patch.Notes != nil {
+		offer.Notes = *patch.Notes
+	}
+	if patch.PriceKobo != nil {
+		offer.Price.AmountKobo = *patch.PriceKobo
+	}
+	if patch.Status != nil {
+		offer.Status = *patch.Status
+	}
+	offer.Version++
+	offer.UpdatedAt = time.Now()
+	return offer, nil
 }
 
 func testAppWithRepo() *app {
@@ -475,6 +517,14 @@ func (s *spyPropertyRepo) GetPropertyUnitType(ctx context.Context, id domain.ID)
 
 func (s *spyPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
 	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
+}
+
+func (s *spyPropertyRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
+	return s.stub.GetAgentOffer(ctx, id)
+}
+
+func (s *spyPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
 }
 
 func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
@@ -556,6 +606,12 @@ func (s *duplicateAgentOfferRepo) GetPropertyUnitType(ctx context.Context, id do
 }
 func (s *duplicateAgentOfferRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
 	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
+}
+func (s *duplicateAgentOfferRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
+	return s.stub.GetAgentOffer(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
 }
 func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)

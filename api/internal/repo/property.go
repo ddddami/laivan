@@ -167,6 +167,62 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 	return propertyUnitTypeFromRow(row), nil
 }
 
+func (r *PropertyRepository) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	offerUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+
+	row, err := r.queries.GetAgentOffer(ctx, offerUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrNotFound
+		}
+		return domain.AgentOffer{}, fmt.Errorf("get agent offer: %w", err)
+	}
+
+	return agentOfferFromRow(row), nil
+}
+
+func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	offerUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+
+	row, err := r.queries.UpdateAgentOffer(ctx, generateddb.UpdateAgentOfferParams{
+		ID:              offerUUID,
+		ExpectedVersion: expectedVersion,
+		Title:           optionalTextParam(patch.Title),
+		Description:     optionalTextParam(patch.Description),
+		Notes:           optionalTextParam(patch.Notes),
+		PriceKobo:       optionalIntParam(patch.PriceKobo),
+		Status:          optionalTextParam(agentOfferStatusValue(patch.Status)),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrStaleUpdate
+		}
+		return domain.AgentOffer{}, fmt.Errorf("update agent offer: %w", err)
+	}
+
+	return agentOfferFromRow(row), nil
+}
+
+func agentOfferStatusValue(value *domain.AgentOfferStatus) *string {
+	if value == nil {
+		return nil
+	}
+	status := string(*value)
+	return &status
+}
+
 func unitCategoryValue(value *domain.UnitCategory) *string {
 	if value == nil {
 		return nil

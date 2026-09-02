@@ -1,0 +1,24 @@
+type: object
+additionalProperties: false
+minProperties: 1
+properties:
+  title:
+    type: string
+    minLength: 1
+    maxLength: 255
+  description:
+    type: string
+    maxLength: 1000
+  notes:
+    type: string
+    maxLength: 2000
+  price_naira:
+    type: integer
+    minimum: 1
+    maximum: 21474836
+  status:
+    type: string
+    enum:
+      - available
+      - unavailable
+      - paused

@@ -63,6 +63,8 @@ type PropertyStore interface {
 	ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error)
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
+	GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error)
+	UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error)
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore) *http.Server {
