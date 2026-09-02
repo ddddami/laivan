@@ -62,15 +62,28 @@ func futaCampusID(ctx context.Context, tx pgx.Tx) (string, error) {
 
 func seedAgents(ctx context.Context, tx pgx.Tx) error {
 	for _, agent := range agents {
+		var userID string
+		err := tx.QueryRow(ctx, `
+			INSERT INTO users (email, display_name)
+			VALUES ($1, $2)
+			ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name
+			RETURNING id
+		`, agent.ID+"@seed.laivan.com", agent.DisplayName).Scan(&userID)
+		if err != nil {
+			return fmt.Errorf("seed user for agent %s: %w", agent.ID, err)
+		}
+
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO agents (id, display_name, phone_number, whatsapp_number)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO agents (id, user_id, display_name, phone_number, whatsapp_number, status)
+			VALUES ($1, $2, $3, $4, $5, 'active')
 			ON CONFLICT (id) DO UPDATE SET
+			  user_id = EXCLUDED.user_id,
 			  display_name = EXCLUDED.display_name,
 			  phone_number = EXCLUDED.phone_number,
 			  whatsapp_number = EXCLUDED.whatsapp_number,
+			  status = EXCLUDED.status,
 			  updated_at = now()
-		`, agent.ID, agent.DisplayName, agent.PhoneNumber, agent.WhatsAppNumber); err != nil {
+		`, agent.ID, userID, agent.DisplayName, agent.PhoneNumber, agent.WhatsAppNumber); err != nil {
 			return fmt.Errorf("seed agent %s: %w", agent.ID, err)
 		}
 	}
