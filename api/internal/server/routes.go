@@ -108,6 +108,7 @@ func (app *app) routes() http.Handler {
 	})
 
 	r.Route("/v1/unit-types", func(r chi.Router) {
+		r.With(app.requireAuthenticatedUser, app.requireCampusOperator, app.requireCSRF).Patch("/{id}", app.updatePropertyUnitType)
 		r.Get("/{id}/agent-offers", app.listAgentOffers)
 		r.With(app.requireAuthenticatedUser, app.requireActiveAgent, app.requireCSRF).Post("/{id}/agent-offers", app.createAgentOffer)
 	})

@@ -558,3 +558,65 @@ func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) 
 	)
 	return i, err
 }
+
+const updatePropertyUnitType = `-- name: UpdatePropertyUnitType :one
+UPDATE property_unit_types
+SET category = COALESCE($1, category),
+    name = COALESCE($2, name),
+    description = COALESCE($3, description),
+    notes = COALESCE($4, notes),
+    bedroom_count = COALESCE($5, bedroom_count),
+    has_parlour = COALESCE($6, has_parlour),
+    bathroom_type = COALESCE($7, bathroom_type),
+    kitchen_type = COALESCE($8, kitchen_type),
+    version = version + 1,
+    updated_at = now()
+WHERE id = $9
+  AND version = $10
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+`
+
+type UpdatePropertyUnitTypeParams struct {
+	Category        pgtype.Text
+	Name            pgtype.Text
+	Description     pgtype.Text
+	Notes           pgtype.Text
+	BedroomCount    pgtype.Int4
+	HasParlour      pgtype.Bool
+	BathroomType    pgtype.Text
+	KitchenType     pgtype.Text
+	ID              pgtype.UUID
+	ExpectedVersion int
+}
+
+func (q *Queries) UpdatePropertyUnitType(ctx context.Context, arg UpdatePropertyUnitTypeParams) (PropertyUnitType, error) {
+	row := q.db.QueryRow(ctx, updatePropertyUnitType,
+		arg.Category,
+		arg.Name,
+		arg.Description,
+		arg.Notes,
+		arg.BedroomCount,
+		arg.HasParlour,
+		arg.BathroomType,
+		arg.KitchenType,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	var i PropertyUnitType
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Category,
+		&i.BedroomCount,
+		&i.HasParlour,
+		&i.BathroomType,
+		&i.KitchenType,
+		&i.Notes,
+		&i.Version,
+	)
+	return i, err
+}

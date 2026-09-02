@@ -82,6 +82,11 @@ post:
   responses:
     '201':
       description: Unit type created successfully.
+      headers:
+        ETag:
+          description: Current unit type version.
+          schema:
+            type: string
       content:
         application/json:
           schema:

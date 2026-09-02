@@ -116,6 +116,65 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 	return propertyFromRow(row), nil
 }
 
+func (r *PropertyRepository) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	unitTypeUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
+
+	row, err := r.queries.GetPropertyUnitType(ctx, unitTypeUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.PropertyUnitType{}, ErrNotFound
+		}
+		return domain.PropertyUnitType{}, fmt.Errorf("get property unit type: %w", err)
+	}
+
+	return propertyUnitTypeFromRow(row), nil
+}
+
+func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	unitTypeUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
+
+	row, err := r.queries.UpdatePropertyUnitType(ctx, generateddb.UpdatePropertyUnitTypeParams{
+		ID:              unitTypeUUID,
+		ExpectedVersion: expectedVersion,
+		Category:        optionalTextParam(unitCategoryValue(patch.Category)),
+		Name:            optionalTextParam(patch.Name),
+		Description:     optionalTextParam(patch.Description),
+		Notes:           optionalTextParam(patch.Notes),
+		BedroomCount:    optionalIntParam(patch.BedroomCount),
+		HasParlour:      optionalBoolParam(patch.HasParlour),
+		BathroomType:    optionalTextParam(patch.BathroomType),
+		KitchenType:     optionalTextParam(patch.KitchenType),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.PropertyUnitType{}, ErrStaleUpdate
+		}
+		return domain.PropertyUnitType{}, fmt.Errorf("update property unit type: %w", err)
+	}
+
+	return propertyUnitTypeFromRow(row), nil
+}
+
+func unitCategoryValue(value *domain.UnitCategory) *string {
+	if value == nil {
+		return nil
+	}
+	result := string(*value)
+	return &result
+}
+
 func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
@@ -629,6 +688,20 @@ func optionalTextParam(value *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *value, Valid: true}
+}
+
+func optionalIntParam(value *int) pgtype.Int4 {
+	if value == nil {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: int32(*value), Valid: true}
+}
+
+func optionalBoolParam(value *bool) pgtype.Bool {
+	if value == nil {
+		return pgtype.Bool{}
+	}
+	return pgtype.Bool{Bool: *value, Valid: true}
 }
 
 func textString(value pgtype.Text) string {
