@@ -32,6 +32,14 @@ type PropertyListFilter struct {
 	Filters   data.Filters
 }
 
+type MediaTarget struct {
+	PropertyID         domain.ID
+	PropertyUnitTypeID domain.ID
+	AgentOfferID       domain.ID
+	CampusID           domain.ID
+	AgentID            domain.ID
+}
+
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
 	return &PropertyRepository{queries: generateddb.New(database), db: database}
 }
@@ -348,6 +356,61 @@ func (r *PropertyRepository) ListPropertyUnitTypes(ctx context.Context, property
 	}
 
 	return unitTypes, nil
+}
+
+func (r *PropertyRepository) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (MediaTarget, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	uuid, err := uuidParam(id)
+	if err != nil {
+		return MediaTarget{}, err
+	}
+
+	switch targetType {
+	case "property":
+		row, err := r.queries.GetProperty(ctx, uuid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return MediaTarget{}, ErrNotFound
+		}
+		if err != nil {
+			return MediaTarget{}, fmt.Errorf("get property media target: %w", err)
+		}
+		return MediaTarget{
+			PropertyID: domain.ID(uuidString(row.ID)),
+			CampusID:   domain.ID(uuidString(row.CampusID)),
+		}, nil
+	case "property_unit_type":
+		row, err := r.queries.GetPropertyUnitTypeMediaTarget(ctx, uuid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return MediaTarget{}, ErrNotFound
+		}
+		if err != nil {
+			return MediaTarget{}, fmt.Errorf("get property unit type media target: %w", err)
+		}
+		return MediaTarget{
+			PropertyID:         domain.ID(uuidString(row.PropertyID)),
+			PropertyUnitTypeID: domain.ID(uuidString(row.PropertyUnitTypeID)),
+			CampusID:           domain.ID(uuidString(row.CampusID)),
+		}, nil
+	case "agent_offer":
+		row, err := r.queries.GetAgentOfferMediaTarget(ctx, uuid)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return MediaTarget{}, ErrNotFound
+		}
+		if err != nil {
+			return MediaTarget{}, fmt.Errorf("get agent offer media target: %w", err)
+		}
+		return MediaTarget{
+			PropertyID:         domain.ID(uuidString(row.PropertyID)),
+			PropertyUnitTypeID: domain.ID(uuidString(row.PropertyUnitTypeID)),
+			AgentOfferID:       domain.ID(uuidString(row.AgentOfferID)),
+			CampusID:           domain.ID(uuidString(row.CampusID)),
+			AgentID:            domain.ID(uuidString(row.AgentID)),
+		}, nil
+	default:
+		return MediaTarget{}, ErrNotFound
+	}
 }
 
 func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {

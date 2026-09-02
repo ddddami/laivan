@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,21 @@ type stubUploader struct {
 	deleteErr    error
 }
 
+func TestUploadMediaRequiresAuthentication(t *testing.T) {
+	app := testApp()
+	app.mediaUploader = &stubUploader{}
+	body, contentType := multipartBody(t, map[string]string{
+		"property_id": "550e8400-e29b-41d4-a716-446655440000",
+	}, "room.jpg", tinyJPEG())
+	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	req.Header.Set("Content-Type", contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+}
+
 func (s *stubUploader) Upload(ctx context.Context, input storage.UploadInput) (string, error) {
 	if s.failUploadAt == len(s.inputs)+1 {
 		return "", errors.New("storage unavailable")
@@ -39,7 +55,7 @@ func (s *stubUploader) Delete(ctx context.Context, key string) error {
 }
 
 func TestUploadMediaValidationRequiresOneTarget(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
@@ -47,8 +63,7 @@ func TestUploadMediaValidationRequiresOneTarget(t *testing.T) {
 		"property_unit_type_id": "550e8400-e29b-41d4-a716-446655440020",
 		"uploaded_by_agent_id":  "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -71,15 +86,14 @@ func TestUploadMediaValidationRequiresOneTarget(t *testing.T) {
 }
 
 func TestUploadMediaRejectsUnsupportedFileType(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.txt", []byte("not an image"))
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -92,7 +106,7 @@ func TestUploadMediaRejectsUnsupportedFileType(t *testing.T) {
 func TestUploadMediaValidatesAllFilesBeforeUploading(t *testing.T) {
 	uploader := &stubUploader{}
 	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
 
@@ -103,8 +117,7 @@ func TestUploadMediaValidatesAllFilesBeforeUploading(t *testing.T) {
 		{filename: "room.jpg", data: tinyJPEG()},
 		{filename: "room.gif", data: []byte("GIF89a")},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -122,7 +135,7 @@ func TestUploadMediaValidatesAllFilesBeforeUploading(t *testing.T) {
 
 func TestUploadMediaCreatesMediaRecord(t *testing.T) {
 	uploader := &stubUploader{}
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = uploader
 
 	body, contentType := multipartBody(t, map[string]string{
@@ -130,8 +143,7 @@ func TestUploadMediaCreatesMediaRecord(t *testing.T) {
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 		"caption":              "Front view",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -170,7 +182,7 @@ func TestUploadMediaCreatesMediaRecord(t *testing.T) {
 func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 	uploader := &stubUploader{}
 	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
 
@@ -181,8 +193,7 @@ func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 		{filename: "first.jpg", data: tinyJPEG()},
 		{filename: "second.jpg", data: tinyJPEG()},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -216,7 +227,7 @@ func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
 	uploader := &stubUploader{failUploadAt: 2}
 	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = repository
 	app.mediaUploader = uploader
 
@@ -227,8 +238,7 @@ func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
 		{filename: "first.jpg", data: tinyJPEG()},
 		{filename: "second.jpg", data: tinyJPEG()},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -246,7 +256,7 @@ func TestUploadMediaRemovesUploadedObjectsAfterLaterUploadFails(t *testing.T) {
 
 func TestUploadMediaRemovesUploadedObjectsWhenPersistenceFails(t *testing.T) {
 	uploader := &stubUploader{}
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
 	app.mediaUploader = uploader
 
@@ -257,8 +267,7 @@ func TestUploadMediaRemovesUploadedObjectsWhenPersistenceFails(t *testing.T) {
 		{filename: "first.jpg", data: tinyJPEG()},
 		{filename: "second.jpg", data: tinyJPEG()},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -277,15 +286,14 @@ func TestUploadMediaRemovesUploadedObjectsWhenPersistenceFails(t *testing.T) {
 }
 
 func TestUploadMediaRejectsEmptyFile(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", []byte{})
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -296,7 +304,7 @@ func TestUploadMediaRejectsEmptyFile(t *testing.T) {
 }
 
 func TestUploadMediaRejectsFileTooLarge(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.cfg.Media.MaxUploadBytes = 100
 	app.mediaUploader = &stubUploader{}
 
@@ -304,8 +312,7 @@ func TestUploadMediaRejectsFileTooLarge(t *testing.T) {
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", make([]byte, 101))
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -316,15 +323,14 @@ func TestUploadMediaRejectsFileTooLarge(t *testing.T) {
 }
 
 func TestUploadMediaRejectsMissingFilesField(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "", nil)
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -335,7 +341,7 @@ func TestUploadMediaRejectsMissingFilesField(t *testing.T) {
 }
 
 func TestUploadMediaRejectsTooManyFiles(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	files := make([]multipartTestFile, 11)
@@ -346,8 +352,7 @@ func TestUploadMediaRejectsTooManyFiles(t *testing.T) {
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, files)
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -370,46 +375,63 @@ func TestUploadMediaRejectsTooManyFiles(t *testing.T) {
 	}
 }
 
-func TestUploadMediaRejectsMissingAgentID(t *testing.T) {
-	app := testAppWithRepo()
+func TestUploadMediaDerivesAgentProvenanceFromSession(t *testing.T) {
+	repository := &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app := testAppWithActiveAgentRepo()
+	app.propertyRepo = repository
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
-		"property_id": "550e8400-e29b-41d4-a716-446655440000",
+		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
+		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440099",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusCreated)
 	}
+	if len(repository.createdMedia) != 1 {
+		t.Fatalf("created media = %d, want 1", len(repository.createdMedia))
+	}
+	if got := repository.createdMedia[0].UploadedByAgentID; got != "550e8400-e29b-41d4-a716-446655440040" {
+		t.Fatalf("uploaded by agent ID = %q, want authenticated agent", got)
+	}
+}
 
-	var decoded struct {
-		Error struct {
-			Fields map[string]string `json:"fields"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(rr.Body).Decode(&decoded); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if decoded.Error.Fields["uploaded_by_agent_id"] == "" {
-		t.Fatal("uploaded_by_agent_id validation error missing")
+func TestUploadMediaRejectsAnotherAgentsOffer(t *testing.T) {
+	uploader := &stubUploader{}
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Agent:          &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440041"), Status: domain.AgentStatusActive},
+		AgentCampusIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &spyPropertyRepo{stub: &stubPropertyRepo{}}
+	app.mediaUploader = uploader
+	body, contentType := multipartBody(t, map[string]string{
+		"agent_offer_id": "550e8400-e29b-41d4-a716-446655440030",
+	}, "room.jpg", tinyJPEG())
+	req := authenticatedMultipartRequest(body, contentType)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to add media to this resource")
+	if len(uploader.inputs) != 0 {
+		t.Fatalf("uploads = %d, want 0", len(uploader.inputs))
 	}
 }
 
 func TestUploadMediaReturnsServerErrorOnUploadFailure(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &failUploader{err: errors.New("storage unavailable")}
 
 	body, contentType := multipartBody(t, map[string]string{
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -420,7 +442,7 @@ func TestUploadMediaReturnsServerErrorOnUploadFailure(t *testing.T) {
 }
 
 func TestUploadMediaRejectsCaptionTooLong(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	caption := strings.Repeat("a", 501)
@@ -429,8 +451,7 @@ func TestUploadMediaRejectsCaptionTooLong(t *testing.T) {
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 		"caption":              caption,
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -453,7 +474,7 @@ func TestUploadMediaRejectsCaptionTooLong(t *testing.T) {
 }
 
 func TestUploadMediaReturnsBadRequestOnForeignKeyViolation(t *testing.T) {
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = &fkViolationRepo{stub: &stubPropertyRepo{}}
 	app.mediaUploader = &stubUploader{}
 
@@ -461,8 +482,7 @@ func TestUploadMediaReturnsBadRequestOnForeignKeyViolation(t *testing.T) {
 		"property_id":          "550e8400-e29b-41d4-a716-446655440000",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -471,15 +491,14 @@ func TestUploadMediaReturnsBadRequestOnForeignKeyViolation(t *testing.T) {
 }
 
 func TestUploadMediaRejectsInvalidTargetUUID(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	app.mediaUploader = &stubUploader{}
 
 	body, contentType := multipartBody(t, map[string]string{
 		"property_id":          "not-a-uuid",
 		"uploaded_by_agent_id": "550e8400-e29b-41d4-a716-446655440040",
 	}, "room.jpg", tinyJPEG())
-	req := httptest.NewRequest(http.MethodPost, "/v1/media", body)
-	req.Header.Set("Content-Type", contentType)
+	req := authenticatedMultipartRequest(body, contentType)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -530,6 +549,9 @@ func (s *fkViolationRepo) Get(ctx context.Context, id domain.ID) (domain.Propert
 func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }
+func (s *fkViolationRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
+	return s.stub.GetMediaTarget(ctx, targetType, id)
+}
 func (s *fkViolationRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	return s.stub.ListWithSummary(ctx, filter)
 }
@@ -572,6 +594,16 @@ func multipartBody(t *testing.T, fields map[string]string, filename string, file
 		files = append(files, multipartTestFile{filename: filename, data: file})
 	}
 	return multipartBodyFiles(t, fields, files)
+}
+
+func authenticatedMultipartRequest(body io.Reader, contentType string) *http.Request {
+	request := httptest.NewRequest(http.MethodPost, "/v1/media", body)
+	request.AddCookie(&http.Cookie{Name: "laivan_session", Value: "session-token"})
+	request.AddCookie(&http.Cookie{Name: "laivan_csrf", Value: "csrf-token"})
+	request.Header.Set("Origin", "http://localhost:5173")
+	request.Header.Set("X-CSRF-Token", "csrf-token")
+	request.Header.Set("Content-Type", contentType)
+	return request
 }
 
 type multipartTestFile struct {

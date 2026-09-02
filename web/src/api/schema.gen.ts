@@ -273,7 +273,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Create a property.
-         * @description Creates a real-world accommodation property within a campus.
+         * @description Creates a shared canonical property contribution in a campus where the authenticated active agent or operator has write authority.
          */
         readonly post: operations["createProperty"];
         readonly delete?: never;
@@ -314,7 +314,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Create a unit type for a property.
-         * @description Creates a property-level rentable unit type without tying it to a specific agent offer.
+         * @description Creates a shared canonical property-level rentable unit type without tying it to a specific agent offer. The authenticated actor must have contribution authority for the property's campus.
          */
         readonly post: operations["createPropertyUnitType"];
         readonly delete?: never;
@@ -359,7 +359,7 @@ export interface paths {
         /**
          * Upload media for a marketplace entity.
          * @description Uploads one or more image files for exactly one target: property, property unit type, or agent offer.
-         *     Images are stored as originals and delivery variants are generated through Imgproxy URLs.
+         *     Images are stored as originals and delivery variants are generated through Imgproxy URLs. Provenance is derived from the authenticated actor; an active agent may upload to canonical data in their campus or to their own offer, while operators and global admins may upload within their authorized scope.
          */
         readonly post: operations["uploadMedia"];
         readonly delete?: never;
@@ -1352,7 +1352,10 @@ export interface operations {
     readonly createProperty: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
@@ -1372,6 +1375,8 @@ export interface operations {
                 };
             };
             readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];
         };
@@ -1431,7 +1436,10 @@ export interface operations {
     readonly createPropertyUnitType: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path: {
                 /** @description Property ID. */
                 readonly id: string;
@@ -1454,6 +1462,8 @@ export interface operations {
                 };
             };
             readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];
@@ -1524,7 +1534,10 @@ export interface operations {
     readonly uploadMedia: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
             readonly path?: never;
             readonly cookie?: never;
         };
@@ -1548,11 +1561,6 @@ export interface operations {
                      * @description Agent offer target ID. Use exactly one target field.
                      */
                     readonly agent_offer_id?: string;
-                    /**
-                     * Format: uuid
-                     * @description Uploading agent ID. This is explicit until authenticated agent context exists.
-                     */
-                    readonly uploaded_by_agent_id: string;
                     readonly caption?: string;
                 };
             };
@@ -1568,6 +1576,8 @@ export interface operations {
                 };
             };
             readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];

@@ -8,7 +8,13 @@ post:
     unit type, or agent offer.
 
     Images are stored as originals and delivery variants are generated through
-    Imgproxy URLs.
+    Imgproxy URLs. Provenance is derived from the authenticated actor; an active
+    agent may upload to canonical data in their campus or to their own offer,
+    while operators and global admins may upload within their authorized scope.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/CSRFToken.yaml
   requestBody:
     required: true
     content:
@@ -17,7 +23,6 @@ post:
           type: object
           required:
             - files
-            - uploaded_by_agent_id
           properties:
             files:
               type: array
@@ -37,12 +42,6 @@ post:
               type: string
               format: uuid
               description: Agent offer target ID. Use exactly one target field.
-            uploaded_by_agent_id:
-              type: string
-              format: uuid
-              description: >-
-                Uploading agent ID. This is explicit until authenticated agent
-                context exists.
             caption:
               type: string
               maxLength: 500
@@ -55,6 +54,10 @@ post:
             $ref: ../components/schemas/MediaUploadResponse.yaml
     '400':
       $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
     '404':
       $ref: ../components/responses/NotFound.yaml
     '422':

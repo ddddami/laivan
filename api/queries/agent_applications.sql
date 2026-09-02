@@ -14,6 +14,12 @@ SELECT id, status
 FROM agents
 WHERE user_id = $1;
 
+-- name: ListAgentCampuses :many
+SELECT campus_id
+FROM agent_campuses
+WHERE agent_id = $1
+ORDER BY campus_id;
+
 -- name: AssociateAgentWithCampus :exec
 INSERT INTO agent_campuses (agent_id, campus_id)
 VALUES ($1, $2)

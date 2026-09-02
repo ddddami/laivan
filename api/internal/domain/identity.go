@@ -40,6 +40,7 @@ type Session struct {
 type EffectiveAccess struct {
 	Roles             []string
 	Agent             *LinkedAgent
+	AgentCampusIDs    []ID
 	CampusOperatorIDs []ID
 	GlobalAdmin       bool
 }

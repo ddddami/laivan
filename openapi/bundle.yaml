@@ -717,7 +717,11 @@ paths:
       tags:
         - Properties
       summary: Create a property.
-      description: Creates a real-world accommodation property within a campus.
+      description: Creates a shared canonical property contribution in a campus where the authenticated active agent or operator has write authority.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -741,6 +745,10 @@ paths:
                 $ref: '#/components/schemas/PropertyResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '500':
@@ -821,7 +829,9 @@ paths:
       tags:
         - Unit Types
       summary: Create a unit type for a property.
-      description: Creates a property-level rentable unit type without tying it to a specific agent offer.
+      description: Creates a shared canonical property-level rentable unit type without tying it to a specific agent offer. The authenticated actor must have contribution authority for the property's campus.
+      security:
+        - sessionAuth: []
       parameters:
         - name: id
           in: path
@@ -830,6 +840,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -856,6 +867,10 @@ paths:
                 $ref: '#/components/schemas/UnitTypeResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -962,7 +977,11 @@ paths:
       summary: Upload media for a marketplace entity.
       description: |
         Uploads one or more image files for exactly one target: property, property unit type, or agent offer.
-        Images are stored as originals and delivery variants are generated through Imgproxy URLs.
+        Images are stored as originals and delivery variants are generated through Imgproxy URLs. Provenance is derived from the authenticated actor; an active agent may upload to canonical data in their campus or to their own offer, while operators and global admins may upload within their authorized scope.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
       requestBody:
         required: true
         content:
@@ -971,7 +990,6 @@ paths:
               type: object
               required:
                 - files
-                - uploaded_by_agent_id
               properties:
                 files:
                   type: array
@@ -991,10 +1009,6 @@ paths:
                   type: string
                   format: uuid
                   description: Agent offer target ID. Use exactly one target field.
-                uploaded_by_agent_id:
-                  type: string
-                  format: uuid
-                  description: Uploading agent ID. This is explicit until authenticated agent context exists.
                 caption:
                   type: string
                   maxLength: 500
@@ -1007,6 +1021,10 @@ paths:
                 $ref: '#/components/schemas/MediaUploadResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':

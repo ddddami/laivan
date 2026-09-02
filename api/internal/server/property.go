@@ -113,6 +113,12 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p, ok := principalFromContext(r.Context())
+	if !ok || !canContributeToCampus(p.Access, domain.ID(input.CampusID)) {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
+		return
+	}
+
 	property := domain.Property{
 		CampusID: domain.ID(input.CampusID),
 		Name:     input.Name,

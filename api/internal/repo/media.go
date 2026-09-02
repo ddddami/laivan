@@ -84,7 +84,7 @@ func mediaCreateParams(media domain.Media) (generateddb.CreateMediaParams, error
 	if err != nil {
 		return generateddb.CreateMediaParams{}, fmt.Errorf("invalid agent offer id: %w", err)
 	}
-	uploadedByAgentID, err := uuidParam(media.UploadedByAgentID)
+	uploadedByAgentID, err := optionalUUIDParam(media.UploadedByAgentID)
 	if err != nil {
 		return generateddb.CreateMediaParams{}, err
 	}

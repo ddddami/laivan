@@ -51,13 +51,10 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	propertyID := strings.TrimSpace(r.FormValue("property_id"))
 	propertyUnitTypeID := strings.TrimSpace(r.FormValue("property_unit_type_id"))
 	agentOfferID := strings.TrimSpace(r.FormValue("agent_offer_id"))
-	uploadedByAgentID := strings.TrimSpace(r.FormValue("uploaded_by_agent_id"))
 	caption := strings.TrimSpace(r.FormValue("caption"))
 
 	v := validator.New()
 	validateMediaUploadTarget(v, propertyID, propertyUnitTypeID, agentOfferID)
-	v.Check(validator.NotBlank(uploadedByAgentID), "uploaded_by_agent_id", "Uploaded by agent ID is required")
-	v.Check(validator.ValidUUID(uploadedByAgentID), "uploaded_by_agent_id", "Uploaded by agent ID must be a valid UUID")
 	v.Check(validator.MaxChars(caption, 500), "caption", "Caption must not exceed 500 characters")
 
 	files := r.MultipartForm.File[mediaFilesFormKey]
@@ -70,6 +67,29 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targetType, targetID := mediaTarget(propertyID, propertyUnitTypeID, agentOfferID)
+	target, err := app.propertyRepo.GetMediaTarget(r.Context(), targetType, domain.ID(targetID))
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("get media target: %w", err))
+		return
+	}
+	p, ok := principalFromContext(r.Context())
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+	if !canUploadMedia(p.Access, target) {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to add media to this resource")
+		return
+	}
+
+	uploaderAgentID := domain.ID("")
+	if p.Access.Agent != nil && p.Access.Agent.Status == domain.AgentStatusActive {
+		uploaderAgentID = p.Access.Agent.ID
+	}
 	validatedFiles := make([]validatedMediaFile, 0, len(files))
 	for _, fileHeader := range files {
 		data, contentType, err := readMediaFile(fileHeader, app.cfg.Media.MaxUploadBytes)
@@ -98,7 +118,7 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 			PropertyID:         propertyID,
 			PropertyUnitTypeID: propertyUnitTypeID,
 			AgentOfferID:       agentOfferID,
-			UploadedByAgentID:  uploadedByAgentID,
+			UploadedByAgentID:  string(uploaderAgentID),
 			Caption:            caption,
 		})
 		if err != nil {
@@ -130,6 +150,16 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
 		app.logger.Error("write media upload response", "error", err)
 	}
+}
+
+func canUploadMedia(access domain.EffectiveAccess, target repo.MediaTarget) bool {
+	if access.GlobalAdmin || containsID(access.CampusOperatorIDs, target.CampusID) {
+		return true
+	}
+	if access.Agent == nil || access.Agent.Status != domain.AgentStatusActive || !containsID(access.AgentCampusIDs, target.CampusID) {
+		return false
+	}
+	return target.AgentID == "" || target.AgentID == access.Agent.ID
 }
 
 type mediaUploadTarget struct {
