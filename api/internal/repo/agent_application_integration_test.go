@@ -292,7 +292,12 @@ func TestAgentCampusBackfillFollowsOfferCampusWithoutChangingPublicRecords(t *te
 	propertyID := domain.ID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 	unitTypeID := domain.ID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
 	offerID := domain.ID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-	if _, err := db.Exec(ctx, `INSERT INTO agents (id, display_name, phone_number) VALUES ($1, $2, $3)`, string(agentID), "Backfill Agent", "+2348091111111"); err != nil {
+
+	var userID string
+	if err := db.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ('backfill@example.com', 'Backfill Agent') RETURNING id::text`).Scan(&userID); err != nil {
+		t.Fatalf("insert backfill user: %v", err)
+	}
+	if _, err := db.Exec(ctx, `INSERT INTO agents (id, user_id, display_name, phone_number) VALUES ($1, $2, $3, $4)`, string(agentID), userID, "Backfill Agent", "+2348091111111"); err != nil {
 		t.Fatalf("insert backfill agent: %v", err)
 	}
 	if _, err := db.Exec(ctx, `INSERT INTO properties (id, campus_id, name, area) VALUES ($1, $2, $3, $4)`, string(propertyID), string(campusID), "Backfill Property", "Backfill Area"); err != nil {

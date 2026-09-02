@@ -975,12 +975,22 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	var agentID string
+	var userID string
 	err := db.QueryRow(ctx, `
-		INSERT INTO agents (display_name, phone_number)
-		VALUES ($1, '+2348012345678')
+		INSERT INTO users (email, display_name)
+		VALUES (gen_random_uuid() || '@test.com', $1)
 		RETURNING id::text
-	`, displayName).Scan(&agentID)
+	`, displayName).Scan(&userID)
+	if err != nil {
+		t.Fatalf("insert user for agent: %v", err)
+	}
+
+	var agentID string
+	err = db.QueryRow(ctx, `
+		INSERT INTO agents (user_id, display_name, phone_number)
+		VALUES ($1::uuid, $2, '+234' || lpad((abs(hashtext($3)) % 10000000000)::text, 10, '0'))
+		RETURNING id::text
+	`, userID, displayName, userID).Scan(&agentID)
 	if err != nil {
 		t.Fatalf("insert agent: %v", err)
 	}
@@ -1642,13 +1652,22 @@ func TestPropertyRepositoryAgentPhoneNumberUnique(t *testing.T) {
 	truncateAgents(t, ctx, pool)
 	t.Cleanup(func() { truncateAgents(t, ctx, pool) })
 
-	insertAgent(t, ctx, pool, "First Agent")
+	const sharedPhone = "+2348099000001"
 
-	// Attempt to insert a second agent with the same phone number.
-	_, err := pool.Exec(ctx, `
-		INSERT INTO agents (display_name, phone_number)
-		VALUES ($1, '+2348012345678')
-	`, "Second Agent")
+	var userID1 string
+	if err := pool.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ('agent1@test.com', 'First Agent') RETURNING id::text`).Scan(&userID1); err != nil {
+		t.Fatalf("insert first user: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO agents (user_id, display_name, phone_number) VALUES ($1, 'First Agent', $2)`, userID1, sharedPhone); err != nil {
+		t.Fatalf("insert first agent: %v", err)
+	}
+
+	// A second agent attempting the same phone number must fail.
+	var userID2 string
+	if err := pool.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ('agent2@test.com', 'Second Agent') RETURNING id::text`).Scan(&userID2); err != nil {
+		t.Fatalf("insert second user: %v", err)
+	}
+	_, err := pool.Exec(ctx, `INSERT INTO agents (user_id, display_name, phone_number) VALUES ($1, 'Second Agent', $2)`, userID2, sharedPhone)
 
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
