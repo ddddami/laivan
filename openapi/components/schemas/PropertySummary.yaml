@@ -1,0 +1,24 @@
+type: object
+description: >-
+  Property representation including summary statistics for marketplace discovery
+  and list views.
+allOf:
+  - $ref: Property.yaml
+  - type: object
+    required:
+      - unit_type_count
+      - available_offer_count
+      - lowest_price_naira
+    properties:
+      unit_type_count:
+        type: integer
+        minimum: 0
+        description: Number of unit types at this property.
+      available_offer_count:
+        type: integer
+        minimum: 0
+        description: Number of currently available agent offers across all unit types.
+      lowest_price_naira:
+        type: integer
+        minimum: 0
+        description: Lowest price among available offers in whole Naira. 0 when no offers exist.
