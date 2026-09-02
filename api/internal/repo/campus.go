@@ -25,7 +25,7 @@ func (r *PropertyRepository) GetCampusBySlug(ctx context.Context, slug string) (
 	return campusFromRow(row), nil
 }
 
-func campusFromRow(row generateddb.Campuse) domain.Campus {
+func campusFromRow(row generateddb.Campus) domain.Campus {
 	return domain.Campus{
 		ID:        domain.ID(uuidString(row.ID)),
 		Slug:      row.Slug,

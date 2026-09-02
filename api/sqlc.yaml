@@ -13,3 +13,8 @@ sql:
             go_type: "int"
           - db_type: "pg_catalog.int8"
             go_type: "int"
+overrides:
+  go:
+    rename:
+      campuse: "Campus"
+      agent_campuse: "AgentCampus"

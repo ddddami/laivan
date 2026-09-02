@@ -16,9 +16,9 @@ WHERE slug = $1
   AND is_active = true
 `
 
-func (q *Queries) GetCampusBySlug(ctx context.Context, slug string) (Campuse, error) {
+func (q *Queries) GetCampusBySlug(ctx context.Context, slug string) (Campus, error) {
 	row := q.db.QueryRow(ctx, getCampusBySlug, slug)
-	var i Campuse
+	var i Campus
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
