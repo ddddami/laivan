@@ -35,7 +35,7 @@ type AgentApplicationStore interface {
 	CreateApplication(ctx context.Context, application domain.AgentApplication) (domain.AgentApplication, error)
 	ListApplications(ctx context.Context, applicantID domain.ID) ([]domain.AgentApplication, error)
 	ListOperatorApplications(ctx context.Context, operatorID, campusID domain.ID, status domain.AgentApplicationStatus) ([]domain.AgentApplication, error)
-	ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, legacyAgentID *domain.ID, operatorNote string) (domain.AgentApplication, error)
+	ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error)
 	DeclineApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error)
 	SuspendAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)
 	ReinstateAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)

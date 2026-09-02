@@ -203,7 +203,7 @@ func (r *AgentApplicationRepository) ListOperatorApplications(ctx context.Contex
 	return applications, nil
 }
 
-func (r *AgentApplicationRepository) ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, legacyAgentID *domain.ID, operatorNote string) (domain.AgentApplication, error) {
+func (r *AgentApplicationRepository) ActivateApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -249,39 +249,14 @@ func (r *AgentApplicationRepository) ActivateApplication(ctx context.Context, ap
 		return domain.AgentApplication{}, fmt.Errorf("check linked agent before activation: %w", err)
 	}
 
-	var agentID pgtype.UUID
-	if legacyAgentID != nil {
-		legacyUUID, err := uuidParam(*legacyAgentID)
-		if err != nil {
-			return domain.AgentApplication{}, err
+	created, err := queries.CreateAgent(ctx, generateddb.CreateAgentParams{UserID: row.ApplicantUserID, DisplayName: row.Name, PhoneNumber: row.PhoneNumber})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return domain.AgentApplication{}, ErrPhoneConflict
 		}
-		legacy, err := queries.GetAgent(ctx, legacyUUID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.AgentApplication{}, ErrNotFound
-		}
-		if err != nil {
-			return domain.AgentApplication{}, fmt.Errorf("load legacy agent: %w", err)
-		}
-		if legacy.UserID.Valid || legacy.Status != string(domain.AgentStatusActive) {
-			return domain.AgentApplication{}, ErrLegacyAgentConflict
-		}
-		if _, err := queries.LinkAgentToUser(ctx, generateddb.LinkAgentToUserParams{ID: legacyUUID, UserID: row.ApplicantUserID}); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) || isUniqueViolation(err) {
-				return domain.AgentApplication{}, ErrLegacyAgentConflict
-			}
-			return domain.AgentApplication{}, fmt.Errorf("link legacy agent: %w", err)
-		}
-		agentID = legacyUUID
-	} else {
-		created, err := queries.CreateAgent(ctx, generateddb.CreateAgentParams{UserID: row.ApplicantUserID, DisplayName: row.Name, PhoneNumber: row.PhoneNumber})
-		if err != nil {
-			if isUniqueViolation(err) {
-				return domain.AgentApplication{}, ErrPhoneConflict
-			}
-			return domain.AgentApplication{}, fmt.Errorf("create agent from application: %w", err)
-		}
-		agentID = created.ID
+		return domain.AgentApplication{}, fmt.Errorf("create agent from application: %w", err)
 	}
+	agentID := created.ID
 
 	if err := queries.AssociateAgentWithCampus(ctx, generateddb.AssociateAgentWithCampusParams{
 		AgentID:  agentID,
@@ -303,18 +278,14 @@ func (r *AgentApplicationRepository) ActivateApplication(ctx context.Context, ap
 	}
 
 	metadata, err := json.Marshal(map[string]any{
-		"before":          map[string]string{"status": string(domain.AgentApplicationStatusPending)},
-		"after":           map[string]string{"status": string(domain.AgentApplicationStatusActive)},
-		"agent_id":        uuidString(agentID),
-		"legacy_agent_id": idOrEmpty(legacyAgentID),
+		"before":   map[string]string{"status": string(domain.AgentApplicationStatusPending)},
+		"after":    map[string]string{"status": string(domain.AgentApplicationStatusActive)},
+		"agent_id": uuidString(agentID),
 	})
 	if err != nil {
 		return domain.AgentApplication{}, fmt.Errorf("encode activation audit metadata: %w", err)
 	}
 	action := "agent_application_activated"
-	if legacyAgentID != nil {
-		action = "agent_application_linked"
-	}
 	if err := queries.CreateAuditEvent(ctx, generateddb.CreateAuditEventParams{
 		ActorUserID:  operatorUUID,
 		Action:       action,
@@ -450,11 +421,4 @@ func nullableUUID(value pgtype.UUID) *domain.ID {
 	}
 	id := domain.ID(uuidString(value))
 	return &id
-}
-
-func idOrEmpty(value *domain.ID) string {
-	if value == nil {
-		return ""
-	}
-	return string(*value)
 }

@@ -45,7 +45,7 @@ func TestAgentApplicationRepositoryWorkflowIsScopedAndAudited(t *testing.T) {
 		t.Fatalf("duplicate application error = %v, want %v", err, ErrApplicationConflict)
 	}
 
-	activated, err := repository.ActivateApplication(ctx, application.ID, operatorID, nil, "approved after review")
+	activated, err := repository.ActivateApplication(ctx, application.ID, operatorID, "approved after review")
 	if err != nil {
 		t.Fatalf("activate application: %v", err)
 	}
@@ -86,33 +86,6 @@ func TestAgentApplicationRepositoryWorkflowIsScopedAndAudited(t *testing.T) {
 		t.Fatalf("cross-campus list error = %v, want %v", err, ErrCampusForbidden)
 	}
 
-	legacyApplicantID := insertIdentityUser(t, ctx, db, "legacy-applicant@example.com", "Legacy Applicant")
-	legacyID := insertLegacyAgent(t, ctx, db, "Legacy Agent", "+2348041234567")
-	legacyApplication, err := repository.CreateApplication(ctx, domain.AgentApplication{
-		ApplicantUserID: legacyApplicantID,
-		CampusID:        campusID,
-		Name:            "Submitted Name Must Not Replace Legacy",
-		PhoneNumber:     "+2348041234567",
-	})
-	if err != nil {
-		t.Fatalf("create legacy application: %v", err)
-	}
-	linked, err := repository.ActivateApplication(ctx, legacyApplication.ID, operatorID, &legacyID, "linked after explicit review")
-	if err != nil {
-		t.Fatalf("explicitly link legacy agent: %v", err)
-	}
-	if linked.AgentID == nil || *linked.AgentID != legacyID {
-		t.Fatalf("linked application agent ID = %v, want %s", linked.AgentID, legacyID)
-	}
-	var displayName, phoneNumber, userID string
-	if err := db.QueryRow(ctx, `SELECT display_name, phone_number, user_id::text FROM agents WHERE id = $1`, string(legacyID)).Scan(&displayName, &phoneNumber, &userID); err != nil {
-		t.Fatalf("load explicitly linked agent: %v", err)
-	}
-	if displayName != "Legacy Agent" || phoneNumber != "+2348041234567" || userID != string(legacyApplicantID) {
-		t.Fatalf("linked legacy agent = %s/%s/%s, public fields were overwritten", displayName, phoneNumber, userID)
-	}
-	assertAuditEvent(t, ctx, db, "agent_application_linked", legacyApplication.ID)
-
 	declineApplicantID := insertIdentityUser(t, ctx, db, "decline@example.com", "Decline Applicant")
 	toDecline, err := repository.CreateApplication(ctx, domain.AgentApplication{ApplicantUserID: declineApplicantID, CampusID: campusID, Name: "Decline Me", PhoneNumber: "+2348051234567"})
 	if err != nil {
@@ -141,13 +114,13 @@ func TestAgentApplicationRepositoryPhoneConflictLeavesApplicationPending(t *test
 	if _, err := db.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(operatorID), string(campusID)); err != nil {
 		t.Fatalf("insert campus operator: %v", err)
 	}
-	insertLegacyAgent(t, ctx, db, "Existing Phone Agent", "+2348061234567")
+	_, _ = db.Exec(ctx, `INSERT INTO users (email, display_name) VALUES ('dummy@example.com', 'Existing Phone Agent'); INSERT INTO agents (user_id, display_name, phone_number, status) VALUES ((SELECT id FROM users WHERE email='dummy@example.com'), 'Existing Phone Agent', '+2348061234567', 'active')`)
 	repository := NewAgentApplicationRepository(db)
 	application, err := repository.CreateApplication(ctx, domain.AgentApplication{ApplicantUserID: applicantID, CampusID: campusID, Name: "Phone Conflict", PhoneNumber: "+2348061234567"})
 	if err != nil {
 		t.Fatalf("create phone conflict application: %v", err)
 	}
-	if _, err := repository.ActivateApplication(ctx, application.ID, operatorID, nil, ""); !errors.Is(err, ErrPhoneConflict) {
+	if _, err := repository.ActivateApplication(ctx, application.ID, operatorID, ""); !errors.Is(err, ErrPhoneConflict) {
 		t.Fatalf("phone conflict activation error = %v, want %v", err, ErrPhoneConflict)
 	}
 	var status string
@@ -185,7 +158,7 @@ func TestAgentLifecycleRepositoryIsScopedTransactionalAndRevokesSessions(t *test
 	if err != nil {
 		t.Fatalf("create lifecycle application: %v", err)
 	}
-	activated, err := repository.ActivateApplication(ctx, application.ID, operatorID, nil, "approved")
+	activated, err := repository.ActivateApplication(ctx, application.ID, operatorID, "approved")
 	if err != nil || activated.AgentID == nil {
 		t.Fatalf("activate lifecycle application = %#v, error = %v", activated, err)
 	}
@@ -197,7 +170,7 @@ func TestAgentLifecycleRepositoryIsScopedTransactionalAndRevokesSessions(t *test
 	if associationCount != 1 {
 		t.Fatalf("activated agent campus associations = %d, want 1", associationCount)
 	}
-	if _, err := repository.ActivateApplication(ctx, application.ID, operatorID, nil, "duplicate activation"); !errors.Is(err, ErrApplicationResolved) {
+	if _, err := repository.ActivateApplication(ctx, application.ID, operatorID, "duplicate activation"); !errors.Is(err, ErrApplicationResolved) {
 		t.Fatalf("duplicate activation error = %v, want %v", err, ErrApplicationResolved)
 	}
 
@@ -291,7 +264,7 @@ func TestAgentLifecycleRepositoryCampusScopeGlobalAdminAndUnlinkedAgent(t *testi
 	if err != nil {
 		t.Fatalf("create other campus application: %v", err)
 	}
-	activated, err := repository.ActivateApplication(ctx, application.ID, otherOperatorID, nil, "approved")
+	activated, err := repository.ActivateApplication(ctx, application.ID, otherOperatorID, "approved")
 	if err != nil || activated.AgentID == nil {
 		t.Fatalf("activate other campus application = %#v, error = %v", activated, err)
 	}
@@ -305,20 +278,6 @@ func TestAgentLifecycleRepositoryCampusScopeGlobalAdminAndUnlinkedAgent(t *testi
 		t.Fatalf("global admin cross-campus suspend: %v", err)
 	}
 
-	legacyID := insertLegacyAgent(t, ctx, db, "Unlinked Seeded Agent", "+2348091234567")
-	if _, err := db.Exec(ctx, `INSERT INTO agent_campuses (agent_id, campus_id) VALUES ($1, $2)`, string(legacyID), string(campusID)); err != nil {
-		t.Fatalf("associate unlinked seeded agent: %v", err)
-	}
-	if _, err := repository.SuspendAgent(ctx, legacyID, operatorID, "unlinked review"); err != nil {
-		t.Fatalf("suspend unlinked seeded agent: %v", err)
-	}
-	var linkedUserCount int
-	if err := db.QueryRow(ctx, `SELECT count(*) FROM agents WHERE id = $1 AND user_id IS NOT NULL`, string(legacyID)).Scan(&linkedUserCount); err != nil {
-		t.Fatalf("load unlinked seeded agent user: %v", err)
-	}
-	if linkedUserCount != 0 {
-		t.Fatalf("unlinked seeded agent user count = %d, want 0", linkedUserCount)
-	}
 }
 
 func TestAgentCampusBackfillFollowsOfferCampusWithoutChangingPublicRecords(t *testing.T) {
@@ -382,15 +341,6 @@ func insertIdentityUser(t *testing.T, ctx context.Context, db *pgxpool.Pool, ema
 	var id string
 	if err := db.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id::text`, email, displayName).Scan(&id); err != nil {
 		t.Fatalf("insert identity user: %v", err)
-	}
-	return domain.ID(id)
-}
-
-func insertLegacyAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayName, phoneNumber string) domain.ID {
-	t.Helper()
-	var id string
-	if err := db.QueryRow(ctx, `INSERT INTO agents (display_name, phone_number) VALUES ($1, $2) RETURNING id::text`, displayName, phoneNumber).Scan(&id); err != nil {
-		t.Fatalf("insert legacy agent: %v", err)
 	}
 	return domain.ID(id)
 }
