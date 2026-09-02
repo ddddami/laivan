@@ -71,6 +71,51 @@ func TestPropertyRepositoryCreateAndGet(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	t.Cleanup(func() { truncateProperties(t, context.Background(), pool) })
+
+	campusID := testCampusID(t, ctx, pool)
+	repository := NewPropertyRepository(pool)
+	created, err := repository.Create(ctx, domain.Property{
+		CampusID: campusID,
+		Name:     "Original Lodge",
+		Location: domain.ApproxLocation{Area: "Obanla", Landmark: "South Gate"},
+	})
+	if err != nil {
+		t.Fatalf("create property: %v", err)
+	}
+	if created.Version != 1 {
+		t.Fatalf("created version = %d, want 1", created.Version)
+	}
+
+	updatedName := "Updated Lodge"
+	updatedDescription := ""
+	updated, err := repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{
+		Name:        &updatedName,
+		Description: &updatedDescription,
+	})
+	if err != nil {
+		t.Fatalf("update property: %v", err)
+	}
+	if updated.Name != "Updated Lodge" || updated.Description != "" {
+		t.Fatalf("updated property = %#v, want changed fields", updated)
+	}
+	if updated.Version != 2 {
+		t.Fatalf("updated version = %d, want 2", updated.Version)
+	}
+
+	lostUpdateName := "Lost update"
+	_, err = repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{Name: &lostUpdateName})
+	if !errors.Is(err, ErrStaleUpdate) {
+		t.Fatalf("stale update error = %v, want %v", err, ErrStaleUpdate)
+	}
+}
+
 func TestPropertyRepositoryGetNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)

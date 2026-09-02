@@ -546,6 +546,9 @@ func (s *fkViolationRepo) Create(ctx context.Context, property domain.Property) 
 func (s *fkViolationRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
 	return s.stub.Get(ctx, id)
 }
+func (s *fkViolationRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+	return s.stub.Update(ctx, id, expectedVersion, patch)
+}
 func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }

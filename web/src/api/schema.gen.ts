@@ -296,7 +296,11 @@ export interface paths {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /**
+         * Correct a property.
+         * @description Updates shared canonical property data for a campus operator using an optimistic-concurrency version precondition.
+         */
+        readonly patch: operations["updateProperty"];
         readonly trace?: never;
     };
     readonly "/v1/properties/{id}/unit-types": {
@@ -765,6 +769,12 @@ export interface components {
         readonly ValidationErrorResponse: {
             readonly error: components["schemas"]["ValidationError"];
         };
+        readonly UpdatePropertyRequest: {
+            readonly name?: string;
+            readonly area?: string;
+            readonly landmark?: string;
+            readonly description?: string;
+        };
     };
     responses: {
         /** @description Request body or syntax is invalid. */
@@ -861,6 +871,24 @@ export interface components {
         };
         /** @description The requested state transition conflicts with the current resource state. */
         readonly Conflict: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The resource version no longer matches the supplied precondition. */
+        readonly PreconditionFailed: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description A resource version precondition is required. */
+        readonly PreconditionRequired: {
             headers: {
                 readonly [name: string]: unknown;
             };
@@ -1376,6 +1404,8 @@ export interface operations {
             /** @description Property created successfully. */
             readonly 201: {
                 headers: {
+                    /** @description Current property version. */
+                    readonly ETag?: string;
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -1404,6 +1434,8 @@ export interface operations {
             /** @description Property returned successfully. */
             readonly 200: {
                 headers: {
+                    /** @description Current property version. */
+                    readonly ETag?: string;
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -1412,6 +1444,48 @@ export interface operations {
             };
             readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly updateProperty: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description ETag returned by the latest property read. */
+                readonly "If-Match": string;
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Property ID. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdatePropertyRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Property updated successfully. */
+            readonly 200: {
+                headers: {
+                    /** @description Current property version after the update. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PropertyResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
             readonly 500: components["responses"]["InternalServerError"];
         };
     };

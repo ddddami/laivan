@@ -8,6 +8,18 @@ SELECT id, campus_id, name, area, landmark, description, created_at, updated_at,
 FROM properties
 WHERE id = $1;
 
+-- name: UpdateProperty :one
+UPDATE properties
+SET name = COALESCE(sqlc.narg('name'), name),
+    area = COALESCE(sqlc.narg('area'), area),
+    landmark = COALESCE(sqlc.narg('landmark'), landmark),
+    description = COALESCE(sqlc.narg('description'), description),
+    version = version + 1,
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+  AND version = sqlc.arg('expected_version')
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version;
+
 -- name: ListProperties :many
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties

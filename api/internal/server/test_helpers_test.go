@@ -39,9 +39,35 @@ func (s *stubPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Proper
 			CampusID: domain.ID("550e8400-e29b-41d4-a716-446655440002"),
 			Name:     "Alice Lodge",
 			Location: domain.ApproxLocation{Area: "Obanla"},
+			Version:  1,
 		}, nil
 	}
 	return domain.Property{}, repo.ErrNotFound
+}
+
+func (s *stubPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+	property, err := s.Get(ctx, id)
+	if err != nil {
+		return domain.Property{}, err
+	}
+	if property.Version != expectedVersion {
+		return domain.Property{}, repo.ErrStaleUpdate
+	}
+	if patch.Name != nil {
+		property.Name = *patch.Name
+	}
+	if patch.Area != nil {
+		property.Location.Area = *patch.Area
+	}
+	if patch.Landmark != nil {
+		property.Location.Landmark = *patch.Landmark
+	}
+	if patch.Description != nil {
+		property.Description = *patch.Description
+	}
+	property.Version++
+	property.UpdatedAt = time.Now()
+	return property, nil
 }
 
 func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
@@ -56,6 +82,7 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 			Name:        "Alice Lodge",
 			Location:    domain.ApproxLocation{Area: "Obanla", Landmark: "Near South Gate"},
 			Description: "Gated lodge with multiple room categories near campus.",
+			Version:     1,
 			Timestamps: domain.Timestamps{
 				CreatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2026, time.May, 1, 10, 0, 0, 0, time.UTC),
@@ -387,6 +414,10 @@ func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Propert
 	return s.stub.Get(ctx, id)
 }
 
+func (s *spyPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+	return s.stub.Update(ctx, id, expectedVersion, patch)
+}
+
 func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }
@@ -457,6 +488,9 @@ func (s *duplicateAgentOfferRepo) Create(ctx context.Context, property domain.Pr
 }
 func (s *duplicateAgentOfferRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
 	return s.stub.Get(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+	return s.stub.Update(ctx, id, expectedVersion, patch)
 }
 func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)

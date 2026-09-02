@@ -102,6 +102,7 @@ func (app *app) routes() http.Handler {
 		r.Get("/", app.listProperties)
 		r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/", app.createProperty)
 		r.Get("/{id}", app.getProperty)
+		r.With(app.requireAuthenticatedUser, app.requireCampusOperator, app.requireCSRF).Patch("/{id}", app.updateProperty)
 		r.Get("/{id}/unit-types", app.listPropertyUnitTypes)
 		r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/{id}/unit-types", app.createPropertyUnitType)
 	})

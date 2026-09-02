@@ -1,0 +1,5 @@
+description: A resource version precondition is required.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

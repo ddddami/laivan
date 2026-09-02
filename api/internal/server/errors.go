@@ -42,6 +42,14 @@ func (app *app) conflictResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusConflict, "conflict", "The resource already exists")
 }
 
+func (app *app) preconditionRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+}
+
+func (app *app) preconditionFailedResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusPreconditionFailed, "precondition_failed", "The resource has changed; refresh before retrying")
+}
+
 func (app *app) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "The request method is not supported for this resource")
 }

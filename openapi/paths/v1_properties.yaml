@@ -152,6 +152,11 @@ post:
   responses:
     '201':
       description: Property created successfully.
+      headers:
+        ETag:
+          description: Current property version.
+          schema:
+            type: string
       content:
         application/json:
           schema:
