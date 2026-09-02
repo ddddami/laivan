@@ -114,7 +114,9 @@ func TestAgentApplicationRepositoryPhoneConflictLeavesApplicationPending(t *test
 	if _, err := db.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(operatorID), string(campusID)); err != nil {
 		t.Fatalf("insert campus operator: %v", err)
 	}
-	_, _ = db.Exec(ctx, `INSERT INTO users (email, display_name) VALUES ('dummy@example.com', 'Existing Phone Agent'); INSERT INTO agents (user_id, display_name, phone_number, status) VALUES ((SELECT id FROM users WHERE email='dummy@example.com'), 'Existing Phone Agent', '+2348061234567', 'active')`)
+	if _, err := db.Exec(ctx, `INSERT INTO users (email, display_name) VALUES ('dummy@example.com', 'Existing Phone Agent'); INSERT INTO agents (user_id, display_name, phone_number, status) VALUES ((SELECT id FROM users WHERE email='dummy@example.com'), 'Existing Phone Agent', '+2348061234567', 'active')`); err != nil {
+		t.Fatalf("insert existing phone agent: %v", err)
+	}
 	repository := NewAgentApplicationRepository(db)
 	application, err := repository.CreateApplication(ctx, domain.AgentApplication{ApplicantUserID: applicantID, CampusID: campusID, Name: "Phone Conflict", PhoneNumber: "+2348061234567"})
 	if err != nil {

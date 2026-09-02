@@ -36,7 +36,9 @@ func TestGrantRole(t *testing.T) {
 	t.Cleanup(pool.Close)
 
 	// Clean up user
-	_, _ = pool.Exec(ctx, "DELETE FROM users WHERE email = 'test_admin_cli@example.com'")
+	if _, err := pool.Exec(ctx, "DELETE FROM users WHERE email = 'test_admin_cli@example.com'"); err != nil {
+		t.Fatalf("clean up test admin user: %v", err)
+	}
 
 	var userID string
 	err := pool.QueryRow(ctx, "INSERT INTO users (email, display_name) VALUES ('test_admin_cli@example.com', 'CLI Test') RETURNING id::text").Scan(&userID)
