@@ -45,7 +45,7 @@ func (s *stubPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Proper
 	return domain.Property{}, repo.ErrNotFound
 }
 
-func (s *stubPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+func (s *stubPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, _ domain.ID) (domain.Property, error) {
 	property, err := s.Get(ctx, id)
 	if err != nil {
 		return domain.Property{}, err
@@ -328,7 +328,7 @@ func (s *stubPropertyRepo) GetPropertyUnitType(ctx context.Context, id domain.ID
 	return domain.PropertyUnitType{}, repo.ErrNotFound
 }
 
-func (s *stubPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+func (s *stubPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch, _ domain.ID) (domain.PropertyUnitType, error) {
 	unitType, err := s.GetPropertyUnitType(ctx, id)
 	if err != nil {
 		return domain.PropertyUnitType{}, err
@@ -443,7 +443,7 @@ func (s *stubPropertyRepo) GetAgentOffer(ctx context.Context, id domain.ID) (dom
 	return domain.AgentOffer{}, repo.ErrNotFound
 }
 
-func (s *stubPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+func (s *stubPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch, _ domain.ID) (domain.AgentOffer, error) {
 	offer, err := s.GetAgentOffer(ctx, id)
 	if err != nil {
 		return domain.AgentOffer{}, err
@@ -471,7 +471,7 @@ func (s *stubPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, e
 	return offer, nil
 }
 
-func (s *stubPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+func (s *stubPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, _ domain.ID) (domain.AgentOffer, error) {
 	offer, err := s.GetAgentOffer(ctx, id)
 	if err != nil {
 		return domain.AgentOffer{}, err
@@ -510,6 +510,7 @@ type spyPropertyRepo struct {
 	createdMedia    []domain.Media
 	discoveryFilter repo.DiscoveryFilter
 }
+
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
 	s.discoveryFilter = filter
 	return s.stubPropertyRepo.Discover(ctx, filter)

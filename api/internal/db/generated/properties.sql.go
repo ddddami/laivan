@@ -12,24 +12,51 @@ import (
 )
 
 const archiveAgentOffer = `-- name: ArchiveAgentOffer :one
-UPDATE agent_offers
+UPDATE agent_offers AS ao
 SET status = 'unavailable',
     archived_at = now(),
     version = version + 1,
     updated_at = now()
-WHERE id = $1
-  AND version = $2
-  AND archived_at IS NULL
+WHERE ao.id = $1
+  AND ao.version = $2
+  AND ao.archived_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $3
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = $3
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = $3
+    )
+  )
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 `
 
 type ArchiveAgentOfferParams struct {
 	ID              pgtype.UUID
 	ExpectedVersion int
+	ActorUserID     pgtype.UUID
 }
 
 func (q *Queries) ArchiveAgentOffer(ctx context.Context, arg ArchiveAgentOfferParams) (AgentOffer, error) {
-	row := q.db.QueryRow(ctx, archiveAgentOffer, arg.ID, arg.ExpectedVersion)
+	row := q.db.QueryRow(ctx, archiveAgentOffer, arg.ID, arg.ExpectedVersion, arg.ActorUserID)
 	var i AgentOffer
 	err := row.Scan(
 		&i.ID,
@@ -238,6 +265,58 @@ func (q *Queries) GetAgentOfferMediaTarget(ctx context.Context, id pgtype.UUID) 
 	return i, err
 }
 
+const getAgentOfferMutationStatus = `-- name: GetAgentOfferMutationStatus :one
+SELECT
+  ao.version,
+  ao.archived_at,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $1
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = $1
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = $1
+    )
+  ) AS is_authorized
+FROM agent_offers ao
+WHERE ao.id = $2
+`
+
+type GetAgentOfferMutationStatusParams struct {
+	ActorUserID pgtype.UUID
+	ID          pgtype.UUID
+}
+
+type GetAgentOfferMutationStatusRow struct {
+	Version      int
+	ArchivedAt   pgtype.Timestamptz
+	IsAuthorized pgtype.Bool
+}
+
+func (q *Queries) GetAgentOfferMutationStatus(ctx context.Context, arg GetAgentOfferMutationStatusParams) (GetAgentOfferMutationStatusRow, error) {
+	row := q.db.QueryRow(ctx, getAgentOfferMutationStatus, arg.ActorUserID, arg.ID)
+	var i GetAgentOfferMutationStatusRow
+	err := row.Scan(&i.Version, &i.ArchivedAt, &i.IsAuthorized)
+	return i, err
+}
+
 const getProperty = `-- name: GetProperty :one
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version
 FROM properties
@@ -258,6 +337,43 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 		&i.UpdatedAt,
 		&i.Version,
 	)
+	return i, err
+}
+
+const getPropertyMutationStatus = `-- name: GetPropertyMutationStatus :one
+SELECT
+  p.version,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $1
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM campus_operators co
+      WHERE co.user_id = $1
+        AND co.campus_id = p.campus_id
+    )
+  ) AS is_authorized
+FROM properties p
+WHERE p.id = $2
+`
+
+type GetPropertyMutationStatusParams struct {
+	ActorUserID pgtype.UUID
+	ID          pgtype.UUID
+}
+
+type GetPropertyMutationStatusRow struct {
+	Version      int
+	IsAuthorized pgtype.Bool
+}
+
+func (q *Queries) GetPropertyMutationStatus(ctx context.Context, arg GetPropertyMutationStatusParams) (GetPropertyMutationStatusRow, error) {
+	row := q.db.QueryRow(ctx, getPropertyMutationStatus, arg.ActorUserID, arg.ID)
+	var i GetPropertyMutationStatusRow
+	err := row.Scan(&i.Version, &i.IsAuthorized)
 	return i, err
 }
 
@@ -305,6 +421,44 @@ func (q *Queries) GetPropertyUnitTypeMediaTarget(ctx context.Context, id pgtype.
 	row := q.db.QueryRow(ctx, getPropertyUnitTypeMediaTarget, id)
 	var i GetPropertyUnitTypeMediaTargetRow
 	err := row.Scan(&i.PropertyUnitTypeID, &i.PropertyID, &i.CampusID)
+	return i, err
+}
+
+const getPropertyUnitTypeMutationStatus = `-- name: GetPropertyUnitTypeMutationStatus :one
+SELECT
+  put.version,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $1
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM properties p
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE p.id = put.property_id
+        AND co.user_id = $1
+    )
+  ) AS is_authorized
+FROM property_unit_types put
+WHERE put.id = $2
+`
+
+type GetPropertyUnitTypeMutationStatusParams struct {
+	ActorUserID pgtype.UUID
+	ID          pgtype.UUID
+}
+
+type GetPropertyUnitTypeMutationStatusRow struct {
+	Version      int
+	IsAuthorized pgtype.Bool
+}
+
+func (q *Queries) GetPropertyUnitTypeMutationStatus(ctx context.Context, arg GetPropertyUnitTypeMutationStatusParams) (GetPropertyUnitTypeMutationStatusRow, error) {
+	row := q.db.QueryRow(ctx, getPropertyUnitTypeMutationStatus, arg.ActorUserID, arg.ID)
+	var i GetPropertyUnitTypeMutationStatusRow
+	err := row.Scan(&i.Version, &i.IsAuthorized)
 	return i, err
 }
 
@@ -408,59 +562,6 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 			&i.Notes,
 			&i.Version,
 			&i.ArchivedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProperties = `-- name: ListProperties :many
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
-FROM properties
-WHERE campus_id = $1
-ORDER BY created_at DESC, id DESC
-LIMIT $2
-`
-
-type ListPropertiesParams struct {
-	CampusID pgtype.UUID
-	Limit    int32
-}
-
-type ListPropertiesRow struct {
-	ID          pgtype.UUID
-	CampusID    pgtype.UUID
-	Name        string
-	Area        string
-	Landmark    pgtype.Text
-	Description pgtype.Text
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-}
-
-func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) ([]ListPropertiesRow, error) {
-	rows, err := q.db.Query(ctx, listProperties, arg.CampusID, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPropertiesRow
-	for rows.Next() {
-		var i ListPropertiesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.CampusID,
-			&i.Name,
-			&i.Area,
-			&i.Landmark,
-			&i.Description,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -582,7 +683,7 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 }
 
 const updateAgentOffer = `-- name: UpdateAgentOffer :one
-UPDATE agent_offers
+UPDATE agent_offers AS ao
 SET title = COALESCE($1, title),
     description = COALESCE($2, description),
     notes = COALESCE($3, notes),
@@ -590,9 +691,35 @@ SET title = COALESCE($1, title),
     status = COALESCE($5, status),
     version = version + 1,
     updated_at = now()
-WHERE id = $6
-  AND version = $7
-  AND archived_at IS NULL
+WHERE ao.id = $6
+  AND ao.version = $7
+  AND ao.archived_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $8
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = $8
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = $8
+    )
+  )
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 `
 
@@ -604,6 +731,7 @@ type UpdateAgentOfferParams struct {
 	Status          pgtype.Text
 	ID              pgtype.UUID
 	ExpectedVersion int
+	ActorUserID     pgtype.UUID
 }
 
 func (q *Queries) UpdateAgentOffer(ctx context.Context, arg UpdateAgentOfferParams) (AgentOffer, error) {
@@ -615,6 +743,7 @@ func (q *Queries) UpdateAgentOffer(ctx context.Context, arg UpdateAgentOfferPara
 		arg.Status,
 		arg.ID,
 		arg.ExpectedVersion,
+		arg.ActorUserID,
 	)
 	var i AgentOffer
 	err := row.Scan(
@@ -635,15 +764,28 @@ func (q *Queries) UpdateAgentOffer(ctx context.Context, arg UpdateAgentOfferPara
 }
 
 const updateProperty = `-- name: UpdateProperty :one
-UPDATE properties
+UPDATE properties AS p
 SET name = COALESCE($1, name),
     area = COALESCE($2, area),
     landmark = COALESCE($3, landmark),
     description = COALESCE($4, description),
     version = version + 1,
     updated_at = now()
-WHERE id = $5
-  AND version = $6
+WHERE p.id = $5
+  AND p.version = $6
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $7
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM campus_operators co
+      WHERE co.user_id = $7
+        AND co.campus_id = p.campus_id
+    )
+  )
 RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version
 `
 
@@ -654,6 +796,7 @@ type UpdatePropertyParams struct {
 	Description     pgtype.Text
 	ID              pgtype.UUID
 	ExpectedVersion int
+	ActorUserID     pgtype.UUID
 }
 
 func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) (Property, error) {
@@ -664,6 +807,7 @@ func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) 
 		arg.Description,
 		arg.ID,
 		arg.ExpectedVersion,
+		arg.ActorUserID,
 	)
 	var i Property
 	err := row.Scan(
@@ -681,7 +825,7 @@ func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) 
 }
 
 const updatePropertyUnitType = `-- name: UpdatePropertyUnitType :one
-UPDATE property_unit_types
+UPDATE property_unit_types AS put_target
 SET category = COALESCE($1, category),
     name = COALESCE($2, name),
     description = COALESCE($3, description),
@@ -692,8 +836,23 @@ SET category = COALESCE($1, category),
     kitchen_type = COALESCE($8, kitchen_type),
     version = version + 1,
     updated_at = now()
-WHERE id = $9
-  AND version = $10
+WHERE put_target.id = $9
+  AND put_target.version = $10
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = $11
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = put_target.id
+        AND co.user_id = $11
+    )
+  )
 RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 `
 
@@ -708,6 +867,7 @@ type UpdatePropertyUnitTypeParams struct {
 	KitchenType     pgtype.Text
 	ID              pgtype.UUID
 	ExpectedVersion int
+	ActorUserID     pgtype.UUID
 }
 
 func (q *Queries) UpdatePropertyUnitType(ctx context.Context, arg UpdatePropertyUnitTypeParams) (PropertyUnitType, error) {
@@ -722,6 +882,7 @@ func (q *Queries) UpdatePropertyUnitType(ctx context.Context, arg UpdateProperty
 		arg.KitchenType,
 		arg.ID,
 		arg.ExpectedVersion,
+		arg.ActorUserID,
 	)
 	var i PropertyUnitType
 	err := row.Scan(

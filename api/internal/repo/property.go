@@ -88,7 +88,7 @@ func (r *PropertyRepository) Get(ctx context.Context, id domain.ID) (domain.Prop
 	return propertyFromRow(row), nil
 }
 
-func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, actorUserID domain.ID) (domain.Property, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -96,10 +96,15 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 	if err != nil {
 		return domain.Property{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.Property{}, err
+	}
 
 	row, err := r.queries.UpdateProperty(ctx, generateddb.UpdatePropertyParams{
 		ID:              propertyUUID,
 		ExpectedVersion: expectedVersion,
+		ActorUserID:     actorUserUUID,
 		Name:            optionalTextParam(patch.Name),
 		Area:            optionalTextParam(patch.Area),
 		Landmark:        optionalTextParam(patch.Landmark),
@@ -107,6 +112,22 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			current, getErr := r.queries.GetPropertyMutationStatus(ctx, generateddb.GetPropertyMutationStatusParams{
+				ID:          propertyUUID,
+				ActorUserID: actorUserUUID,
+			})
+			if errors.Is(getErr, pgx.ErrNoRows) {
+				return domain.Property{}, ErrNotFound
+			}
+			if getErr != nil {
+				return domain.Property{}, fmt.Errorf("classify property update: %w", getErr)
+			}
+			if !current.IsAuthorized.Bool {
+				return domain.Property{}, ErrCampusForbidden
+			}
+			if current.Version != expectedVersion {
+				return domain.Property{}, ErrStaleUpdate
+			}
 			return domain.Property{}, ErrStaleUpdate
 		}
 
@@ -136,7 +157,7 @@ func (r *PropertyRepository) GetPropertyUnitType(ctx context.Context, id domain.
 	return propertyUnitTypeFromRow(row), nil
 }
 
-func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch, actorUserID domain.ID) (domain.PropertyUnitType, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -144,10 +165,15 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 	if err != nil {
 		return domain.PropertyUnitType{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
 
 	row, err := r.queries.UpdatePropertyUnitType(ctx, generateddb.UpdatePropertyUnitTypeParams{
 		ID:              unitTypeUUID,
 		ExpectedVersion: expectedVersion,
+		ActorUserID:     actorUserUUID,
 		Category:        optionalTextParam(unitCategoryValue(patch.Category)),
 		Name:            optionalTextParam(patch.Name),
 		Description:     optionalTextParam(patch.Description),
@@ -159,6 +185,22 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			current, getErr := r.queries.GetPropertyUnitTypeMutationStatus(ctx, generateddb.GetPropertyUnitTypeMutationStatusParams{
+				ID:          unitTypeUUID,
+				ActorUserID: actorUserUUID,
+			})
+			if errors.Is(getErr, pgx.ErrNoRows) {
+				return domain.PropertyUnitType{}, ErrNotFound
+			}
+			if getErr != nil {
+				return domain.PropertyUnitType{}, fmt.Errorf("classify property unit type update: %w", getErr)
+			}
+			if !current.IsAuthorized.Bool {
+				return domain.PropertyUnitType{}, ErrCampusForbidden
+			}
+			if current.Version != expectedVersion {
+				return domain.PropertyUnitType{}, ErrStaleUpdate
+			}
 			return domain.PropertyUnitType{}, ErrStaleUpdate
 		}
 		return domain.PropertyUnitType{}, fmt.Errorf("update property unit type: %w", err)
@@ -187,7 +229,7 @@ func (r *PropertyRepository) GetAgentOffer(ctx context.Context, id domain.ID) (d
 	return agentOfferFromRow(row), nil
 }
 
-func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
+func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch, actorUserID domain.ID) (domain.AgentOffer, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -195,10 +237,15 @@ func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID,
 	if err != nil {
 		return domain.AgentOffer{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
 
 	row, err := r.queries.UpdateAgentOffer(ctx, generateddb.UpdateAgentOfferParams{
 		ID:              offerUUID,
 		ExpectedVersion: expectedVersion,
+		ActorUserID:     actorUserUUID,
 		Title:           optionalTextParam(patch.Title),
 		Description:     optionalTextParam(patch.Description),
 		Notes:           optionalTextParam(patch.Notes),
@@ -207,6 +254,22 @@ func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			current, getErr := r.queries.GetAgentOfferMutationStatus(ctx, generateddb.GetAgentOfferMutationStatusParams{
+				ID:          offerUUID,
+				ActorUserID: actorUserUUID,
+			})
+			if errors.Is(getErr, pgx.ErrNoRows) {
+				return domain.AgentOffer{}, ErrNotFound
+			}
+			if getErr != nil {
+				return domain.AgentOffer{}, fmt.Errorf("classify agent offer update: %w", getErr)
+			}
+			if !current.IsAuthorized.Bool {
+				return domain.AgentOffer{}, ErrAgentForbidden
+			}
+			if current.Version != expectedVersion || current.ArchivedAt.Valid {
+				return domain.AgentOffer{}, ErrStaleUpdate
+			}
 			return domain.AgentOffer{}, ErrStaleUpdate
 		}
 		return domain.AgentOffer{}, fmt.Errorf("update agent offer: %w", err)
@@ -215,7 +278,7 @@ func (r *PropertyRepository) UpdateAgentOffer(ctx context.Context, id domain.ID,
 	return agentOfferFromRow(row), nil
 }
 
-func (r *PropertyRepository) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+func (r *PropertyRepository) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, actorUserID domain.ID) (domain.AgentOffer, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -223,13 +286,34 @@ func (r *PropertyRepository) ArchiveAgentOffer(ctx context.Context, id domain.ID
 	if err != nil {
 		return domain.AgentOffer{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
 
 	row, err := r.queries.ArchiveAgentOffer(ctx, generateddb.ArchiveAgentOfferParams{
 		ID:              offerUUID,
 		ExpectedVersion: expectedVersion,
+		ActorUserID:     actorUserUUID,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			current, getErr := r.queries.GetAgentOfferMutationStatus(ctx, generateddb.GetAgentOfferMutationStatusParams{
+				ID:          offerUUID,
+				ActorUserID: actorUserUUID,
+			})
+			if errors.Is(getErr, pgx.ErrNoRows) {
+				return domain.AgentOffer{}, ErrNotFound
+			}
+			if getErr != nil {
+				return domain.AgentOffer{}, fmt.Errorf("classify agent offer archive: %w", getErr)
+			}
+			if !current.IsAuthorized.Bool {
+				return domain.AgentOffer{}, ErrAgentForbidden
+			}
+			if current.Version != expectedVersion || current.ArchivedAt.Valid {
+				return domain.AgentOffer{}, ErrStaleUpdate
+			}
 			return domain.AgentOffer{}, ErrStaleUpdate
 		}
 		return domain.AgentOffer{}, fmt.Errorf("archive agent offer: %w", err)
@@ -407,9 +491,9 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		  SELECT
 		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
 		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
-		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-		    ((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'))::integer AS lowest_price_kobo,
-		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
+		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL), 0)::integer AS available_offer_count,
+		    ((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL))::integer AS lowest_price_kobo,
+		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.archived_at IS NULL) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
 		  FROM properties p
 		  WHERE %s
 		) sub

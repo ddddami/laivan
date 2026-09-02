@@ -80,6 +80,8 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 	t.Cleanup(func() { truncateProperties(t, context.Background(), pool) })
 
 	campusID := testCampusID(t, ctx, pool)
+	actorUserID := insertUser(t, ctx, pool, "Property Operator")
+	grantCampusOperator(t, ctx, pool, actorUserID, campusID)
 	repository := NewPropertyRepository(pool)
 	created, err := repository.Create(ctx, domain.Property{
 		CampusID: campusID,
@@ -98,7 +100,7 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 	updated, err := repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{
 		Name:        &updatedName,
 		Description: &updatedDescription,
-	})
+	}, actorUserID)
 	if err != nil {
 		t.Fatalf("update property: %v", err)
 	}
@@ -110,7 +112,7 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 	}
 
 	lostUpdateName := "Lost update"
-	_, err = repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{Name: &lostUpdateName})
+	_, err = repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{Name: &lostUpdateName}, actorUserID)
 	if !errors.Is(err, ErrStaleUpdate) {
 		t.Fatalf("stale update error = %v, want %v", err, ErrStaleUpdate)
 	}
@@ -367,6 +369,70 @@ func TestPropertyRepositoryList(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryListWithSummaryExcludesArchivedOffers(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Archived Offer Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	agentID := insertAgent(t, ctx, pool, "Archived Offer Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	actorUserID := agentUserID(t, ctx, pool, agentID)
+	repository := NewPropertyRepository(pool)
+
+	offer, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            agentID,
+		Title:              "Archived offer",
+		Price:              domain.Money{AmountKobo: 25000000},
+		Status:             domain.AgentOfferStatusAvailable,
+	})
+	if err != nil {
+		t.Fatalf("create agent offer: %v", err)
+	}
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		AgentOfferID:      offer.ID,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/archived-offer.jpg",
+		Kind:              domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create agent offer media: %v", err)
+	}
+	if _, err := repository.ArchiveAgentOffer(ctx, offer.ID, offer.Version, actorUserID); err != nil {
+		t.Fatalf("archive agent offer: %v", err)
+	}
+
+	filters := data.Filters{Page: 1, PageSize: 10, Sort: "-created_at", SortSafelist: []string{"created_at", "-created_at"}}
+	summaries, total, err := repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, Filters: filters})
+	if err != nil {
+		t.Fatalf("list property summaries: %v", err)
+	}
+	if total != 1 || len(summaries) != 1 {
+		t.Fatalf("summaries = %d of %d, want 1 of 1", len(summaries), total)
+	}
+	if summaries[0].AvailableOfferCount != 0 || summaries[0].LowestPrice.AmountKobo != 0 || summaries[0].ThumbnailURL != "" {
+		t.Fatalf("archived offer summary = %#v, want no public offer data", summaries[0])
+	}
+
+	hasOffers := true
+	summaries, total, err = repository.ListWithSummary(ctx, PropertyListFilter{CampusID: campusID, HasOffers: &hasOffers, Filters: filters})
+	if err != nil {
+		t.Fatalf("list summaries with offers: %v", err)
+	}
+	if total != 0 || len(summaries) != 0 {
+		t.Fatalf("summaries with offers = %d of %d, want none", len(summaries), total)
+	}
+}
+
 func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
@@ -376,6 +442,8 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
 
 	campusID := testCampusID(t, ctx, pool)
+	actorUserID := insertUser(t, ctx, pool, "Unit Type Operator")
+	grantCampusOperator(t, ctx, pool, actorUserID, campusID)
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	repository := NewPropertyRepository(pool)
 
@@ -463,7 +531,7 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 
 	updatedDescription := "Corrected unit description."
-	updated, err := repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription})
+	updated, err := repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription}, actorUserID)
 	if err != nil {
 		t.Fatalf("update property unit type: %v", err)
 	}
@@ -471,7 +539,7 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 		t.Fatalf("updated unit type = %#v, want corrected description at version 2", updated)
 	}
 
-	_, err = repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription})
+	_, err = repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription}, actorUserID)
 	if !errors.Is(err, ErrStaleUpdate) {
 		t.Fatalf("stale unit type update error = %v, want %v", err, ErrStaleUpdate)
 	}
@@ -576,6 +644,7 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
 	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	actorUserID := agentUserID(t, ctx, pool, agentID)
 	repository := NewPropertyRepository(pool)
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
@@ -632,7 +701,7 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	updated, err := repository.UpdateAgentOffer(ctx, created.ID, created.Version, domain.AgentOfferPatch{
 		Title:     &updatedTitle,
 		PriceKobo: &updatedPrice,
-	})
+	}, actorUserID)
 	if err != nil {
 		t.Fatalf("update agent offer: %v", err)
 	}
@@ -640,17 +709,215 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 		t.Fatalf("updated agent offer = %#v, want changed fields at version 2", updated)
 	}
 
-	_, err = repository.UpdateAgentOffer(ctx, created.ID, created.Version, domain.AgentOfferPatch{Title: &updatedTitle})
+	_, err = repository.UpdateAgentOffer(ctx, created.ID, created.Version, domain.AgentOfferPatch{Title: &updatedTitle}, actorUserID)
 	if !errors.Is(err, ErrStaleUpdate) {
 		t.Fatalf("stale agent offer update error = %v, want %v", err, ErrStaleUpdate)
 	}
 
-	archived, err := repository.ArchiveAgentOffer(ctx, created.ID, updated.Version)
+	archived, err := repository.ArchiveAgentOffer(ctx, created.ID, updated.Version, actorUserID)
 	if err != nil {
 		t.Fatalf("archive agent offer: %v", err)
 	}
 	if archived.Status != domain.AgentOfferStatusUnavailable || archived.Version != 3 || archived.ArchivedAt == nil {
 		t.Fatalf("archived agent offer = %#v, want unavailable at version 3", archived)
+	}
+
+	listed, err = repository.ListAgentOffers(ctx, unitTypeID)
+	if err != nil {
+		t.Fatalf("list archived agent offers: %v", err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("listed archived offers = %d, want 0", len(listed))
+	}
+
+	fetched, err := repository.GetAgentOffer(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get archived agent offer: %v", err)
+	}
+	if fetched.ID != created.ID || fetched.ArchivedAt == nil {
+		t.Fatalf("fetched archived offer = %#v, want retained archived offer", fetched)
+	}
+
+	detail, err := repository.GetWithDetails(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("get property details after archive: %v", err)
+	}
+	if len(detail.UnitTypes) != 1 || len(detail.UnitTypes[0].AgentOffers) != 0 {
+		t.Fatalf("property detail offers = %#v, want no archived offers", detail.UnitTypes)
+	}
+}
+
+func TestPropertyRepositoryAgentOfferMutationsCheckCurrentAuthorization(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	otherCampusID := createTestCampus(t, ctx, pool, "offer-mutation-other-campus")
+	propertyID := insertProperty(t, ctx, pool, campusID, "Mutation Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	ownerAgentID := insertAgent(t, ctx, pool, "Offer Owner")
+	associateAgentWithCampus(t, ctx, pool, ownerAgentID, campusID)
+	ownerUserID := agentUserID(t, ctx, pool, ownerAgentID)
+	operatorUserID := insertUser(t, ctx, pool, "Campus Operator")
+	grantCampusOperator(t, ctx, pool, operatorUserID, campusID)
+	wrongCampusOperatorID := insertUser(t, ctx, pool, "Other Campus Operator")
+	grantCampusOperator(t, ctx, pool, wrongCampusOperatorID, otherCampusID)
+	globalAdminUserID := insertUser(t, ctx, pool, "Global Admin")
+	grantGlobalAdmin(t, ctx, pool, globalAdminUserID)
+	unauthorizedUserID := insertUser(t, ctx, pool, "Unauthorized User")
+	repository := NewPropertyRepository(pool)
+
+	offer, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            ownerAgentID,
+		Title:              "Original offer",
+		Price:              domain.Money{AmountKobo: 35000000},
+		Status:             domain.AgentOfferStatusAvailable,
+	})
+	if err != nil {
+		t.Fatalf("create agent offer: %v", err)
+	}
+
+	title := "Unauthorized update"
+	_, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, unauthorizedUserID)
+	if !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("unauthorized offer update error = %v, want %v", err, ErrAgentForbidden)
+	}
+
+	title = "Owner update"
+	offer, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, ownerUserID)
+	if err != nil {
+		t.Fatalf("owner offer update: %v", err)
+	}
+	_, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version-1, domain.AgentOfferPatch{Title: &title}, unauthorizedUserID)
+	if !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("stale unauthorized update error = %v, want %v", err, ErrAgentForbidden)
+	}
+
+	ownerArchiveUnitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Owner archive")
+	ownerArchiveOffer, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		PropertyUnitTypeID: ownerArchiveUnitTypeID,
+		AgentID:            ownerAgentID,
+		Title:              "Owner archive offer",
+		Price:              domain.Money{AmountKobo: 30000000},
+		Status:             domain.AgentOfferStatusAvailable,
+	})
+	if err != nil {
+		t.Fatalf("create owner archive offer: %v", err)
+	}
+	if _, err := repository.ArchiveAgentOffer(ctx, ownerArchiveOffer.ID, ownerArchiveOffer.Version, ownerUserID); err != nil {
+		t.Fatalf("owner archive offer: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, "DELETE FROM agent_campuses WHERE agent_id = $1 AND campus_id = $2", string(ownerAgentID), string(campusID)); err != nil {
+		t.Fatalf("remove owner campus: %v", err)
+	}
+	title = "Removed campus update"
+	_, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, ownerUserID)
+	if !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("removed-campus owner update error = %v, want %v", err, ErrAgentForbidden)
+	}
+	associateAgentWithCampus(t, ctx, pool, ownerAgentID, campusID)
+
+	if _, err := pool.Exec(ctx, "UPDATE agents SET status = 'suspended' WHERE id = $1", string(ownerAgentID)); err != nil {
+		t.Fatalf("suspend owner agent: %v", err)
+	}
+	title = "Suspended update"
+	_, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, ownerUserID)
+	if !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("suspended owner update error = %v, want %v", err, ErrAgentForbidden)
+	}
+
+	title = "Operator update"
+	offer, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, operatorUserID)
+	if err != nil {
+		t.Fatalf("campus operator offer update: %v", err)
+	}
+
+	_, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, wrongCampusOperatorID)
+	if !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("wrong-campus update error = %v, want %v", err, ErrAgentForbidden)
+	}
+
+	title = "Global admin update"
+	offer, err = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, globalAdminUserID)
+	if err != nil {
+		t.Fatalf("global admin update: %v", err)
+	}
+	archived, err := repository.ArchiveAgentOffer(ctx, offer.ID, offer.Version, operatorUserID)
+	if err != nil {
+		t.Fatalf("campus operator archive: %v", err)
+	}
+	if archived.ArchivedAt == nil || archived.Version != offer.Version+1 {
+		t.Fatalf("archived offer = %#v, want archived version %d", archived, offer.Version+1)
+	}
+}
+
+func TestPropertyRepositoryCanonicalMutationsCheckCampusAuthorization(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Canonical Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	operatorUserID := insertUser(t, ctx, pool, "Canonical Operator")
+	grantCampusOperator(t, ctx, pool, operatorUserID, campusID)
+	unauthorizedUserID := insertUser(t, ctx, pool, "Canonical Unauthorized")
+	globalAdminUserID := insertUser(t, ctx, pool, "Canonical Global Admin")
+	grantGlobalAdmin(t, ctx, pool, globalAdminUserID)
+	repository := NewPropertyRepository(pool)
+
+	propertyName := "Unauthorized property update"
+	_, err := repository.Update(ctx, propertyID, 1, domain.PropertyPatch{Name: &propertyName}, unauthorizedUserID)
+	if !errors.Is(err, ErrCampusForbidden) {
+		t.Fatalf("unauthorized property update error = %v, want %v", err, ErrCampusForbidden)
+	}
+
+	propertyName = "Authorized property update"
+	property, err := repository.Update(ctx, propertyID, 1, domain.PropertyPatch{Name: &propertyName}, operatorUserID)
+	if err != nil {
+		t.Fatalf("authorized property update: %v", err)
+	}
+	_, err = repository.Update(ctx, propertyID, 1, domain.PropertyPatch{Name: &propertyName}, unauthorizedUserID)
+	if !errors.Is(err, ErrCampusForbidden) {
+		t.Fatalf("stale unauthorized property update error = %v, want %v", err, ErrCampusForbidden)
+	}
+	propertyName = "Global admin property update"
+	property, err = repository.Update(ctx, propertyID, property.Version, domain.PropertyPatch{Name: &propertyName}, globalAdminUserID)
+	if err != nil {
+		t.Fatalf("global admin property update: %v", err)
+	}
+
+	unitName := "Unauthorized unit update"
+	_, err = repository.UpdatePropertyUnitType(ctx, unitTypeID, 1, domain.PropertyUnitTypePatch{Name: &unitName}, unauthorizedUserID)
+	if !errors.Is(err, ErrCampusForbidden) {
+		t.Fatalf("unauthorized unit type update error = %v, want %v", err, ErrCampusForbidden)
+	}
+
+	unitName = "Authorized unit update"
+	unitType, err := repository.UpdatePropertyUnitType(ctx, unitTypeID, 1, domain.PropertyUnitTypePatch{Name: &unitName}, operatorUserID)
+	if err != nil {
+		t.Fatalf("authorized unit type update: %v", err)
+	}
+	unitName = "Global admin unit update"
+	unitType, err = repository.UpdatePropertyUnitType(ctx, unitTypeID, unitType.Version, domain.PropertyUnitTypePatch{Name: &unitName}, globalAdminUserID)
+	if err != nil {
+		t.Fatalf("global admin unit type update: %v", err)
+	}
+	if property.Version != 3 || unitType.Version != 3 {
+		t.Fatalf("updated versions = property %d, unit type %d; want 3, 3", property.Version, unitType.Version)
 	}
 }
 
@@ -969,6 +1236,52 @@ func insertPropertyUnitTypeFull(t *testing.T, ctx context.Context, db *pgxpool.P
 	return domain.ID(unitTypeID)
 }
 
+func insertUser(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayName string) domain.ID {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var userID string
+	if err := db.QueryRow(ctx, `
+		INSERT INTO users (email, display_name)
+		VALUES (gen_random_uuid() || '@test.com', $1)
+		RETURNING id::text
+	`, displayName).Scan(&userID); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	return domain.ID(userID)
+}
+
+func grantCampusOperator(t *testing.T, ctx context.Context, db *pgxpool.Pool, userID, campusID domain.ID) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if _, err := db.Exec(ctx, `
+		INSERT INTO campus_operators (user_id, campus_id)
+		VALUES ($1, $2)
+	`, string(userID), string(campusID)); err != nil {
+		t.Fatalf("grant campus operator: %v", err)
+	}
+}
+
+func grantGlobalAdmin(t *testing.T, ctx context.Context, db *pgxpool.Pool, userID domain.ID) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if _, err := db.Exec(ctx, `
+		INSERT INTO global_admin_roles (user_id)
+		VALUES ($1)
+	`, string(userID)); err != nil {
+		t.Fatalf("grant global admin: %v", err)
+	}
+}
+
 func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayName string) domain.ID {
 	t.Helper()
 
@@ -999,6 +1312,20 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	}
 
 	return domain.ID(agentID)
+}
+
+func agentUserID(t *testing.T, ctx context.Context, db *pgxpool.Pool, agentID domain.ID) domain.ID {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var userID string
+	if err := db.QueryRow(ctx, "SELECT user_id::text FROM agents WHERE id = $1", string(agentID)).Scan(&userID); err != nil {
+		t.Fatalf("get agent user: %v", err)
+	}
+
+	return domain.ID(userID)
 }
 
 func associateAgentWithCampus(t *testing.T, ctx context.Context, db *pgxpool.Pool, agentID, campusID domain.ID) {

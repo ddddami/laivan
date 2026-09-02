@@ -14,7 +14,7 @@ FROM property_unit_types
 WHERE id = $1;
 
 -- name: UpdatePropertyUnitType :one
-UPDATE property_unit_types
+UPDATE property_unit_types AS put_target
 SET category = COALESCE(sqlc.narg('category'), category),
     name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
@@ -25,28 +25,49 @@ SET category = COALESCE(sqlc.narg('category'), category),
     kitchen_type = COALESCE(sqlc.narg('kitchen_type'), kitchen_type),
     version = version + 1,
     updated_at = now()
-WHERE id = sqlc.arg('id')
-  AND version = sqlc.arg('expected_version')
+WHERE put_target.id = sqlc.arg('id')
+  AND put_target.version = sqlc.arg('expected_version')
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = put_target.id
+        AND co.user_id = sqlc.arg('actor_user_id')
+    )
+  )
 RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version;
 
 -- name: UpdateProperty :one
-UPDATE properties
+UPDATE properties AS p
 SET name = COALESCE(sqlc.narg('name'), name),
     area = COALESCE(sqlc.narg('area'), area),
     landmark = COALESCE(sqlc.narg('landmark'), landmark),
     description = COALESCE(sqlc.narg('description'), description),
     version = version + 1,
     updated_at = now()
-WHERE id = sqlc.arg('id')
-  AND version = sqlc.arg('expected_version')
+WHERE p.id = sqlc.arg('id')
+  AND p.version = sqlc.arg('expected_version')
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM campus_operators co
+      WHERE co.user_id = sqlc.arg('actor_user_id')
+        AND co.campus_id = p.campus_id
+    )
+  )
 RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version;
-
--- name: ListProperties :many
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
-FROM properties
-WHERE campus_id = $1
-ORDER BY created_at DESC, id DESC
-LIMIT $2;
 
 -- name: CreatePropertyUnitType :one
 INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
@@ -94,7 +115,7 @@ FROM agent_offers
 WHERE id = $1;
 
 -- name: UpdateAgentOffer :one
-UPDATE agent_offers
+UPDATE agent_offers AS ao
 SET title = COALESCE(sqlc.narg('title'), title),
     description = COALESCE(sqlc.narg('description'), description),
     notes = COALESCE(sqlc.narg('notes'), notes),
@@ -102,21 +123,145 @@ SET title = COALESCE(sqlc.narg('title'), title),
     status = COALESCE(sqlc.narg('status'), status),
     version = version + 1,
     updated_at = now()
-WHERE id = sqlc.arg('id')
-  AND version = sqlc.arg('expected_version')
-  AND archived_at IS NULL
+WHERE ao.id = sqlc.arg('id')
+  AND ao.version = sqlc.arg('expected_version')
+  AND ao.archived_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = sqlc.arg('actor_user_id')
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = sqlc.arg('actor_user_id')
+    )
+  )
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at;
 
 -- name: ArchiveAgentOffer :one
-UPDATE agent_offers
+UPDATE agent_offers AS ao
 SET status = 'unavailable',
     archived_at = now(),
     version = version + 1,
     updated_at = now()
-WHERE id = sqlc.arg('id')
-  AND version = sqlc.arg('expected_version')
-  AND archived_at IS NULL
+WHERE ao.id = sqlc.arg('id')
+  AND ao.version = sqlc.arg('expected_version')
+  AND ao.archived_at IS NULL
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = sqlc.arg('actor_user_id')
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = sqlc.arg('actor_user_id')
+    )
+  )
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at;
+
+-- name: GetPropertyMutationStatus :one
+SELECT
+  p.version,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM campus_operators co
+      WHERE co.user_id = sqlc.arg('actor_user_id')
+        AND co.campus_id = p.campus_id
+    )
+  ) AS is_authorized
+FROM properties p
+WHERE p.id = sqlc.arg('id');
+
+-- name: GetPropertyUnitTypeMutationStatus :one
+SELECT
+  put.version,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM properties p
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE p.id = put.property_id
+        AND co.user_id = sqlc.arg('actor_user_id')
+    )
+  ) AS is_authorized
+FROM property_unit_types put
+WHERE put.id = sqlc.arg('id');
+
+-- name: GetAgentOfferMutationStatus :one
+SELECT
+  ao.version,
+  ao.archived_at,
+  (
+    EXISTS (
+      SELECT 1
+      FROM global_admin_roles gar
+      WHERE gar.user_id = sqlc.arg('actor_user_id')
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM agents a
+      JOIN agent_campuses ac ON ac.agent_id = a.id
+      JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+      JOIN properties p ON p.id = put.property_id
+      WHERE a.id = ao.agent_id
+        AND a.user_id = sqlc.arg('actor_user_id')
+        AND a.status = 'active'
+        AND ac.campus_id = p.campus_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM property_unit_types put
+      JOIN properties p ON p.id = put.property_id
+      JOIN campus_operators co ON co.campus_id = p.campus_id
+      WHERE put.id = ao.property_unit_type_id
+        AND co.user_id = sqlc.arg('actor_user_id')
+    )
+  ) AS is_authorized
+FROM agent_offers ao
+WHERE ao.id = sqlc.arg('id');
 
 -- name: ListAgentOfferDetailsByPropertyUnitTypeIDs :many
 SELECT

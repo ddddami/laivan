@@ -228,19 +228,9 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	property, err := app.propertyRepo.Get(r.Context(), domain.ID(id))
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get property for update: %w", err))
-		return
-	}
-
 	p, ok := principalFromContext(r.Context())
-	if !ok || (!p.Access.GlobalAdmin && !containsID(p.Access.CampusOperatorIDs, property.CampusID)) {
-		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "Campus operator access is required for this property")
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 		return
 	}
 
@@ -249,13 +239,18 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 		Area:        OptionalValue(input.Area),
 		Landmark:    OptionalValue(input.Landmark),
 		Description: OptionalValue(input.Description),
-	})
+	}, p.User.ID)
 	if err != nil {
-		if errors.Is(err, repo.ErrStaleUpdate) {
+		switch {
+		case errors.Is(err, repo.ErrNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, repo.ErrStaleUpdate):
 			app.preconditionFailedResponse(w, r)
-			return
+		case errors.Is(err, repo.ErrCampusForbidden):
+			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "Campus operator access is required for this property")
+		default:
+			app.serverErrorResponse(w, r, fmt.Errorf("update property: %w", err))
 		}
-		app.serverErrorResponse(w, r, fmt.Errorf("update property: %w", err))
 		return
 	}
 
