@@ -1,11 +1,12 @@
-patch:
-  operationId: updateAgentOffer
+post:
+  operationId: archiveAgentOffer
   tags:
     - Agent Offers
-  summary: Update an agent offer.
+  summary: Archive an agent offer.
   description: >-
-    Updates an offer owned by the authenticated active agent or managed by a
-    campus operator using an optimistic-concurrency version precondition.
+    Archives an agent offer without physically deleting its history or
+    provenance. The operation requires the authenticated owner or a campus
+    operator and an optimistic-concurrency version precondition.
   security:
     - sessionAuth: []
   parameters:
@@ -24,26 +25,18 @@ patch:
         type: string
         minLength: 1
     - $ref: ../components/parameters/CSRFToken.yaml
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: ../components/schemas/UpdateAgentOfferRequest.yaml
   responses:
     '200':
-      description: Agent offer updated successfully.
+      description: Agent offer archived successfully.
       headers:
         ETag:
-          description: Current agent offer version after the update.
+          description: Current archived agent offer version.
           schema:
             type: string
       content:
         application/json:
           schema:
             $ref: ../components/schemas/AgentOfferResponse.yaml
-    '400':
-      $ref: ../components/responses/BadRequest.yaml
     '401':
       $ref: ../components/responses/Unauthenticated.yaml
     '403':

@@ -1168,6 +1168,7 @@ paths:
           $ref: '#/components/responses/PreconditionRequired'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /v1/agent-offers/{id}/archive:
     post:
       operationId: archiveAgentOffer
       tags:
