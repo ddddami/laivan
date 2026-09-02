@@ -4,15 +4,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	appdb "github.com/ddddami/laivan/internal/db"
+	"github.com/jackc/pgx/v5"
 )
 
 func TestSeedAgentsDoesNotReplaceExistingUserLink(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	databaseURL := os.Getenv("LAIVAN_TEST_DB_URL")
 	if databaseURL == "" {
 		t.Skip("LAIVAN_TEST_DB_URL is required for integration tests")
@@ -27,7 +31,11 @@ func TestSeedAgentsDoesNotReplaceExistingUserLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin seed safety transaction: %v", err)
 	}
-	t.Cleanup(func() { _ = tx.Rollback(context.Background()) })
+	t.Cleanup(func() {
+		if err := tx.Rollback(context.Background()); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("rollback seed safety transaction: %v", err)
+		}
+	})
 
 	var userID string
 	if err := tx.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ('real-seed-agent@example.com', 'Real Seed Agent') RETURNING id::text`).Scan(&userID); err != nil {

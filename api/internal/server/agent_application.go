@@ -169,7 +169,7 @@ func (app *app) respondToAgentApplication(w http.ResponseWriter, r *http.Request
 			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "The operator is not authorized for this campus")
 		case errors.Is(err, repo.ErrNotFound):
 			app.notFoundResponse(w, r)
-		case errors.Is(err, repo.ErrAlreadyLinked), errors.Is(err, repo.ErrApplicationResolved), errors.Is(err, repo.ErrLegacyAgentConflict), errors.Is(err, repo.ErrPhoneConflict):
+		case errors.Is(err, repo.ErrAlreadyLinked), errors.Is(err, repo.ErrApplicationResolved), errors.Is(err, repo.ErrPhoneConflict):
 			app.conflictResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, fmt.Errorf("decide agent application: %w", err))
