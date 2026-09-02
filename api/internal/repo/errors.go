@@ -8,6 +8,7 @@ var (
 	ErrForeignKeyViolation    = errors.New("referenced resource does not exist")
 	ErrUnitTypeNotFound       = errors.New("unit type not found")
 	ErrAgentNotFound          = errors.New("agent not found")
+	ErrAgentForbidden         = errors.New("agent is not authorized for this campus")
 	ErrAlreadyLinked          = errors.New("user already has a linked agent")
 	ErrApplicationConflict    = errors.New("application conflicts with an existing application")
 	ErrApplicationResolved    = errors.New("application is no longer pending")

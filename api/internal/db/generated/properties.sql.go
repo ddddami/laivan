@@ -11,13 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createAgentOffer = `-- name: CreateAgentOffer :one
+const createAuthorizedAgentOffer = `-- name: CreateAuthorizedAgentOffer :one
 INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT $1, $2, $3, $4, $5, $6, $7
+FROM property_unit_types put
+JOIN properties p ON p.id = put.property_id
+JOIN agents a ON a.id = $2 AND a.status = 'active'
+JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
+WHERE put.id = $1
 RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
 `
 
-type CreateAgentOfferParams struct {
+type CreateAuthorizedAgentOfferParams struct {
 	PropertyUnitTypeID pgtype.UUID
 	AgentID            pgtype.UUID
 	Title              string
@@ -27,8 +32,8 @@ type CreateAgentOfferParams struct {
 	Status             string
 }
 
-func (q *Queries) CreateAgentOffer(ctx context.Context, arg CreateAgentOfferParams) (AgentOffer, error) {
-	row := q.db.QueryRow(ctx, createAgentOffer,
+func (q *Queries) CreateAuthorizedAgentOffer(ctx context.Context, arg CreateAuthorizedAgentOfferParams) (AgentOffer, error) {
+	row := q.db.QueryRow(ctx, createAuthorizedAgentOffer,
 		arg.PropertyUnitTypeID,
 		arg.AgentID,
 		arg.Title,

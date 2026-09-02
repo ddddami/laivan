@@ -513,6 +513,7 @@ func TestPropertyRepositoryCreateAndListAgentOffers(t *testing.T) {
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
 	repository := NewPropertyRepository(pool)
 
 	created, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
@@ -578,6 +579,7 @@ func TestPropertyRepositoryAgentOfferStoresKoboAndReturnsNaira(t *testing.T) {
 	propertyID := insertProperty(t, ctx, pool, campusID, "Alice Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
 	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
 	agentID := insertAgent(t, ctx, pool, "Dami Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
 	repository := NewPropertyRepository(pool)
 
 	// Simulate what handler does: convert 350000 naira to kobo
@@ -683,6 +685,48 @@ func TestPropertyRepositoryAgentOffersAgentNotFound(t *testing.T) {
 	})
 	if !errors.Is(err, ErrAgentNotFound) {
 		t.Fatalf("create error = %v, want %v", err, ErrAgentNotFound)
+	}
+}
+
+func TestPropertyRepositoryCreateAgentOfferRequiresAgentCampusAndActiveStatus(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	otherCampusID := createTestCampus(t, ctx, pool, "offer-authorization-other-campus")
+	propertyID := insertProperty(t, ctx, pool, campusID, "Authorized Lodge", time.Now().UTC())
+	otherPropertyID := insertProperty(t, ctx, pool, otherCampusID, "Other Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	otherUnitTypeID := insertPropertyUnitType(t, ctx, pool, otherPropertyID, "Self-contained")
+	agentID := insertAgent(t, ctx, pool, "Scoped Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	repository := NewPropertyRepository(pool)
+	offer := domain.AgentOffer{
+		Title:   "Scoped offer",
+		Price:   domain.Money{AmountKobo: 35000000},
+		Status:  domain.AgentOfferStatusAvailable,
+		AgentID: agentID,
+	}
+
+	offer.PropertyUnitTypeID = otherUnitTypeID
+	if _, err := repository.CreateAgentOffer(ctx, offer); !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("cross-campus create error = %v, want %v", err, ErrAgentForbidden)
+	}
+
+	if _, err := pool.Exec(ctx, "UPDATE agents SET status = 'suspended' WHERE id = $1", string(agentID)); err != nil {
+		t.Fatalf("suspend scoped agent: %v", err)
+	}
+	offer.PropertyUnitTypeID = unitTypeID
+	if _, err := repository.CreateAgentOffer(ctx, offer); !errors.Is(err, ErrAgentForbidden) {
+		t.Fatalf("suspended-agent create error = %v, want %v", err, ErrAgentForbidden)
 	}
 }
 
@@ -851,6 +895,17 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	}
 
 	return domain.ID(agentID)
+}
+
+func associateAgentWithCampus(t *testing.T, ctx context.Context, db *pgxpool.Pool, agentID, campusID domain.ID) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if _, err := db.Exec(ctx, "INSERT INTO agent_campuses (agent_id, campus_id) VALUES ($1, $2)", string(agentID), string(campusID)); err != nil {
+		t.Fatalf("associate agent with campus: %v", err)
+	}
 }
 
 func insertAgentOffer(t *testing.T, ctx context.Context, db *pgxpool.Pool, unitTypeID domain.ID, agentID domain.ID, title string, priceKobo int) domain.ID {

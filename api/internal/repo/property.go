@@ -363,7 +363,25 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 		return domain.AgentOffer{}, err
 	}
 
-	row, err := r.queries.CreateAgentOffer(ctx, generateddb.CreateAgentOfferParams{
+	if _, err := r.queries.GetPropertyUnitType(ctx, unitTypeUUID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrUnitTypeNotFound
+		}
+		return domain.AgentOffer{}, fmt.Errorf("get unit type for agent offer: %w", err)
+	}
+
+	agent, err := r.queries.GetAgent(ctx, agentUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrAgentNotFound
+		}
+		return domain.AgentOffer{}, fmt.Errorf("get agent for agent offer: %w", err)
+	}
+	if agent.Status != string(domain.AgentStatusActive) {
+		return domain.AgentOffer{}, ErrAgentForbidden
+	}
+
+	row, err := r.queries.CreateAuthorizedAgentOffer(ctx, generateddb.CreateAuthorizedAgentOfferParams{
 		PropertyUnitTypeID: unitTypeUUID,
 		AgentID:            agentUUID,
 		Title:              offer.Title,
@@ -373,6 +391,9 @@ func (r *PropertyRepository) CreateAgentOffer(ctx context.Context, offer domain.
 		Status:             string(offer.Status),
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.AgentOffer{}, ErrAgentForbidden
+		}
 		if isForeignKeyViolation(err) {
 			unitTypeNotFound := isConstraintViolation(err, "agent_offers_property_unit_type_id_fkey")
 			agentNotFound := isConstraintViolation(err, "agent_offers_agent_id_fkey")
