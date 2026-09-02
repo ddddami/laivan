@@ -30,17 +30,19 @@ type Config struct {
 }
 
 type AuthConfig struct {
-	GoogleAuthEnabled   bool
-	GoogleClientID      string
-	GoogleClientSecret  string
-	GoogleRedirectURL   string
-	WebOrigin           string
-	SessionCookieName   string
-	CSRFCookieName      string
-	OIDCStateSigningKey string
-	OIDCStateDuration   time.Duration
-	SessionDuration     time.Duration
-	SecureCookies       bool
+	GoogleAuthEnabled     bool
+	GoogleClientID        string
+	GoogleClientSecret    string
+	GoogleRedirectURL     string
+	WebOrigin             string
+	SessionCookieName     string
+	CSRFCookieName        string
+	OIDCStateSigningKey   string
+	OIDCStateDuration     time.Duration
+	SessionDuration       time.Duration
+	SecureCookies         bool
+	OIDCRateLimitRequests int
+	OIDCRateLimitWindow   time.Duration
 }
 
 func (c AuthConfig) OIDCStateCookieName() string {
@@ -81,10 +83,12 @@ func Load() (Config, error) {
 		IdleTimeout:     time.Minute,
 		ShutdownTimeout: 10 * time.Second,
 		Auth: AuthConfig{
-			SessionCookieName: "laivan_session",
-			CSRFCookieName:    "laivan_csrf",
-			OIDCStateDuration: 10 * time.Minute,
-			SessionDuration:   30 * 24 * time.Hour,
+			SessionCookieName:     "laivan_session",
+			CSRFCookieName:        "laivan_csrf",
+			OIDCStateDuration:     10 * time.Minute,
+			SessionDuration:       30 * 24 * time.Hour,
+			OIDCRateLimitRequests: 10,
+			OIDCRateLimitWindow:   time.Minute,
 		},
 		Media: MediaConfig{
 			S3Region:       "us-east-1",
@@ -170,6 +174,16 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	cfg.Auth.OIDCRateLimitRequests, err = intEnv("LAIVAN_OIDC_RATE_LIMIT_REQUESTS", cfg.Auth.OIDCRateLimitRequests)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg.Auth.OIDCRateLimitWindow, err = durationEnv("LAIVAN_OIDC_RATE_LIMIT_WINDOW", cfg.Auth.OIDCRateLimitWindow)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg.Auth.SecureCookies, err = boolEnv("LAIVAN_SECURE_COOKIES", cfg.Auth.SecureCookies)
 	if err != nil {
 		return Config{}, err
@@ -236,6 +250,12 @@ func (c Config) Validate() error {
 	}
 	if c.Auth.SessionDuration <= 0 || c.Auth.SessionDuration > 30*24*time.Hour {
 		return fmt.Errorf("LAIVAN_SESSION_DURATION must be greater than zero and no more than 720h")
+	}
+	if c.Auth.OIDCRateLimitRequests <= 0 || c.Auth.OIDCRateLimitRequests > 1000 {
+		return fmt.Errorf("LAIVAN_OIDC_RATE_LIMIT_REQUESTS must be between 1 and 1000")
+	}
+	if c.Auth.OIDCRateLimitWindow <= 0 || c.Auth.OIDCRateLimitWindow > time.Hour {
+		return fmt.Errorf("LAIVAN_OIDC_RATE_LIMIT_WINDOW must be greater than zero and no more than 1h")
 	}
 	if err := validateOrigin(c.Auth.WebOrigin, c.IsProduction()); err != nil {
 		return fmt.Errorf("LAIVAN_WEB_ORIGIN %w", err)

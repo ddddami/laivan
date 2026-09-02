@@ -14,14 +14,15 @@ import (
 )
 
 type app struct {
-	cfg           config.Config
-	logger        *slog.Logger
-	version       string
-	propertyRepo  PropertyStore
-	mediaUploader storage.ObjectStore
-	mediaURLs     MediaURLBuilder
-	auth          *auth.Service
-	applications  AgentApplicationStore
+	cfg             config.Config
+	logger          *slog.Logger
+	version         string
+	propertyRepo    PropertyStore
+	mediaUploader   storage.ObjectStore
+	mediaURLs       MediaURLBuilder
+	auth            *auth.Service
+	applications    AgentApplicationStore
+	oidcRateLimiter *rateLimiter
 }
 
 type MediaURLBuilder interface {
@@ -62,14 +63,15 @@ type PropertyStore interface {
 
 func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore) *http.Server {
 	app := &app{
-		cfg:           cfg,
-		logger:        logger,
-		version:       version,
-		propertyRepo:  propertyRepo,
-		mediaUploader: mediaUploader,
-		mediaURLs:     mediaURLs,
-		auth:          authService,
-		applications:  applications,
+		cfg:             cfg,
+		logger:          logger,
+		version:         version,
+		propertyRepo:    propertyRepo,
+		mediaUploader:   mediaUploader,
+		mediaURLs:       mediaURLs,
+		auth:            authService,
+		applications:    applications,
+		oidcRateLimiter: newRateLimiter(cfg.Auth.OIDCRateLimitRequests, cfg.Auth.OIDCRateLimitWindow),
 	}
 
 	return &http.Server{

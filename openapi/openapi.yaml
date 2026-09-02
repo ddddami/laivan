@@ -80,6 +80,8 @@ paths:
                 type: string
         "503":
           $ref: "#/components/responses/AuthUnavailable"
+        "429":
+          $ref: "#/components/responses/RateLimited"
 
   /v1/auth/google/callback:
     get:
@@ -116,6 +118,8 @@ paths:
           $ref: "#/components/responses/AuthUnavailable"
         "500":
           $ref: "#/components/responses/InternalServerError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
 
   /v1/auth/session:
     get:
@@ -1109,6 +1113,19 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     InvalidAuthCallback:
       description: The Google sign-in callback is invalid or expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Too many authentication attempts from the client address.
+      headers:
+        Retry-After:
+          description: Number of seconds before another attempt should be made.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
       content:
         application/json:
           schema:

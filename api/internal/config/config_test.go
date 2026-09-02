@@ -56,6 +56,12 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.Auth.GoogleAuthEnabled {
 		t.Fatal("Auth.GoogleAuthEnabled = true, want false")
 	}
+	if cfg.Auth.OIDCRateLimitRequests != 10 {
+		t.Fatalf("Auth.OIDCRateLimitRequests = %d, want 10", cfg.Auth.OIDCRateLimitRequests)
+	}
+	if cfg.Auth.OIDCRateLimitWindow != time.Minute {
+		t.Fatalf("Auth.OIDCRateLimitWindow = %s, want 1m", cfg.Auth.OIDCRateLimitWindow)
+	}
 
 	if cfg.Media.S3Region != "us-east-1" {
 		t.Fatalf("Media.S3Region = %q, want us-east-1", cfg.Media.S3Region)
@@ -77,6 +83,8 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("LAIVAN_WRITE_TIMEOUT", "3s")
 	t.Setenv("LAIVAN_IDLE_TIMEOUT", "4s")
 	t.Setenv("LAIVAN_SHUTDOWN_TIMEOUT", "5s")
+	t.Setenv("LAIVAN_OIDC_RATE_LIMIT_REQUESTS", "25")
+	t.Setenv("LAIVAN_OIDC_RATE_LIMIT_WINDOW", "2m")
 	t.Setenv("LAIVAN_ALLOWED_ORIGINS", "http://localhost:5173, http://localhost:4173")
 	t.Setenv("LAIVAN_GOOGLE_AUTH_ENABLED", "false")
 	t.Setenv("LAIVAN_MEDIA_ENABLED", "true")
@@ -132,6 +140,12 @@ func TestLoadUsesEnvironmentOverrides(t *testing.T) {
 
 	if cfg.ShutdownTimeout != 5*time.Second {
 		t.Fatalf("ShutdownTimeout = %s, want 5s", cfg.ShutdownTimeout)
+	}
+	if cfg.Auth.OIDCRateLimitRequests != 25 {
+		t.Fatalf("Auth.OIDCRateLimitRequests = %d, want 25", cfg.Auth.OIDCRateLimitRequests)
+	}
+	if cfg.Auth.OIDCRateLimitWindow != 2*time.Minute {
+		t.Fatalf("Auth.OIDCRateLimitWindow = %s, want 2m", cfg.Auth.OIDCRateLimitWindow)
 	}
 
 	if !cfg.Media.Enabled {
@@ -393,6 +407,31 @@ func TestLoadRejectsMalformedDuration(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInvalidOIDCRateLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		key   string
+		value string
+	}{
+		{name: "requests zero", key: "LAIVAN_OIDC_RATE_LIMIT_REQUESTS", value: "0"},
+		{name: "requests too high", key: "LAIVAN_OIDC_RATE_LIMIT_REQUESTS", value: "1001"},
+		{name: "window zero", key: "LAIVAN_OIDC_RATE_LIMIT_WINDOW", value: "0s"},
+		{name: "window too high", key: "LAIVAN_OIDC_RATE_LIMIT_WINDOW", value: "2h"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearConfigEnv(t)
+			t.Setenv(tt.key, tt.value)
+
+			_, err := Load()
+			if err == nil {
+				t.Fatal("Load returned nil error")
+			}
+		})
+	}
+}
+
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 
@@ -415,6 +454,8 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("LAIVAN_OIDC_STATE_SIGNING_KEY", "")
 	t.Setenv("LAIVAN_OIDC_STATE_DURATION", "")
 	t.Setenv("LAIVAN_SESSION_DURATION", "")
+	t.Setenv("LAIVAN_OIDC_RATE_LIMIT_REQUESTS", "")
+	t.Setenv("LAIVAN_OIDC_RATE_LIMIT_WINDOW", "")
 	t.Setenv("LAIVAN_SECURE_COOKIES", "")
 	t.Setenv("LAIVAN_MEDIA_ENABLED", "")
 	t.Setenv("LAIVAN_S3_ENDPOINT", "")
