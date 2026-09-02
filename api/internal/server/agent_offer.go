@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/domain"
@@ -91,7 +89,7 @@ func (app *app) createAgentOffer(w http.ResponseWriter, r *http.Request) {
 	data := envelope{
 		"agent_offer": agentOfferResponse(created),
 	}
-	setAgentOfferETag(w, created)
+	setETag(w, "agent-offer", created.ID, created.Version)
 
 	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
 		app.logger.Error("write agent offer response", "error", err)
@@ -113,7 +111,7 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		app.preconditionRequiredResponse(w, r)
 		return
 	}
-	expectedVersion, ok := parseAgentOfferETag(ifMatch, domain.ID(id))
+	expectedVersion, ok := parseETag(ifMatch, "agent-offer", domain.ID(id))
 	if !ok {
 		app.preconditionFailedResponse(w, r)
 		return
@@ -199,7 +197,7 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAgentOfferETag(w, updated)
+	setETag(w, "agent-offer", updated.ID, updated.Version)
 	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(updated)}, nil); err != nil {
 		app.logger.Error("write updated agent offer response", "error", err)
 	}
@@ -220,7 +218,7 @@ func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
 		app.preconditionRequiredResponse(w, r)
 		return
 	}
-	expectedVersion, ok := parseAgentOfferETag(ifMatch, domain.ID(id))
+	expectedVersion, ok := parseETag(ifMatch, "agent-offer", domain.ID(id))
 	if !ok {
 		app.preconditionFailedResponse(w, r)
 		return
@@ -254,7 +252,7 @@ func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setAgentOfferETag(w, archived)
+	setETag(w, "agent-offer", archived.ID, archived.Version)
 	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(archived)}, nil); err != nil {
 		app.logger.Error("write archived agent offer response", "error", err)
 	}
@@ -283,26 +281,6 @@ func optionalOfferValue(value PatchField[string]) *string {
 		return nil
 	}
 	return &value.Value
-}
-
-func agentOfferETag(offer domain.AgentOffer) string {
-	return fmt.Sprintf(`"agent-offer-%s-%d"`, offer.ID, offer.Version)
-}
-
-func setAgentOfferETag(w http.ResponseWriter, offer domain.AgentOffer) {
-	w.Header().Set("ETag", agentOfferETag(offer))
-}
-
-func parseAgentOfferETag(value string, id domain.ID) (int, bool) {
-	prefix := fmt.Sprintf(`"agent-offer-%s-`, id)
-	if !strings.HasPrefix(value, prefix) || !strings.HasSuffix(value, `"`) {
-		return 0, false
-	}
-	version, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(value, prefix), `"`))
-	if err != nil || version < 1 {
-		return 0, false
-	}
-	return version, true
 }
 
 func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {

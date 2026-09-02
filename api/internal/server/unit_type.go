@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/domain"
@@ -100,7 +98,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	data := envelope{
 		"unit_type": propertyUnitTypeResponse(created),
 	}
-	setUnitTypeETag(w, created)
+	setETag(w, "property-unit-type", created.ID, created.Version)
 
 	if err := writeJSON(w, http.StatusCreated, data, nil); err != nil {
 		app.logger.Error("write property unit type response", "error", err)
@@ -122,7 +120,7 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		app.preconditionRequiredResponse(w, r)
 		return
 	}
-	expectedVersion, ok := parseUnitTypeETag(ifMatch, domain.ID(id))
+	expectedVersion, ok := parseETag(ifMatch, "property-unit-type", domain.ID(id))
 	if !ok {
 		app.preconditionFailedResponse(w, r)
 		return
@@ -214,7 +212,7 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setUnitTypeETag(w, updated)
+	setETag(w, "property-unit-type", updated.ID, updated.Version)
 	if err := writeJSON(w, http.StatusOK, envelope{"unit_type": propertyUnitTypeResponse(updated)}, nil); err != nil {
 		app.logger.Error("write updated property unit type response", "error", err)
 	}
@@ -226,26 +224,6 @@ func optionalUnitCategoryValue(value PatchField[string]) *domain.UnitCategory {
 	}
 	category := domain.UnitCategory(value.Value)
 	return &category
-}
-
-func unitTypeETag(unitType domain.PropertyUnitType) string {
-	return fmt.Sprintf(`"property-unit-type-%s-%d"`, unitType.ID, unitType.Version)
-}
-
-func setUnitTypeETag(w http.ResponseWriter, unitType domain.PropertyUnitType) {
-	w.Header().Set("ETag", unitTypeETag(unitType))
-}
-
-func parseUnitTypeETag(value string, id domain.ID) (int, bool) {
-	prefix := fmt.Sprintf(`"property-unit-type-%s-`, id)
-	if !strings.HasPrefix(value, prefix) || !strings.HasSuffix(value, `"`) {
-		return 0, false
-	}
-	version, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(value, prefix), `"`))
-	if err != nil || version < 1 {
-		return 0, false
-	}
-	return version, true
 }
 
 func (app *app) listPropertyUnitTypes(w http.ResponseWriter, r *http.Request) {
