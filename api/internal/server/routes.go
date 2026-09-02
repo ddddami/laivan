@@ -100,10 +100,10 @@ func (app *app) routes() http.Handler {
 
 	r.Route("/v1/properties", func(r chi.Router) {
 		r.Get("/", app.listProperties)
-		r.Post("/", app.createProperty)
+		r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/", app.createProperty)
 		r.Get("/{id}", app.getProperty)
 		r.Get("/{id}/unit-types", app.listPropertyUnitTypes)
-		r.Post("/{id}/unit-types", app.createPropertyUnitType)
+		r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/{id}/unit-types", app.createPropertyUnitType)
 	})
 
 	r.Route("/v1/unit-types", func(r chi.Router) {
@@ -112,7 +112,7 @@ func (app *app) routes() http.Handler {
 	})
 
 	r.Get("/v1/discovery", app.discover)
-	r.Post("/v1/media", app.uploadMedia)
+	r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/v1/media", app.uploadMedia)
 
 	return r
 }

@@ -619,6 +619,33 @@ func (q *Queries) ListAgentApplicationsByCampus(ctx context.Context, arg ListAge
 	return items, nil
 }
 
+const listAgentCampuses = `-- name: ListAgentCampuses :many
+SELECT campus_id
+FROM agent_campuses
+WHERE agent_id = $1
+ORDER BY campus_id
+`
+
+func (q *Queries) ListAgentCampuses(ctx context.Context, agentID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listAgentCampuses, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var campus_id pgtype.UUID
+		if err := rows.Scan(&campus_id); err != nil {
+			return nil, err
+		}
+		items = append(items, campus_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCampusOperatorCampuses = `-- name: ListCampusOperatorCampuses :many
 SELECT campus_id
 FROM campus_operators

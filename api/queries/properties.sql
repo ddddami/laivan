@@ -31,6 +31,19 @@ SELECT id, property_id, name, description, created_at, updated_at, category, bed
 FROM property_unit_types
 WHERE id = $1;
 
+-- name: GetPropertyUnitTypeMediaTarget :one
+SELECT put.id AS property_unit_type_id, put.property_id, p.campus_id
+FROM property_unit_types put
+JOIN properties p ON p.id = put.property_id
+WHERE put.id = $1;
+
+-- name: GetAgentOfferMediaTarget :one
+SELECT ao.id AS agent_offer_id, ao.property_unit_type_id, put.property_id, p.campus_id, ao.agent_id
+FROM agent_offers ao
+JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+JOIN properties p ON p.id = put.property_id
+WHERE ao.id = $1;
+
 -- name: CreateAuthorizedAgentOffer :one
 INSERT INTO agent_offers (property_unit_type_id, agent_id, title, description, notes, price_kobo, status)
 SELECT $1, $2, $3, $4, $5, $6, $7

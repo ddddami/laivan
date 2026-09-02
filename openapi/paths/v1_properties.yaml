@@ -127,7 +127,13 @@ post:
   tags:
     - Properties
   summary: Create a property.
-  description: Creates a real-world accommodation property within a campus.
+  description: >-
+    Creates a shared canonical property contribution in a campus where the
+    authenticated active agent or operator has write authority.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/CSRFToken.yaml
   requestBody:
     required: true
     content:
@@ -151,6 +157,10 @@ post:
             $ref: ../components/schemas/PropertyResponse.yaml
     '400':
       $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
     '422':
       $ref: ../components/responses/ValidationFailed.yaml
     '500':

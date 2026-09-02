@@ -1476,6 +1476,82 @@ func TestPropertyRepositoryCreateMediaRejectsInvalidOptionalUUID(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryGetMediaTarget(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Target Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	agentID := insertAgent(t, ctx, pool, "Target Agent")
+	offerID := insertAgentOffer(t, ctx, pool, unitTypeID, agentID, "Target offer", 35000000)
+	repository := NewPropertyRepository(pool)
+
+	tests := []struct {
+		name       string
+		targetType string
+		id         domain.ID
+		propertyID domain.ID
+		unitTypeID domain.ID
+		offerID    domain.ID
+		campusID   domain.ID
+		agentID    domain.ID
+	}{
+		{name: "property", targetType: "property", id: propertyID, propertyID: propertyID, campusID: campusID},
+		{name: "property unit type", targetType: "property_unit_type", id: unitTypeID, propertyID: propertyID, unitTypeID: unitTypeID, campusID: campusID},
+		{name: "agent offer", targetType: "agent_offer", id: offerID, propertyID: propertyID, unitTypeID: unitTypeID, offerID: offerID, campusID: campusID, agentID: agentID},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, err := repository.GetMediaTarget(ctx, tt.targetType, tt.id)
+			if err != nil {
+				t.Fatalf("get media target: %v", err)
+			}
+			if target.PropertyID != tt.propertyID || target.PropertyUnitTypeID != tt.unitTypeID || target.AgentOfferID != tt.offerID || target.CampusID != tt.campusID || target.AgentID != tt.agentID {
+				t.Fatalf("target = %#v, want property=%q unit_type=%q offer=%q campus=%q agent=%q", target, tt.propertyID, tt.unitTypeID, tt.offerID, tt.campusID, tt.agentID)
+			}
+		})
+	}
+
+	if _, err := repository.GetMediaTarget(ctx, "property", domain.ID("11111111-1111-1111-1111-111111111111")); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing target error = %v, want %v", err, ErrNotFound)
+	}
+}
+
+func TestPropertyRepositoryCreateMediaAllowsMissingAgentProvenance(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Operator Lodge", time.Now().UTC())
+	repository := NewPropertyRepository(pool)
+
+	created, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID: propertyID,
+		URL:        "https://media.example.test/operator.jpg",
+		Kind:       domain.MediaKindImage,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+	if created.UploadedByAgentID != "" {
+		t.Fatalf("uploaded by agent ID = %q, want empty provenance", created.UploadedByAgentID)
+	}
+}
+
 func intPtr(value int) *int {
 	return &value
 }

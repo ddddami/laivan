@@ -4,16 +4,25 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/ddddami/laivan/internal/domain"
 )
 
+func TestCreatePropertyRequiresAuthentication(t *testing.T) {
+	app := testApp()
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+}
+
 func TestCreatePropertyReturnsProperty(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440000","name":"Alice Lodge","area":"Obanla","landmark":"South Gate","description":"A nice lodge"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440002","name":"Alice Lodge","area":"Obanla","landmark":"South Gate","description":"A nice lodge"}`
+	req := authenticatedRequest(http.MethodPost, "/v1/properties", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -44,15 +53,15 @@ func TestCreatePropertyReturnsProperty(t *testing.T) {
 	if bodyDecoded.Property.Area != "Obanla" {
 		t.Fatalf("property area = %q, want Obanla", bodyDecoded.Property.Area)
 	}
-	if bodyDecoded.Property.CampusID != "550e8400-e29b-41d4-a716-446655440000" {
-		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.Property.CampusID)
+	if bodyDecoded.Property.CampusID != "550e8400-e29b-41d4-a716-446655440002" {
+		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440002", bodyDecoded.Property.CampusID)
 	}
 }
 
 func TestCreatePropertyUnknownField(t *testing.T) {
-	app := testAppWithRepo()
-	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440000","name":"Alice Lodge","area":"Obanla","unknown":"field"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties", strings.NewReader(body))
+	app := testAppWithActiveAgentRepo()
+	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440002","name":"Alice Lodge","area":"Obanla","unknown":"field"}`
+	req := authenticatedRequest(http.MethodPost, "/v1/properties", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -61,9 +70,9 @@ func TestCreatePropertyUnknownField(t *testing.T) {
 }
 
 func TestCreatePropertyValidationErrors(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"campus_id":"","name":"","area":""}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -98,6 +107,21 @@ func TestCreatePropertyValidationErrors(t *testing.T) {
 	if bodyDecoded.Error.Fields["area"] == "" {
 		t.Fatal("area validation error missing")
 	}
+}
+
+func TestCreatePropertyRejectsUnassignedCampus(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Agent:          &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive},
+		AgentCampusIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	body := `{"campus_id":"550e8400-e29b-41d4-a716-446655440003","name":"Alice Lodge","area":"Obanla"}`
+	req := authenticatedRequest(http.MethodPost, "/v1/properties", body, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
 }
 
 func TestListPropertiesValidationErrors(t *testing.T) {

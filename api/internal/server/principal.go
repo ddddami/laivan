@@ -105,6 +105,22 @@ func hasRole(access domain.EffectiveAccess, role string) bool {
 	return false
 }
 
+func canContributeToCampus(access domain.EffectiveAccess, campusID domain.ID) bool {
+	if access.GlobalAdmin || containsID(access.CampusOperatorIDs, campusID) {
+		return true
+	}
+	return access.Agent != nil && access.Agent.Status == domain.AgentStatusActive && containsID(access.AgentCampusIDs, campusID)
+}
+
+func containsID(ids []domain.ID, target domain.ID) bool {
+	for _, id := range ids {
+		if id == target {
+			return true
+		}
+	}
+	return false
+}
+
 func validCSRFHeader(value, expected string) bool {
 	if value == "" || expected == "" || len(value) != len(expected) {
 		return false

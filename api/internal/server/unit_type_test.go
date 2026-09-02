@@ -4,14 +4,25 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/ddddami/laivan/internal/domain"
 )
 
+func TestCreatePropertyUnitTypeRequiresAuthentication(t *testing.T) {
+	app := testApp()
+	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+}
+
 func TestCreatePropertyUnitTypeInvalidBathroomType(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"category":"self_contained","bathroom_type":"invalid"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -34,9 +45,9 @@ func TestCreatePropertyUnitTypeInvalidBathroomType(t *testing.T) {
 }
 
 func TestCreatePropertyUnitTypeInvalidKitchenType(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"category":"self_contained","kitchen_type":"invalid"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -59,9 +70,9 @@ func TestCreatePropertyUnitTypeInvalidKitchenType(t *testing.T) {
 }
 
 func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"category":"self_contained"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/not-a-uuid/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/not-a-uuid/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -90,11 +101,11 @@ func TestCreatePropertyUnitTypeValidationErrors(t *testing.T) {
 
 func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
 	spy := &spyPropertyRepo{stub: &stubPropertyRepo{}}
-	app := testApp()
+	app := testAppWithActiveAgentRepo()
 	app.propertyRepo = spy
 
 	body := `{"category":"self_contained","bedroom_count":1,"bathroom_type":"private","kitchen_type":"private"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -109,9 +120,9 @@ func TestCreatePropertyUnitTypeDefaultsNameFromCategory(t *testing.T) {
 }
 
 func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"category":"self_contained","name":"Self-contained","description":"Private room with bathroom and kitchenette.","bedroom_count":1,"has_parlour":false,"bathroom_type":"private","kitchen_type":"private"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
@@ -156,14 +167,29 @@ func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 }
 
 func TestCreatePropertyUnitTypePropertyNotFound(t *testing.T) {
-	app := testAppWithRepo()
+	app := testAppWithActiveAgentRepo()
 	body := `{"category":"self_contained","name":"Self-contained"}`
-	req := httptest.NewRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/unit-types", strings.NewReader(body))
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/11111111-1111-1111-1111-111111111111/unit-types", body, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
 	assertErrorResponse(t, rr, http.StatusNotFound, "not_found", "The requested resource could not be found")
+}
+
+func TestCreatePropertyUnitTypeRejectsUnassignedCampus(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Agent:          &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive},
+		AgentCampusIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440003"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	body := `{"category":"self_contained"}`
+	req := authenticatedRequest(http.MethodPost, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", body, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
 }
 
 func TestListPropertyUnitTypesReturnsUnitTypes(t *testing.T) {

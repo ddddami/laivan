@@ -126,6 +126,34 @@ func (s *stubPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (do
 	}, nil
 }
 
+func (s *stubPropertyRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
+	switch targetType {
+	case "property":
+		if id == "550e8400-e29b-41d4-a716-446655440000" {
+			return repo.MediaTarget{PropertyID: id, CampusID: domain.ID("550e8400-e29b-41d4-a716-446655440002")}, nil
+		}
+	case "property_unit_type":
+		if id == "550e8400-e29b-41d4-a716-446655440020" {
+			return repo.MediaTarget{
+				PropertyID:         domain.ID("550e8400-e29b-41d4-a716-446655440000"),
+				PropertyUnitTypeID: id,
+				CampusID:           domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+			}, nil
+		}
+	case "agent_offer":
+		if id == "550e8400-e29b-41d4-a716-446655440030" {
+			return repo.MediaTarget{
+				PropertyID:         domain.ID("550e8400-e29b-41d4-a716-446655440000"),
+				PropertyUnitTypeID: domain.ID("550e8400-e29b-41d4-a716-446655440020"),
+				AgentOfferID:       id,
+				CampusID:           domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+				AgentID:            domain.ID("550e8400-e29b-41d4-a716-446655440040"),
+			}, nil
+		}
+	}
+	return repo.MediaTarget{}, repo.ErrNotFound
+}
+
 func (s *stubPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	return []domain.PropertySummary{
 		{
@@ -329,10 +357,8 @@ func testAppWithRepo() *app {
 func testAppWithActiveAgentRepo() *app {
 	userID := domain.ID("550e8400-e29b-41d4-a716-446655440001")
 	app := authenticatedTestApp(userID, &fakeAgentApplicationStore{access: domain.EffectiveAccess{
-		Agent: &domain.LinkedAgent{
-			ID:     domain.ID("550e8400-e29b-41d4-a716-446655440040"),
-			Status: domain.AgentStatusActive,
-		},
+		Agent:          &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440040"), Status: domain.AgentStatusActive},
+		AgentCampusIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
 	}})
 	app.propertyRepo = &stubPropertyRepo{}
 	return app
@@ -360,6 +386,10 @@ func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Propert
 
 func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
+}
+
+func (s *spyPropertyRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
+	return s.stub.GetMediaTarget(ctx, targetType, id)
 }
 
 func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
@@ -427,6 +457,9 @@ func (s *duplicateAgentOfferRepo) Get(ctx context.Context, id domain.ID) (domain
 }
 func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
+	return s.stub.GetMediaTarget(ctx, targetType, id)
 }
 func (s *duplicateAgentOfferRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
 	return s.stub.ListWithSummary(ctx, filter)

@@ -53,6 +53,25 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p, ok := principalFromContext(r.Context())
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+	property, err := app.propertyRepo.Get(r.Context(), domain.ID(propertyID))
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("get property for unit type contribution: %w", err))
+		return
+	}
+	if !canContributeToCampus(p.Access, property.CampusID) {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
+		return
+	}
+
 	created, err := app.propertyRepo.CreatePropertyUnitType(r.Context(), domain.PropertyUnitType{
 		PropertyID:  domain.ID(propertyID),
 		Category:    domain.UnitCategory(input.Category),

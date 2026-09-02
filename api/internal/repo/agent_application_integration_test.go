@@ -66,6 +66,9 @@ func TestAgentApplicationRepositoryWorkflowIsScopedAndAudited(t *testing.T) {
 	if access.Agent == nil || access.Agent.Status != domain.AgentStatusActive || len(access.Roles) != 1 || access.Roles[0] != "active_agent" {
 		t.Fatalf("active agent access = %#v, want active_agent role and active linked agent", access)
 	}
+	if len(access.AgentCampusIDs) != 1 || access.AgentCampusIDs[0] != campusID {
+		t.Fatalf("active agent campuses = %v, want [%s]", access.AgentCampusIDs, campusID)
+	}
 	if _, err := db.Exec(ctx, `UPDATE agents SET status = 'suspended' WHERE id = $1`, string(*activated.AgentID)); err != nil {
 		t.Fatalf("suspend linked agent for access test: %v", err)
 	}

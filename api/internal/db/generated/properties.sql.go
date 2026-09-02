@@ -142,6 +142,35 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 	return i, err
 }
 
+const getAgentOfferMediaTarget = `-- name: GetAgentOfferMediaTarget :one
+SELECT ao.id AS agent_offer_id, ao.property_unit_type_id, put.property_id, p.campus_id, ao.agent_id
+FROM agent_offers ao
+JOIN property_unit_types put ON put.id = ao.property_unit_type_id
+JOIN properties p ON p.id = put.property_id
+WHERE ao.id = $1
+`
+
+type GetAgentOfferMediaTargetRow struct {
+	AgentOfferID       pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	PropertyID         pgtype.UUID
+	CampusID           pgtype.UUID
+	AgentID            pgtype.UUID
+}
+
+func (q *Queries) GetAgentOfferMediaTarget(ctx context.Context, id pgtype.UUID) (GetAgentOfferMediaTargetRow, error) {
+	row := q.db.QueryRow(ctx, getAgentOfferMediaTarget, id)
+	var i GetAgentOfferMediaTargetRow
+	err := row.Scan(
+		&i.AgentOfferID,
+		&i.PropertyUnitTypeID,
+		&i.PropertyID,
+		&i.CampusID,
+		&i.AgentID,
+	)
+	return i, err
+}
+
 const getProperty = `-- name: GetProperty :one
 SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
 FROM properties
@@ -187,6 +216,26 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 		&i.KitchenType,
 		&i.Notes,
 	)
+	return i, err
+}
+
+const getPropertyUnitTypeMediaTarget = `-- name: GetPropertyUnitTypeMediaTarget :one
+SELECT put.id AS property_unit_type_id, put.property_id, p.campus_id
+FROM property_unit_types put
+JOIN properties p ON p.id = put.property_id
+WHERE put.id = $1
+`
+
+type GetPropertyUnitTypeMediaTargetRow struct {
+	PropertyUnitTypeID pgtype.UUID
+	PropertyID         pgtype.UUID
+	CampusID           pgtype.UUID
+}
+
+func (q *Queries) GetPropertyUnitTypeMediaTarget(ctx context.Context, id pgtype.UUID) (GetPropertyUnitTypeMediaTargetRow, error) {
+	row := q.db.QueryRow(ctx, getPropertyUnitTypeMediaTarget, id)
+	var i GetPropertyUnitTypeMediaTargetRow
+	err := row.Scan(&i.PropertyUnitTypeID, &i.PropertyID, &i.CampusID)
 	return i, err
 }
 

@@ -55,6 +55,7 @@ type PropertyStore interface {
 	ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error)
 	ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error)
 	ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error)
+	GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error)
 	CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error)
 	ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error)
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)

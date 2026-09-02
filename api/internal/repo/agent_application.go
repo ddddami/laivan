@@ -54,6 +54,14 @@ func (r *AgentApplicationRepository) GetEffectiveAccess(ctx context.Context, use
 	agent, err := r.queries.GetLinkedAgentAccess(ctx, uuid)
 	if err == nil {
 		access.Agent = &domain.LinkedAgent{ID: domain.ID(uuidString(agent.ID)), Status: domain.AgentStatus(agent.Status)}
+		campuses, err := r.queries.ListAgentCampuses(ctx, agent.ID)
+		if err != nil {
+			return domain.EffectiveAccess{}, fmt.Errorf("list agent campuses: %w", err)
+		}
+		access.AgentCampusIDs = make([]domain.ID, 0, len(campuses))
+		for _, campusID := range campuses {
+			access.AgentCampusIDs = append(access.AgentCampusIDs, domain.ID(uuidString(campusID)))
+		}
 		if access.Agent.Status == domain.AgentStatusActive {
 			access.Roles = append(access.Roles, "active_agent")
 		}
