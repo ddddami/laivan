@@ -58,3 +58,56 @@ patch:
       $ref: ../components/responses/PreconditionRequired.yaml
     '500':
       $ref: ../components/responses/InternalServerError.yaml
+post:
+  operationId: archiveAgentOffer
+  tags:
+    - Agent Offers
+  summary: Archive an agent offer.
+  description: >-
+    Archives an agent offer without physically deleting its history or
+    provenance. The operation requires the authenticated owner or a campus
+    operator and an optimistic-concurrency version precondition.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Agent offer ID.
+      schema:
+        type: string
+        format: uuid
+    - name: If-Match
+      in: header
+      required: true
+      description: ETag returned by the latest agent offer read.
+      schema:
+        type: string
+        minLength: 1
+    - $ref: ../components/parameters/CSRFToken.yaml
+  responses:
+    '200':
+      description: Agent offer archived successfully.
+      headers:
+        ETag:
+          description: Current archived agent offer version.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentOfferResponse.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '412':
+      $ref: ../components/responses/PreconditionFailed.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '428':
+      $ref: ../components/responses/PreconditionRequired.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

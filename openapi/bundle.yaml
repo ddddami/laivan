@@ -1168,6 +1168,56 @@ paths:
           $ref: '#/components/responses/PreconditionRequired'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: archiveAgentOffer
+      tags:
+        - Agent Offers
+      summary: Archive an agent offer.
+      description: Archives an agent offer without physically deleting its history or provenance. The operation requires the authenticated owner or a campus operator and an optimistic-concurrency version precondition.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent offer ID.
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          description: ETag returned by the latest agent offer read.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '200':
+          description: Agent offer archived successfully.
+          headers:
+            ETag:
+              description: Current archived agent offer version.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOfferResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /v1/media:
     post:
       operationId: uploadMedia
@@ -1894,6 +1944,12 @@ components:
           type: integer
           minimum: 1
           description: Current optimistic-concurrency version.
+        archived_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Time at which the offer was archived, if applicable.
         created_at:
           type: string
           format: date-time

@@ -471,6 +471,22 @@ func (s *stubPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, e
 	return offer, nil
 }
 
+func (s *stubPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+	offer, err := s.GetAgentOffer(ctx, id)
+	if err != nil {
+		return domain.AgentOffer{}, err
+	}
+	if offer.Version != expectedVersion {
+		return domain.AgentOffer{}, repo.ErrStaleUpdate
+	}
+	now := time.Now()
+	offer.Status = domain.AgentOfferStatusUnavailable
+	offer.ArchivedAt = &now
+	offer.Version++
+	offer.UpdatedAt = now
+	return offer, nil
+}
+
 func testAppWithRepo() *app {
 	a := testApp()
 	a.propertyRepo = &stubPropertyRepo{}
@@ -525,6 +541,10 @@ func (s *spyPropertyRepo) GetAgentOffer(ctx context.Context, id domain.ID) (doma
 
 func (s *spyPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
 	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
+}
+
+func (s *spyPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
 }
 
 func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
@@ -612,6 +632,9 @@ func (s *duplicateAgentOfferRepo) GetAgentOffer(ctx context.Context, id domain.I
 }
 func (s *duplicateAgentOfferRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
 	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
+}
+func (s *duplicateAgentOfferRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
 }
 func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)

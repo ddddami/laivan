@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -193,41 +194,21 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offer, err := app.propertyRepo.GetAgentOffer(r.Context(), domain.ID(id))
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get agent offer for update: %w", err))
-		return
-	}
-	unitType, err := app.propertyRepo.GetPropertyUnitType(r.Context(), offer.PropertyUnitTypeID)
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get property unit type for agent offer update: %w", err))
-		return
-	}
-	property, err := app.propertyRepo.Get(r.Context(), unitType.PropertyID)
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get property for agent offer update: %w", err))
-		return
-	}
 	p, ok := principalFromContext(r.Context())
 	if !ok {
 		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 		return
 	}
-	isOperator := p.Access.GlobalAdmin || (hasRole(p.Access, "campus_operator") && containsID(p.Access.CampusOperatorIDs, property.CampusID))
-	isOwner := p.Access.Agent != nil && p.Access.Agent.Status == domain.AgentStatusActive && p.Access.Agent.ID == offer.AgentID
-	if !isOperator && !isOwner {
+	_, authorized, err := app.authorizedAgentOffer(r.Context(), domain.ID(id), p)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("authorize agent offer update: %w", err))
+		return
+	}
+	if !authorized {
 		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
 		return
 	}
@@ -262,6 +243,79 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(updated)}, nil); err != nil {
 		app.logger.Error("write updated agent offer response", "error", err)
 	}
+}
+
+func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	v := validator.New()
+	v.Check(validator.NotBlank(id), "id", "ID is required")
+	v.Check(validator.ValidUUID(id), "id", "ID must be a valid UUID")
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	ifMatch := r.Header.Get("If-Match")
+	if ifMatch == "" {
+		app.preconditionRequiredResponse(w, r)
+		return
+	}
+	expectedVersion, ok := parseAgentOfferETag(ifMatch, domain.ID(id))
+	if !ok {
+		app.preconditionFailedResponse(w, r)
+		return
+	}
+	p, ok := principalFromContext(r.Context())
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+	offer, authorized, err := app.authorizedAgentOffer(r.Context(), domain.ID(id), p)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("authorize agent offer archive: %w", err))
+		return
+	}
+	if !authorized {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to archive this agent offer")
+		return
+	}
+
+	archived, err := app.propertyRepo.ArchiveAgentOffer(r.Context(), offer.ID, expectedVersion)
+	if err != nil {
+		if errors.Is(err, repo.ErrStaleUpdate) {
+			app.preconditionFailedResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("archive agent offer: %w", err))
+		return
+	}
+
+	setAgentOfferETag(w, archived)
+	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(archived)}, nil); err != nil {
+		app.logger.Error("write archived agent offer response", "error", err)
+	}
+}
+
+func (app *app) authorizedAgentOffer(ctx context.Context, id domain.ID, p principal) (domain.AgentOffer, bool, error) {
+	offer, err := app.propertyRepo.GetAgentOffer(ctx, id)
+	if err != nil {
+		return domain.AgentOffer{}, false, err
+	}
+	unitType, err := app.propertyRepo.GetPropertyUnitType(ctx, offer.PropertyUnitTypeID)
+	if err != nil {
+		return domain.AgentOffer{}, false, err
+	}
+	property, err := app.propertyRepo.Get(ctx, unitType.PropertyID)
+	if err != nil {
+		return domain.AgentOffer{}, false, err
+	}
+	isOperator := p.Access.GlobalAdmin || (hasRole(p.Access, "campus_operator") && containsID(p.Access.CampusOperatorIDs, property.CampusID))
+	isOwner := p.Access.Agent != nil && p.Access.Agent.Status == domain.AgentStatusActive && p.Access.Agent.ID == offer.AgentID
+	return offer, isOperator || isOwner, nil
 }
 
 func optionalOfferValue(value optionalOfferString) *string {
@@ -337,6 +391,7 @@ func agentOfferResponse(offer domain.AgentOffer) map[string]any {
 		"price_naira":           offer.Price.Naira(),
 		"status":                string(offer.Status),
 		"version":               offer.Version,
+		"archived_at":           nullableTime(offer.ArchivedAt),
 		"created_at":            offer.CreatedAt.Format(time.RFC3339),
 		"updated_at":            offer.UpdatedAt.Format(time.RFC3339),
 	}

@@ -561,6 +561,9 @@ func (s *fkViolationRepo) GetAgentOffer(ctx context.Context, id domain.ID) (doma
 func (s *fkViolationRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
 	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
 }
+func (s *fkViolationRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
+	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
+}
 func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }
