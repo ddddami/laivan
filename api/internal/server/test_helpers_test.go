@@ -504,176 +504,63 @@ func testAppWithActiveAgentRepo() *app {
 }
 
 type spyPropertyRepo struct {
-	stub            *stubPropertyRepo
+	*stubPropertyRepo
 	createdUnitType domain.PropertyUnitType
 	createdOffer    domain.AgentOffer
 	createdMedia    []domain.Media
 	discoveryFilter repo.DiscoveryFilter
 }
-
-func (s *spyPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
-	return s.stub.Create(ctx, property)
-}
-
-func (s *spyPropertyRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
-	return s.stub.GetCampusBySlug(ctx, slug)
-}
-
-func (s *spyPropertyRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
-	return s.stub.Get(ctx, id)
-}
-
-func (s *spyPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
-	return s.stub.Update(ctx, id, expectedVersion, patch)
-}
-
-func (s *spyPropertyRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
-	return s.stub.GetPropertyUnitType(ctx, id)
-}
-
-func (s *spyPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
-	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
-}
-
-func (s *spyPropertyRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
-	return s.stub.GetAgentOffer(ctx, id)
-}
-
-func (s *spyPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
-	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
-}
-
-func (s *spyPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
-	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
-}
-
-func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
-	return s.stub.GetWithDetails(ctx, id)
-}
-
-func (s *spyPropertyRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
-	return s.stub.GetMediaTarget(ctx, targetType, id)
-}
-
-func (s *spyPropertyRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
-	return s.stub.ListWithSummary(ctx, filter)
-}
-
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
 	s.discoveryFilter = filter
-	return s.stub.Discover(ctx, filter)
+	return s.stubPropertyRepo.Discover(ctx, filter)
 }
 
 func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
 	s.createdMedia = append(s.createdMedia, media)
-	return s.stub.CreateMedia(ctx, media)
+	return s.stubPropertyRepo.CreateMedia(ctx, media)
 }
 
 func (s *spyPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
 	s.createdMedia = append(s.createdMedia, media...)
-	return s.stub.CreateMediaBatch(ctx, media)
+	return s.stubPropertyRepo.CreateMediaBatch(ctx, media)
 }
 
 func (s *spyPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByProperty(ctx, propertyID)
+	return s.stubPropertyRepo.ListMediaByProperty(ctx, propertyID)
 }
 
 func (s *spyPropertyRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
+	return s.stubPropertyRepo.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
 }
 
 func (s *spyPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
+	return s.stubPropertyRepo.ListMediaByAgentOffer(ctx, agentOfferID)
 }
 
 func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
 	s.createdUnitType = unitType
-	return s.stub.CreatePropertyUnitType(ctx, unitType)
+	return s.stubPropertyRepo.CreatePropertyUnitType(ctx, unitType)
 }
 
 func (s *spyPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
-	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
+	return s.stubPropertyRepo.ListPropertyUnitTypes(ctx, propertyID)
 }
 
 func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
 	s.createdOffer = offer
-	return s.stub.CreateAgentOffer(ctx, offer)
+	return s.stubPropertyRepo.CreateAgentOffer(ctx, offer)
 }
 
 func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
-	return s.stub.ListAgentOffers(ctx, unitTypeID)
+	return s.stubPropertyRepo.ListAgentOffers(ctx, unitTypeID)
 }
 
 type duplicateAgentOfferRepo struct {
-	stub *stubPropertyRepo
+	*stubPropertyRepo
 }
 
-func (s *duplicateAgentOfferRepo) GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error) {
-	return s.stub.GetCampusBySlug(ctx, slug)
-}
-
-func (s *duplicateAgentOfferRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
-	return s.stub.Create(ctx, property)
-}
-func (s *duplicateAgentOfferRepo) Get(ctx context.Context, id domain.ID) (domain.Property, error) {
-	return s.stub.Get(ctx, id)
-}
-func (s *duplicateAgentOfferRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
-	return s.stub.Update(ctx, id, expectedVersion, patch)
-}
-func (s *duplicateAgentOfferRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
-	return s.stub.GetPropertyUnitType(ctx, id)
-}
-func (s *duplicateAgentOfferRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
-	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
-}
-func (s *duplicateAgentOfferRepo) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
-	return s.stub.GetAgentOffer(ctx, id)
-}
-func (s *duplicateAgentOfferRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error) {
-	return s.stub.UpdateAgentOffer(ctx, id, expectedVersion, patch)
-}
-func (s *duplicateAgentOfferRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error) {
-	return s.stub.ArchiveAgentOffer(ctx, id, expectedVersion)
-}
-func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
-	return s.stub.GetWithDetails(ctx, id)
-}
-func (s *duplicateAgentOfferRepo) GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error) {
-	return s.stub.GetMediaTarget(ctx, targetType, id)
-}
-func (s *duplicateAgentOfferRepo) ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error) {
-	return s.stub.ListWithSummary(ctx, filter)
-}
-func (s *duplicateAgentOfferRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
-	return s.stub.Discover(ctx, filter)
-}
-func (s *duplicateAgentOfferRepo) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
-	return s.stub.CreateMedia(ctx, media)
-}
-func (s *duplicateAgentOfferRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
-	return s.stub.CreateMediaBatch(ctx, media)
-}
-func (s *duplicateAgentOfferRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByProperty(ctx, propertyID)
-}
-func (s *duplicateAgentOfferRepo) ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByPropertyUnitType(ctx, propertyUnitTypeID)
-}
-func (s *duplicateAgentOfferRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error) {
-	return s.stub.ListMediaByAgentOffer(ctx, agentOfferID)
-}
-func (s *duplicateAgentOfferRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
-	return s.stub.CreatePropertyUnitType(ctx, unitType)
-}
-func (s *duplicateAgentOfferRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
-	return s.stub.ListPropertyUnitTypes(ctx, propertyID)
-}
 func (s *duplicateAgentOfferRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
 	return domain.AgentOffer{}, repo.ErrDuplicate
-}
-func (s *duplicateAgentOfferRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
-	return s.stub.ListAgentOffers(ctx, unitTypeID)
 }
 
 func intPointer(value int) *int {
