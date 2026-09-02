@@ -1,0 +1,6 @@
+type: object
+required:
+  - campus
+properties:
+  campus:
+    $ref: ./Campus.yaml

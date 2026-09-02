@@ -1,0 +1,17 @@
+get:
+  operationId: getAuthSession
+  tags:
+    - Authentication
+  summary: Get the current browser session.
+  description: >-
+    Returns authenticated identity state, or anonymous state when no valid
+    session exists.
+  responses:
+    '200':
+      description: Current session state.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AuthSessionResponse.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

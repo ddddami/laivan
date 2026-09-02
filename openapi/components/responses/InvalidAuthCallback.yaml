@@ -1,0 +1,5 @@
+description: The Google sign-in callback is invalid or expired.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

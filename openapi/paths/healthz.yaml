@@ -1,0 +1,22 @@
+get:
+  operationId: getHealth
+  tags:
+    - Health
+  summary: Check API health.
+  responses:
+    '200':
+      description: API is healthy.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/HealthResponse.yaml
+          examples:
+            healthy:
+              value:
+                status: ok
+                environment: development
+                version: dev
+    '405':
+      $ref: ../components/responses/MethodNotAllowed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

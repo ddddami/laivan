@@ -1,0 +1,108 @@
+type: object
+required:
+  - property
+  - unit_type
+  - pricing
+  - offer_summary
+  - thumbnail_source
+  - created_at
+  - updated_at
+properties:
+  property:
+    type: object
+    required:
+      - id
+      - name
+      - area
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      area:
+        type: string
+      landmark:
+        type:
+          - string
+          - 'null'
+  unit_type:
+    type: object
+    required:
+      - id
+      - category
+      - name
+    properties:
+      id:
+        type: string
+        format: uuid
+      category:
+        $ref: ./UnitCategory.yaml
+      name:
+        type: string
+      description:
+        type:
+          - string
+          - 'null'
+      notes:
+        type:
+          - string
+          - 'null'
+      bedroom_count:
+        type:
+          - integer
+          - 'null'
+        minimum: 0
+      has_parlour:
+        type:
+          - boolean
+          - 'null'
+      bathroom_type:
+        anyOf:
+          - $ref: ./BathroomType.yaml
+          - type: 'null'
+      kitchen_type:
+        anyOf:
+          - $ref: ./KitchenType.yaml
+          - type: 'null'
+  pricing:
+    type: object
+    required:
+      - lowest_price_naira
+    properties:
+      lowest_price_naira:
+        type:
+          - integer
+          - 'null'
+        minimum: 0
+        description: >-
+          Lowest available price in whole Naira, or null when no offer is
+          available.
+  offer_summary:
+    type: object
+    required:
+      - available_offer_count
+    properties:
+      available_offer_count:
+        type: integer
+        minimum: 0
+  thumbnail_url:
+    type:
+      - string
+      - 'null'
+    format: uri
+  thumbnail_source:
+    type: string
+    enum:
+      - unit_type
+      - property
+      - none
+    description: >-
+      Source layer for the discovery thumbnail. `property` is contextual
+      fallback media, not a claim about the exact unit.
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

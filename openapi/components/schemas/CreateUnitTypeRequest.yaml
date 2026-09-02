@@ -1,0 +1,32 @@
+type: object
+additionalProperties: false
+required:
+  - category
+properties:
+  category:
+    $ref: ./UnitCategory.yaml
+  name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: >-
+      Optional custom label. Defaults to the category display name (e.g.
+      "Self-contained") when omitted.
+  description:
+    type: string
+    maxLength: 1000
+  notes:
+    type: string
+    maxLength: 2000
+    description: >-
+      Structural notes about the unit. Examples include "Kitchen is outside but
+      private" or "Top floor corner unit."
+  bedroom_count:
+    type: integer
+    minimum: 0
+  has_parlour:
+    type: boolean
+  bathroom_type:
+    $ref: ./BathroomType.yaml
+  kitchen_type:
+    $ref: ./KitchenType.yaml

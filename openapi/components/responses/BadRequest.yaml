@@ -1,0 +1,11 @@
+description: Request body or syntax is invalid.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml
+    examples:
+      badRequest:
+        value:
+          error:
+            code: bad_request
+            message: request body contains unknown field "unknown"

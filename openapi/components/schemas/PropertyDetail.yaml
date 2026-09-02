@@ -1,0 +1,43 @@
+type: object
+required:
+  - id
+  - campus_id
+  - name
+  - area
+  - landmark
+  - description
+  - unit_types
+  - media
+  - created_at
+  - updated_at
+properties:
+  id:
+    type: string
+    format: uuid
+  campus_id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  area:
+    type: string
+  landmark:
+    type: string
+    description: Approximate landmark. May be empty when unavailable.
+  description:
+    type: string
+    description: Building-level notes. May be empty when unavailable.
+  unit_types:
+    type: array
+    items:
+      $ref: ./UnitTypeDetail.yaml
+  media:
+    type: array
+    items:
+      $ref: ./Media.yaml
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

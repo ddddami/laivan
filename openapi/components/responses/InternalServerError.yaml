@@ -1,0 +1,13 @@
+description: Server encountered an unexpected problem.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml
+    examples:
+      internalServerError:
+        value:
+          error:
+            code: internal_server_error
+            message: >-
+              The server encountered a problem and could not process your
+              request

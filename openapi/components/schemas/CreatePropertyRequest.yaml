@@ -1,0 +1,24 @@
+type: object
+additionalProperties: false
+required:
+  - campus_id
+  - name
+  - area
+properties:
+  campus_id:
+    type: string
+    format: uuid
+  name:
+    type: string
+    minLength: 1
+    maxLength: 255
+  area:
+    type: string
+    minLength: 1
+    maxLength: 100
+  landmark:
+    type: string
+    maxLength: 100
+  description:
+    type: string
+    maxLength: 1000

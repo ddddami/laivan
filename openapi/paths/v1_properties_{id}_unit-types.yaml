@@ -1,0 +1,91 @@
+get:
+  operationId: listPropertyUnitTypes
+  tags:
+    - Unit Types
+  summary: List unit types for a property.
+  description: Returns property-level rentable unit types in creation order.
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Property ID.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Unit types returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/UnitTypesResponse.yaml
+          examples:
+            unitTypes:
+              value:
+                unit_types:
+                  - id: 550e8400-e29b-41d4-a716-446655440020
+                    property_id: 550e8400-e29b-41d4-a716-446655440010
+                    category: self_contained
+                    name: Self-contained
+                    description: Private room with bathroom and kitchenette.
+                    notes: Top floor corner unit with better ventilation.
+                    bedroom_count: 1
+                    has_parlour: false
+                    bathroom_type: private
+                    kitchen_type: private
+                    created_at: '2026-05-01T10:00:00Z'
+                    updated_at: '2026-05-01T10:00:00Z'
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+post:
+  operationId: createPropertyUnitType
+  tags:
+    - Unit Types
+  summary: Create a unit type for a property.
+  description: >-
+    Creates a property-level rentable unit type without tying it to a specific
+    agent offer.
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Property ID.
+      schema:
+        type: string
+        format: uuid
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreateUnitTypeRequest.yaml
+        examples:
+          unitType:
+            value:
+              category: self_contained
+              name: Self-contained
+              description: Private room with bathroom and kitchenette.
+              notes: Top floor corner unit with better ventilation.
+              bedroom_count: 1
+              has_parlour: false
+              bathroom_type: private
+              kitchen_type: private
+  responses:
+    '201':
+      description: Unit type created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/UnitTypeResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

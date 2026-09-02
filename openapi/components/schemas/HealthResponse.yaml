@@ -1,0 +1,15 @@
+type: object
+required:
+  - status
+  - environment
+  - version
+properties:
+  status:
+    type: string
+    example: ok
+  environment:
+    type: string
+    example: development
+  version:
+    type: string
+    example: dev

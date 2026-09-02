@@ -1,0 +1,6 @@
+type: object
+additionalProperties: false
+properties:
+  operator_note:
+    type: string
+    maxLength: 2000

@@ -1,0 +1,38 @@
+post:
+  operationId: activateAgentApplication
+  tags:
+    - Agent Applications
+  summary: Activate a pending agent application.
+  description: >-
+    Creates a new active agent unless an explicitly selected legacy agent ID is
+    supplied. Phone numbers are never used for automatic linking.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/ApplicationID.yaml
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/ActivateAgentApplicationRequest.yaml
+  responses:
+    '200':
+      description: Application activated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentApplicationResponse.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '409':
+      $ref: ../components/responses/Conflict.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

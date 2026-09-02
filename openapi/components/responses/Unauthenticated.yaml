@@ -1,0 +1,5 @@
+description: Authentication is required or the session is invalid.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

@@ -1,0 +1,18 @@
+type: object
+required:
+  - current_page
+  - page_size
+  - first_page
+  - last_page
+  - total_records
+properties:
+  current_page:
+    type: integer
+  page_size:
+    type: integer
+  first_page:
+    type: integer
+  last_page:
+    type: integer
+  total_records:
+    type: integer

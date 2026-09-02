@@ -1,0 +1,38 @@
+get:
+  operationId: completeGoogleAuth
+  tags:
+    - Authentication
+  summary: Complete Google sign-in.
+  description: >-
+    Validates the OIDC callback, creates an opaque browser session, and
+    redirects to the configured web origin.
+  parameters:
+    - name: code
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: state
+      in: query
+      required: true
+      schema:
+        type: string
+  responses:
+    '302':
+      description: Redirect to the configured web origin after successful sign-in.
+      headers:
+        Location:
+          schema:
+            type: string
+            format: uri
+        Set-Cookie:
+          schema:
+            type: string
+    '400':
+      $ref: ../components/responses/InvalidAuthCallback.yaml
+    '429':
+      $ref: ../components/responses/RateLimited.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+    '503':
+      $ref: ../components/responses/AuthUnavailable.yaml

@@ -1,0 +1,15 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    examples:
+      - bad_request
+      - validation_failed
+      - not_found
+      - method_not_allowed
+      - internal_server_error
+  message:
+    type: string

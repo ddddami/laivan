@@ -1,0 +1,16 @@
+type: object
+required:
+  - id
+  - slug
+  - name
+  - short_name
+properties:
+  id:
+    type: string
+    format: uuid
+  slug:
+    type: string
+  name:
+    type: string
+  short_name:
+    type: string

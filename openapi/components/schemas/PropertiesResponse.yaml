@@ -1,0 +1,11 @@
+type: object
+required:
+  - properties
+  - metadata
+properties:
+  properties:
+    type: array
+    items:
+      $ref: ./Property.yaml
+  metadata:
+    $ref: ./Metadata.yaml

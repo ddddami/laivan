@@ -1,0 +1,29 @@
+type: object
+additionalProperties: false
+required:
+  - title
+  - price_naira
+properties:
+  title:
+    type: string
+    minLength: 1
+    maxLength: 255
+  description:
+    type: string
+    maxLength: 1000
+  notes:
+    type: string
+    maxLength: 2000
+    description: >-
+      Operational notes about the offer. Examples include "2 left" or
+      "Inspection tomorrow only."
+  price_naira:
+    type: integer
+    minimum: 1
+  status:
+    type: string
+    enum:
+      - available
+      - unavailable
+      - paused
+    default: available

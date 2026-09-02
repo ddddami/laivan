@@ -1,0 +1,58 @@
+type: object
+required:
+  - id
+  - campus_id
+  - name
+  - area
+  - landmark
+  - description
+  - unit_type_count
+  - available_offer_count
+  - lowest_price_naira
+  - created_at
+  - updated_at
+properties:
+  id:
+    type: string
+    format: uuid
+  campus_id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  area:
+    type: string
+  landmark:
+    type: string
+    description: Approximate landmark. May be empty when unavailable.
+  description:
+    type: string
+    description: Building-level notes. May be empty when unavailable.
+  unit_type_count:
+    type: integer
+    minimum: 0
+    description: Number of unit types at this property.
+  available_offer_count:
+    type: integer
+    minimum: 0
+    description: Number of currently available agent offers across all unit types.
+  lowest_price_naira:
+    type: integer
+    minimum: 0
+    description: >-
+      Lowest price among available offers in whole Naira. 0 when no offers
+      exist.
+  thumbnail_url:
+    type:
+      - string
+      - 'null'
+    format: uri
+    description: >-
+      Imgproxy-generated thumbnail URL for the first available image, when
+      present.
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

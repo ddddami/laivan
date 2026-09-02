@@ -1,0 +1,2106 @@
+openapi: 3.1.0
+info:
+  title: Laivan API
+  version: 0.1.0
+  summary: Backend API for Laivan's (campus-scoped) accommodation marketplace.
+  description: |
+    Laivan is a coordination, trust, and workflow layer for fragmented campus accommodation markets.
+
+    This contract documents the currently implemented API surface. It should describe observable HTTP behavior, not internal Go package structure.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /
+    description: API server
+security: []
+tags:
+  - name: Health
+    description: Service health checks.
+  - name: Authentication
+    description: Google sign-in and browser session management.
+  - name: Campuses
+    description: Public campus boundaries for marketplace discovery.
+  - name: Discovery
+    description: Searchable rentable opportunities combining property, unit type, and offer layers.
+  - name: Properties
+    description: Campus-scoped accommodation properties.
+  - name: Unit Types
+    description: Property-level rentable unit types that agents can later offer.
+  - name: Agent Offers
+    description: Agent-specific availability, pricing, and presentation for unit types.
+  - name: Media
+    description: Image uploads and media metadata for properties, unit types, and agent offers.
+  - name: Agent Applications
+    description: Signed-in agent applications and campus operator review.
+  - name: Agent Lifecycle
+    description: Campus-scoped operator suspension and reinstatement of agent profiles.
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      tags:
+        - Health
+      summary: Check API health.
+      responses:
+        '200':
+          description: API is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  value:
+                    status: ok
+                    environment: development
+                    version: dev
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/auth/google/start:
+    get:
+      operationId: startGoogleAuth
+      tags:
+        - Authentication
+      summary: Start Google sign-in.
+      description: Creates a short-lived signed OIDC attempt cookie and redirects the browser to Google.
+      responses:
+        '302':
+          description: Redirect to Google sign-in.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Set-Cookie:
+              schema:
+                type: string
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/AuthUnavailable'
+  /v1/auth/google/callback:
+    get:
+      operationId: completeGoogleAuth
+      tags:
+        - Authentication
+      summary: Complete Google sign-in.
+      description: Validates the OIDC callback, creates an opaque browser session, and redirects to the configured web origin.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the configured web origin after successful sign-in.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Set-Cookie:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/InvalidAuthCallback'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/AuthUnavailable'
+  /v1/auth/session:
+    get:
+      operationId: getAuthSession
+      tags:
+        - Authentication
+      summary: Get the current browser session.
+      description: Returns authenticated identity state, or anonymous state when no valid session exists.
+      responses:
+        '200':
+          description: Current session state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/auth/logout:
+    post:
+      operationId: logoutAuthSession
+      tags:
+        - Authentication
+      summary: Revoke the current browser session.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '204':
+          description: Session revoked and browser cookies cleared.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/AuthUnavailable'
+  /v1/agent-applications:
+    post:
+      operationId: submitAgentApplication
+      tags:
+        - Agent Applications
+      summary: Submit an agent application.
+      description: Submits a campus-scoped application using the authenticated user as the applicant.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentApplicationRequest'
+      responses:
+        '201':
+          description: Application submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      operationId: listAgentApplications
+      tags:
+        - Agent Applications
+      summary: List the authenticated user's agent applications.
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Applications returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/operator/agent-applications:
+    get:
+      operationId: listOperatorAgentApplications
+      tags:
+        - Agent Applications
+      summary: List agent applications for an authorized campus.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: campus_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AgentApplicationStatus'
+          description: Filters applications by status. Defaults to pending.
+      responses:
+        '200':
+          description: Campus applications returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/operator/agent-applications/{id}/activate:
+    post:
+      operationId: activateAgentApplication
+      tags:
+        - Agent Applications
+      summary: Activate a pending agent application.
+      description: Creates a new active agent unless an explicitly selected legacy agent ID is supplied. Phone numbers are never used for automatic linking.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApplicationID'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateAgentApplicationRequest'
+      responses:
+        '200':
+          description: Application activated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApplicationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/operator/agent-applications/{id}/decline:
+    post:
+      operationId: declineAgentApplication
+      tags:
+        - Agent Applications
+      summary: Decline a pending agent application.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ApplicationID'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclineAgentApplicationRequest'
+      responses:
+        '200':
+          description: Application declined successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentApplicationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/operator/agents/{id}/suspend:
+    post:
+      operationId: suspendAgent
+      tags:
+        - Agent Lifecycle
+      summary: Suspend an agent profile.
+      description: Suspends an agent within the operator's campus scope, suspends linked active applications, revokes linked-user sessions, and records an audit event. Public marketplace records remain visible through their own lifecycle status.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentID'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentLifecycleRequest'
+      responses:
+        '200':
+          description: Agent suspended successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLifecycleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/operator/agents/{id}/reinstate:
+    post:
+      operationId: reinstateAgent
+      tags:
+        - Agent Lifecycle
+      summary: Reinstate a suspended agent profile.
+      description: Reinstates a suspended agent within the operator's campus scope, restores linked suspended applications, and records an audit event. Sessions are not created automatically.
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AgentID'
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentLifecycleRequest'
+      responses:
+        '200':
+          description: Agent reinstated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentLifecycleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/campuses/{slug}:
+    get:
+      operationId: getCampusBySlug
+      tags:
+        - Campuses
+      summary: Resolve a public campus by slug.
+      description: Returns the stable public identity needed to scope marketplace discovery.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Stable campus slug, such as `futa`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Campus returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampusResponse'
+              examples:
+                futa:
+                  value:
+                    campus:
+                      id: 550e8400-e29b-41d4-a716-446655440002
+                      slug: futa
+                      name: Federal University of Technology, Akure
+                      short_name: FUTA
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/discovery:
+    get:
+      operationId: discover
+      tags:
+        - Discovery
+      summary: Discover searchable rentable opportunities.
+      description: |
+        Returns flat search results — one row per property+unit type combination.
+        Each result represents a "searchable rentable opportunity" with the best available pricing and offer count.
+        By default, only unit types with at least one available agent offer are returned.
+        This is the primary search interface for the public web app.
+      parameters:
+        - name: campus_id
+          in: query
+          required: true
+          description: Campus ID that scopes marketplace discovery.
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          required: false
+          description: |
+            Filter by unit type category. Accepts a single category or comma-separated list.
+            Examples: `self_contained`, `self_contained,single_room`
+          schema:
+            type: string
+          style: form
+          explode: false
+        - name: q
+          in: query
+          required: false
+          description: |
+            Search property names, areas, landmarks, and unit type names.
+            Matching is case-insensitive and combines with the other discovery filters.
+          schema:
+            type: string
+            maxLength: 100
+        - name: area
+          in: query
+          required: false
+          description: |
+            Filter by area text. Case-insensitive partial match (ILIKE).
+            Example: `area=South` matches "South Gate", "South Campus".
+          schema:
+            type: string
+        - name: bathroom_type
+          in: query
+          required: false
+          description: Filter by bathroom type.
+          schema:
+            $ref: '#/components/schemas/BathroomType'
+        - name: kitchen_type
+          in: query
+          required: false
+          description: Filter by kitchen type.
+          schema:
+            $ref: '#/components/schemas/KitchenType'
+        - name: has_parlour
+          in: query
+          required: false
+          description: Filter by whether the unit has a parlour/living room.
+          schema:
+            type: boolean
+        - name: min_price
+          in: query
+          required: false
+          description: Minimum price in naira.
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_price
+          in: query
+          required: false
+          description: Maximum price in naira.
+          schema:
+            type: integer
+            minimum: 1
+        - name: availability
+          in: query
+          required: false
+          description: Return only opportunities with an available offer, or include all unit types.
+          schema:
+            type: string
+            enum:
+              - available
+              - all
+            default: available
+        - name: page
+          in: query
+          required: false
+          description: Page number. Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: Number of items per page. Defaults to 20. Maximum is 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: |
+            Sort order. `recommended` uses deterministic availability, usable image media,
+            completeness, recent activity, available-offer count, and stable-ID ordering.
+            Prefix supported fields with `-` for descending.
+          schema:
+            type: string
+            enum:
+              - recommended
+              - created_at
+              - '-created_at'
+              - lowest_price_naira
+              - '-lowest_price_naira'
+            default: recommended
+      responses:
+        '200':
+          description: Discovery results returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveryResponse'
+              examples:
+                discovery:
+                  value:
+                    results:
+                      - property:
+                          id: 550e8400-e29b-41d4-a716-446655440010
+                          name: Alice Lodge
+                          area: Obanla
+                          landmark: Near South Gate
+                        unit_type:
+                          id: 550e8400-e29b-41d4-a716-446655440020
+                          category: self_contained
+                          name: Self-contained
+                          description: Private room with bathroom and kitchenette.
+                          notes: Top floor corner unit with better ventilation.
+                          bedroom_count: 1
+                          has_parlour: false
+                          bathroom_type: private
+                          kitchen_type: private
+                        pricing:
+                          lowest_price_naira: 350000
+                        offer_summary:
+                          available_offer_count: 2
+                        thumbnail_source: unit_type
+                        created_at: '2026-05-01T10:00:00Z'
+                        updated_at: '2026-05-02T10:00:00Z'
+                    metadata:
+                      current_page: 1
+                      page_size: 20
+                      first_page: 1
+                      last_page: 1
+                      total_records: 1
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/properties:
+    get:
+      operationId: listProperties
+      tags:
+        - Properties
+      summary: List properties for a campus.
+      description: |
+        Returns campus-scoped properties ordered by newest first.
+
+        This is the initial discovery feed foundation. It intentionally returns properties, not a separate generic listing model.
+      parameters:
+        - name: campus_id
+          in: query
+          required: true
+          description: Campus ID that scopes marketplace discovery.
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Page number. Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          description: Number of items per page. Defaults to 20. Maximum is 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: Sort order. Prefix with `-` for descending. Defaults to `-created_at`.
+          schema:
+            type: string
+            enum:
+              - created_at
+              - '-created_at'
+              - name
+              - '-name'
+              - area
+              - '-area'
+              - lowest_price_naira
+              - '-lowest_price_naira'
+              - available_offer_count
+              - '-available_offer_count'
+            default: '-created_at'
+        - name: area
+          in: query
+          required: false
+          description: Filter by area text (case-insensitive partial match).
+          schema:
+            type: string
+        - name: name
+          in: query
+          required: false
+          description: Filter by property name (case-insensitive partial match).
+          schema:
+            type: string
+        - name: has_offers
+          in: query
+          required: false
+          description: Filter to properties that have at least one available agent offer. Accepts `true` or `false`.
+          schema:
+            type: boolean
+        - name: min_price
+          in: query
+          required: false
+          description: Minimum price in naira. Filters by the property's lowest available offer price.
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_price
+          in: query
+          required: false
+          description: Maximum price in naira. Filters by the property's lowest available offer price.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Properties returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertiesResponse'
+              examples:
+                properties:
+                  value:
+                    properties:
+                      - id: 550e8400-e29b-41d4-a716-446655440010
+                        campus_id: 550e8400-e29b-41d4-a716-446655440002
+                        name: Alice Lodge
+                        area: Obanla
+                        landmark: Near South Gate
+                        description: Gated lodge with multiple unit types near campus.
+                        unit_type_count: 3
+                        available_offer_count: 5
+                        lowest_price_naira: 250000
+                        created_at: '2026-05-01T10:00:00Z'
+                        updated_at: '2026-05-01T10:00:00Z'
+                    metadata:
+                      current_page: 1
+                      page_size: 20
+                      first_page: 1
+                      last_page: 1
+                      total_records: 1
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createProperty
+      tags:
+        - Properties
+      summary: Create a property.
+      description: Creates a real-world accommodation property within a campus.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePropertyRequest'
+            examples:
+              property:
+                value:
+                  campus_id: 550e8400-e29b-41d4-a716-446655440002
+                  name: Alice Lodge
+                  area: Obanla
+                  landmark: Near South Gate
+                  description: Gated lodge with multiple unit types near campus.
+      responses:
+        '201':
+          description: Property created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/properties/{id}:
+    get:
+      operationId: getProperty
+      tags:
+        - Properties
+      summary: Get a property by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Property returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/properties/{id}/unit-types:
+    get:
+      operationId: listPropertyUnitTypes
+      tags:
+        - Unit Types
+      summary: List unit types for a property.
+      description: Returns property-level rentable unit types in creation order.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Unit types returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitTypesResponse'
+              examples:
+                unitTypes:
+                  value:
+                    unit_types:
+                      - id: 550e8400-e29b-41d4-a716-446655440020
+                        property_id: 550e8400-e29b-41d4-a716-446655440010
+                        category: self_contained
+                        name: Self-contained
+                        description: Private room with bathroom and kitchenette.
+                        notes: Top floor corner unit with better ventilation.
+                        bedroom_count: 1
+                        has_parlour: false
+                        bathroom_type: private
+                        kitchen_type: private
+                        created_at: '2026-05-01T10:00:00Z'
+                        updated_at: '2026-05-01T10:00:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createPropertyUnitType
+      tags:
+        - Unit Types
+      summary: Create a unit type for a property.
+      description: Creates a property-level rentable unit type without tying it to a specific agent offer.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitTypeRequest'
+            examples:
+              unitType:
+                value:
+                  category: self_contained
+                  name: Self-contained
+                  description: Private room with bathroom and kitchenette.
+                  notes: Top floor corner unit with better ventilation.
+                  bedroom_count: 1
+                  has_parlour: false
+                  bathroom_type: private
+                  kitchen_type: private
+      responses:
+        '201':
+          description: Unit type created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitTypeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/unit-types/{id}/agent-offers:
+    get:
+      operationId: listAgentOffers
+      tags:
+        - Agent Offers
+      summary: List agent offers for a unit type.
+      description: Returns agent-specific offers for a property unit type ordered by newest first.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unit type ID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agent offers returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOffersResponse'
+              examples:
+                agentOffers:
+                  value:
+                    agent_offers:
+                      - id: 550e8400-e29b-41d4-a716-446655440030
+                        property_unit_type_id: 550e8400-e29b-41d4-a716-446655440020
+                        agent_id: 550e8400-e29b-41d4-a716-446655440040
+                        title: Fresh self-contained room
+                        description: Recently painted room with private bathroom.
+                        notes: 2 left. Inspection tomorrow only.
+                        price_naira: 350000
+                        status: available
+                        created_at: '2026-05-01T10:00:00Z'
+                        updated_at: '2026-05-01T10:00:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createAgentOffer
+      tags:
+        - Agent Offers
+      summary: Create an agent offer for a unit type.
+      description: Creates an offer for the authenticated user's active agent profile, including price and current availability status.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unit type ID.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentOfferRequest'
+            examples:
+              agentOffer:
+                value:
+                  title: Fresh self-contained room
+                  description: Recently painted room with private bathroom.
+                  notes: 2 left. Inspection tomorrow only.
+                  price_naira: 350000
+                  status: available
+      responses:
+        '201':
+          description: Agent offer created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOfferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /v1/media:
+    post:
+      operationId: uploadMedia
+      tags:
+        - Media
+      summary: Upload media for a marketplace entity.
+      description: |
+        Uploads one or more image files for exactly one target: property, property unit type, or agent offer.
+        Images are stored as originals and delivery variants are generated through Imgproxy URLs.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - uploaded_by_agent_id
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more JPEG, PNG, or WebP image files.
+                property_id:
+                  type: string
+                  format: uuid
+                  description: Property target ID. Use exactly one target field.
+                property_unit_type_id:
+                  type: string
+                  format: uuid
+                  description: Property unit type target ID. Use exactly one target field.
+                agent_offer_id:
+                  type: string
+                  format: uuid
+                  description: Agent offer target ID. Use exactly one target field.
+                uploaded_by_agent_id:
+                  type: string
+                  format: uuid
+                  description: Uploading agent ID. This is explicit until authenticated agent context exists.
+                caption:
+                  type: string
+                  maxLength: 500
+      responses:
+        '201':
+          description: Media uploaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: laivan_session
+      description: Opaque HttpOnly session cookie issued by the API.
+  parameters:
+    ApplicationID:
+      name: id
+      in: path
+      required: true
+      description: Agent application ID.
+      schema:
+        type: string
+        format: uuid
+    AgentID:
+      name: id
+      in: path
+      required: true
+      description: Agent profile ID.
+      schema:
+        type: string
+        format: uuid
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: CSRF token returned by the authenticated session endpoint.
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    BadRequest:
+      description: Request body or syntax is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            badRequest:
+              value:
+                error:
+                  code: bad_request
+                  message: request body contains unknown field "unknown"
+    ValidationFailed:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            validationFailed:
+              value:
+                error:
+                  code: validation_failed
+                  message: Request validation failed
+                  fields:
+                    campus_id: Campus ID is required
+    NotFound:
+      description: Resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                error:
+                  code: not_found
+                  message: The requested resource could not be found
+    MethodNotAllowed:
+      description: HTTP method is not supported for this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            methodNotAllowed:
+              value:
+                error:
+                  code: method_not_allowed
+                  message: The request method is not supported for this resource
+    InternalServerError:
+      description: Server encountered an unexpected problem.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            internalServerError:
+              value:
+                error:
+                  code: internal_server_error
+                  message: The server encountered a problem and could not process your request
+    AuthUnavailable:
+      description: Authentication is not configured for this environment.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InvalidAuthCallback:
+      description: The Google sign-in callback is invalid or expired.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Too many authentication attempts from the client address.
+      headers:
+        Retry-After:
+          description: Number of seconds before another attempt should be made.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthenticated:
+      description: Authentication is required or the session is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: The request is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: The requested state transition conflicts with the current resource state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    AuthUser:
+      type: object
+      required:
+        - id
+        - email
+        - display_name
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+    AuthSessionResponse:
+      type: object
+      required:
+        - authenticated
+        - user
+        - roles
+        - agent
+        - csrf_token
+      properties:
+        authenticated:
+          type: boolean
+        user:
+          anyOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+        roles:
+          type: array
+          items:
+            type: string
+        agent:
+          anyOf:
+            - $ref: '#/components/schemas/LinkedAgent'
+            - type: 'null'
+        csrf_token:
+          type:
+            - string
+            - 'null'
+          description: CSRF token for unsafe requests when authenticated.
+    LinkedAgent:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+    AgentApplicationStatus:
+      type: string
+      enum:
+        - pending
+        - active
+        - declined
+        - suspended
+    CreateAgentApplicationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - campus_id
+        - name
+        - phone_number
+      properties:
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone_number:
+          type: string
+          description: Nigerian phone number accepted in local or international format.
+    ActivateAgentApplicationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        legacy_agent_id:
+          type: string
+          format: uuid
+          description: Explicitly selected legacy agent to link. Omit to create a new agent.
+        operator_note:
+          type: string
+          maxLength: 2000
+    DeclineAgentApplicationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        operator_note:
+          type: string
+          maxLength: 2000
+    AgentLifecycleRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        operator_note:
+          type: string
+          maxLength: 2000
+    AgentLifecycleResponse:
+      type: object
+      required:
+        - agent
+      properties:
+        agent:
+          $ref: '#/components/schemas/LinkedAgent'
+    AgentApplication:
+      type: object
+      required:
+        - id
+        - campus_id
+        - name
+        - phone_number
+        - status
+        - agent_id
+        - operator_note
+        - created_at
+        - updated_at
+        - decided_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone_number:
+          type: string
+        status:
+          $ref: '#/components/schemas/AgentApplicationStatus'
+        agent_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        operator_note:
+          type:
+            - string
+            - 'null'
+        applicant:
+          $ref: '#/components/schemas/AgentApplicationApplicant'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        decided_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    AgentApplicationApplicant:
+      type: object
+      required:
+        - id
+        - email
+        - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+    AgentApplicationResponse:
+      type: object
+      required:
+        - application
+      properties:
+        application:
+          $ref: '#/components/schemas/AgentApplication'
+    AgentApplicationsResponse:
+      type: object
+      required:
+        - applications
+      properties:
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentApplication'
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - environment
+        - version
+      properties:
+        status:
+          type: string
+          example: ok
+        environment:
+          type: string
+          example: development
+        version:
+          type: string
+          example: dev
+    Campus:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - short_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        short_name:
+          type: string
+    CampusResponse:
+      type: object
+      required:
+        - campus
+      properties:
+        campus:
+          $ref: '#/components/schemas/Campus'
+    CreatePropertyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - campus_id
+        - name
+        - area
+      properties:
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        area:
+          type: string
+          minLength: 1
+          maxLength: 100
+        landmark:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+    Property:
+      type: object
+      required:
+        - id
+        - campus_id
+        - name
+        - area
+        - landmark
+        - description
+        - unit_type_count
+        - available_offer_count
+        - lowest_price_naira
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        area:
+          type: string
+        landmark:
+          type: string
+          description: Approximate landmark. May be empty when unavailable.
+        description:
+          type: string
+          description: Building-level notes. May be empty when unavailable.
+        unit_type_count:
+          type: integer
+          minimum: 0
+          description: Number of unit types at this property.
+        available_offer_count:
+          type: integer
+          minimum: 0
+          description: Number of currently available agent offers across all unit types.
+        lowest_price_naira:
+          type: integer
+          minimum: 0
+          description: Lowest price among available offers in whole Naira. 0 when no offers exist.
+        thumbnail_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+          description: Imgproxy-generated thumbnail URL for the first available image, when present.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateUnitTypeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - category
+      properties:
+        category:
+          $ref: '#/components/schemas/UnitCategory'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Optional custom label. Defaults to the category display name (e.g. "Self-contained") when omitted.
+        description:
+          type: string
+          maxLength: 1000
+        notes:
+          type: string
+          maxLength: 2000
+          description: Structural notes about the unit. Examples include "Kitchen is outside but private" or "Top floor corner unit."
+        bedroom_count:
+          type: integer
+          minimum: 0
+        has_parlour:
+          type: boolean
+        bathroom_type:
+          $ref: '#/components/schemas/BathroomType'
+        kitchen_type:
+          $ref: '#/components/schemas/KitchenType'
+    UnitCategory:
+      type: string
+      enum:
+        - single_room
+        - self_contained
+        - room_and_parlour
+        - one_bedroom_flat
+        - two_bedroom_flat
+        - three_bedroom_flat
+        - other
+    BathroomType:
+      type: string
+      enum:
+        - private
+        - shared
+        - unknown
+    KitchenType:
+      type: string
+      enum:
+        - private
+        - shared
+        - none
+        - unknown
+    UnitType:
+      type: object
+      required:
+        - id
+        - property_id
+        - category
+        - name
+        - description
+        - bedroom_count
+        - has_parlour
+        - bathroom_type
+        - kitchen_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/UnitCategory'
+        name:
+          type: string
+        description:
+          type: string
+          description: Unit type description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+          description: Structural notes about the unit. Examples include "Kitchen is outside but private" or "Top floor corner unit."
+        bedroom_count:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+        has_parlour:
+          type:
+            - boolean
+            - 'null'
+        bathroom_type:
+          anyOf:
+            - $ref: '#/components/schemas/BathroomType'
+            - type: 'null'
+        kitchen_type:
+          anyOf:
+            - $ref: '#/components/schemas/KitchenType'
+            - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateAgentOfferRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - price_naira
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        notes:
+          type: string
+          maxLength: 2000
+          description: Operational notes about the offer. Examples include "2 left" or "Inspection tomorrow only."
+        price_naira:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - available
+            - unavailable
+            - paused
+          default: available
+    AgentOffer:
+      type: object
+      required:
+        - id
+        - property_unit_type_id
+        - agent_id
+        - title
+        - description
+        - price_naira
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_unit_type_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          description: Agent-specific offer description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+          description: Operational notes about the offer. Examples include "2 left" or "Inspection tomorrow only."
+        price_naira:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - available
+            - unavailable
+            - paused
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AgentSummary:
+      type: object
+      required:
+        - id
+        - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+    AgentOfferDetail:
+      allOf:
+        - $ref: '#/components/schemas/AgentOffer'
+        - type: object
+          required:
+            - agent
+            - media
+          properties:
+            agent:
+              $ref: '#/components/schemas/AgentSummary'
+            media:
+              type: array
+              items:
+                $ref: '#/components/schemas/Media'
+    UnitTypeDetail:
+      type: object
+      required:
+        - id
+        - property_id
+        - category
+        - name
+        - description
+        - bedroom_count
+        - has_parlour
+        - bathroom_type
+        - kitchen_type
+        - agent_offers
+        - media
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/UnitCategory'
+        name:
+          type: string
+        description:
+          type: string
+          description: Unit type description. May be empty when unavailable.
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+          description: Structural notes about the unit.
+        bedroom_count:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+        has_parlour:
+          type:
+            - boolean
+            - 'null'
+        bathroom_type:
+          anyOf:
+            - $ref: '#/components/schemas/BathroomType'
+            - type: 'null'
+        kitchen_type:
+          anyOf:
+            - $ref: '#/components/schemas/KitchenType'
+            - type: 'null'
+        agent_offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentOfferDetail'
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PropertyDetail:
+      type: object
+      required:
+        - id
+        - campus_id
+        - name
+        - area
+        - landmark
+        - description
+        - unit_types
+        - media
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        campus_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        area:
+          type: string
+        landmark:
+          type: string
+          description: Approximate landmark. May be empty when unavailable.
+        description:
+          type: string
+          description: Building-level notes. May be empty when unavailable.
+        unit_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitTypeDetail'
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PropertyResponse:
+      type: object
+      required:
+        - property
+      properties:
+        property:
+          $ref: '#/components/schemas/Property'
+    PropertyDetailResponse:
+      type: object
+      required:
+        - property
+      properties:
+        property:
+          $ref: '#/components/schemas/PropertyDetail'
+    DiscoveryResponse:
+      type: object
+      required:
+        - results
+        - metadata
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveryResult'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+    DiscoveryResult:
+      type: object
+      required:
+        - property
+        - unit_type
+        - pricing
+        - offer_summary
+        - thumbnail_source
+        - created_at
+        - updated_at
+      properties:
+        property:
+          type: object
+          required:
+            - id
+            - name
+            - area
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            area:
+              type: string
+            landmark:
+              type:
+                - string
+                - 'null'
+        unit_type:
+          type: object
+          required:
+            - id
+            - category
+            - name
+          properties:
+            id:
+              type: string
+              format: uuid
+            category:
+              $ref: '#/components/schemas/UnitCategory'
+            name:
+              type: string
+            description:
+              type:
+                - string
+                - 'null'
+            notes:
+              type:
+                - string
+                - 'null'
+            bedroom_count:
+              type:
+                - integer
+                - 'null'
+              minimum: 0
+            has_parlour:
+              type:
+                - boolean
+                - 'null'
+            bathroom_type:
+              anyOf:
+                - $ref: '#/components/schemas/BathroomType'
+                - type: 'null'
+            kitchen_type:
+              anyOf:
+                - $ref: '#/components/schemas/KitchenType'
+                - type: 'null'
+        pricing:
+          type: object
+          required:
+            - lowest_price_naira
+          properties:
+            lowest_price_naira:
+              type:
+                - integer
+                - 'null'
+              minimum: 0
+              description: Lowest available price in whole Naira, or null when no offer is available.
+        offer_summary:
+          type: object
+          required:
+            - available_offer_count
+          properties:
+            available_offer_count:
+              type: integer
+              minimum: 0
+        thumbnail_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+        thumbnail_source:
+          type: string
+          enum:
+            - unit_type
+            - property
+            - none
+          description: Source layer for the discovery thumbnail. `property` is contextual fallback media, not a claim about the exact unit.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Media:
+      type: object
+      required:
+        - id
+        - url
+        - thumbnail_url
+        - medium_url
+        - kind
+        - size_bytes
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        property_unit_type_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        agent_offer_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        uploaded_by_agent_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        url:
+          type: string
+          format: uri
+          description: Public URL for the original stored object.
+        thumbnail_url:
+          type: string
+          format: uri
+          description: Imgproxy-generated thumbnail URL.
+        medium_url:
+          type: string
+          format: uri
+          description: Imgproxy-generated medium-size URL.
+        kind:
+          type: string
+          enum:
+            - image
+            - video
+        caption:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+        content_type:
+          type:
+            - string
+            - 'null'
+          examples:
+            - image/jpeg
+        size_bytes:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+    MediaUploadResponse:
+      type: object
+      required:
+        - media
+      properties:
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+    PropertiesResponse:
+      type: object
+      required:
+        - properties
+        - metadata
+      properties:
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/Property'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+    Metadata:
+      type: object
+      required:
+        - current_page
+        - page_size
+        - first_page
+        - last_page
+        - total_records
+      properties:
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        first_page:
+          type: integer
+        last_page:
+          type: integer
+        total_records:
+          type: integer
+    UnitTypeResponse:
+      type: object
+      required:
+        - unit_type
+      properties:
+        unit_type:
+          $ref: '#/components/schemas/UnitType'
+    UnitTypesResponse:
+      type: object
+      required:
+        - unit_types
+      properties:
+        unit_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitType'
+    AgentOfferResponse:
+      type: object
+      required:
+        - agent_offer
+      properties:
+        agent_offer:
+          $ref: '#/components/schemas/AgentOffer'
+    AgentOffersResponse:
+      type: object
+      required:
+        - agent_offers
+      properties:
+        agent_offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentOffer'
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          examples:
+            - bad_request
+            - validation_failed
+            - not_found
+            - method_not_allowed
+            - internal_server_error
+        message:
+          type: string
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required:
+            - fields
+          properties:
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ValidationErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ValidationError'

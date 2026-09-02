@@ -1,0 +1,11 @@
+description: HTTP method is not supported for this resource.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml
+    examples:
+      methodNotAllowed:
+        value:
+          error:
+            code: method_not_allowed
+            message: The request method is not supported for this resource

@@ -1,0 +1,13 @@
+description: Request validation failed.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ValidationErrorResponse.yaml
+    examples:
+      validationFailed:
+        value:
+          error:
+            code: validation_failed
+            message: Request validation failed
+            fields:
+              campus_id: Campus ID is required
