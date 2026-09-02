@@ -975,6 +975,9 @@ func insertAgent(t *testing.T, ctx context.Context, db *pgxpool.Pool, displayNam
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	// Email and phone must be unique per call. Email uses a random UUID suffix.
+	// Phone derives a valid E.164 number from the user's ID hash so it stays unique
+	// without needing a separate counter and satisfies the +234XXXXXXXXXX constraint.
 	var userID string
 	err := db.QueryRow(ctx, `
 		INSERT INTO users (email, display_name)
