@@ -1701,9 +1701,6 @@ components:
         - area
         - landmark
         - description
-        - unit_type_count
-        - available_offer_count
-        - lowest_price_naira
         - version
         - created_at
         - updated_at
@@ -1724,18 +1721,6 @@ components:
         description:
           type: string
           description: Building-level notes. May be empty when unavailable.
-        unit_type_count:
-          type: integer
-          minimum: 0
-          description: Number of unit types at this property.
-        available_offer_count:
-          type: integer
-          minimum: 0
-          description: Number of currently available agent offers across all unit types.
-        lowest_price_naira:
-          type: integer
-          minimum: 0
-          description: Lowest price among available offers in whole Naira. 0 when no offers exist.
         version:
           type: integer
           minimum: 1
@@ -2311,7 +2296,7 @@ components:
         properties:
           type: array
           items:
-            $ref: '#/components/schemas/Property'
+            $ref: '#/components/schemas/PropertySummary'
         metadata:
           $ref: '#/components/schemas/Metadata'
     Metadata:
@@ -2406,6 +2391,29 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ValidationError'
+    PropertySummary:
+      type: object
+      description: Property representation including summary statistics for marketplace discovery and list views.
+      allOf:
+        - $ref: '#/components/schemas/Property'
+        - type: object
+          required:
+            - unit_type_count
+            - available_offer_count
+            - lowest_price_naira
+          properties:
+            unit_type_count:
+              type: integer
+              minimum: 0
+              description: Number of unit types at this property.
+            available_offer_count:
+              type: integer
+              minimum: 0
+              description: Number of currently available agent offers across all unit types.
+            lowest_price_naira:
+              type: integer
+              minimum: 0
+              description: Lowest price among available offers in whole Naira. 0 when no offers exist.
     UpdatePropertyRequest:
       type: object
       additionalProperties: false

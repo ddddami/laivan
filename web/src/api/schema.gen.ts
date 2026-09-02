@@ -549,12 +549,6 @@ export interface components {
             readonly landmark: string;
             /** @description Building-level notes. May be empty when unavailable. */
             readonly description: string;
-            /** @description Number of unit types at this property. */
-            readonly unit_type_count: number;
-            /** @description Number of currently available agent offers across all unit types. */
-            readonly available_offer_count: number;
-            /** @description Lowest price among available offers in whole Naira. 0 when no offers exist. */
-            readonly lowest_price_naira: number;
             /** @description Current optimistic-concurrency version. */
             readonly version: number;
             /**
@@ -785,7 +779,7 @@ export interface components {
             readonly media: readonly components["schemas"]["Media"][];
         };
         readonly PropertiesResponse: {
-            readonly properties: readonly components["schemas"]["Property"][];
+            readonly properties: readonly components["schemas"]["PropertySummary"][];
             readonly metadata: components["schemas"]["Metadata"];
         };
         readonly Metadata: {
@@ -828,6 +822,15 @@ export interface components {
         };
         readonly ValidationErrorResponse: {
             readonly error: components["schemas"]["ValidationError"];
+        };
+        /** @description Property representation including summary statistics for marketplace discovery and list views. */
+        readonly PropertySummary: components["schemas"]["Property"] & {
+            /** @description Number of unit types at this property. */
+            readonly unit_type_count: number;
+            /** @description Number of currently available agent offers across all unit types. */
+            readonly available_offer_count: number;
+            /** @description Lowest price among available offers in whole Naira. 0 when no offers exist. */
+            readonly lowest_price_naira: number;
         };
         readonly UpdatePropertyRequest: {
             readonly name?: string;

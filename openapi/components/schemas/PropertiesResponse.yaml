@@ -6,6 +6,6 @@ properties:
   properties:
     type: array
     items:
-      $ref: ./Property.yaml
+      $ref: ./PropertySummary.yaml
   metadata:
     $ref: ./Metadata.yaml
