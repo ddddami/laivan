@@ -1,0 +1,41 @@
+post:
+  operationId: reinstateAgent
+  tags:
+    - Agent Lifecycle
+  summary: Reinstate a suspended agent profile.
+  description: >-
+    Reinstates a suspended agent within the operator's campus scope, restores
+    linked suspended applications, and records an audit event. Sessions are not
+    created automatically.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/AgentID.yaml
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/AgentLifecycleRequest.yaml
+  responses:
+    '200':
+      description: Agent reinstated successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentLifecycleResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '409':
+      $ref: ../components/responses/Conflict.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

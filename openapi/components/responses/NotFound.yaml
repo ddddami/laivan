@@ -1,0 +1,11 @@
+description: Resource was not found.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml
+    examples:
+      notFound:
+        value:
+          error:
+            code: not_found
+            message: The requested resource could not be found

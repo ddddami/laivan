@@ -1,0 +1,12 @@
+description: Too many authentication attempts from the client address.
+headers:
+  Retry-After:
+    description: Number of seconds before another attempt should be made.
+    schema:
+      type: integer
+      format: int64
+      minimum: 1
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

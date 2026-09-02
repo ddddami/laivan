@@ -1,0 +1,10 @@
+allOf:
+  - $ref: ./Error.yaml
+  - type: object
+    required:
+      - fields
+    properties:
+      fields:
+        type: object
+        additionalProperties:
+          type: string

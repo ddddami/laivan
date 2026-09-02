@@ -1,0 +1,47 @@
+type: object
+required:
+  - id
+  - campus_id
+  - name
+  - phone_number
+  - status
+  - agent_id
+  - operator_note
+  - created_at
+  - updated_at
+  - decided_at
+properties:
+  id:
+    type: string
+    format: uuid
+  campus_id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  phone_number:
+    type: string
+  status:
+    $ref: ./AgentApplicationStatus.yaml
+  agent_id:
+    type:
+      - string
+      - 'null'
+    format: uuid
+  operator_note:
+    type:
+      - string
+      - 'null'
+  applicant:
+    $ref: ./AgentApplicationApplicant.yaml
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time
+  decided_at:
+    type:
+      - string
+      - 'null'
+    format: date-time

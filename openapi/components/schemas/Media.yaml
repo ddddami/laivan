@@ -1,0 +1,67 @@
+type: object
+required:
+  - id
+  - url
+  - thumbnail_url
+  - medium_url
+  - kind
+  - size_bytes
+  - created_at
+properties:
+  id:
+    type: string
+    format: uuid
+  property_id:
+    type:
+      - string
+      - 'null'
+    format: uuid
+  property_unit_type_id:
+    type:
+      - string
+      - 'null'
+    format: uuid
+  agent_offer_id:
+    type:
+      - string
+      - 'null'
+    format: uuid
+  uploaded_by_agent_id:
+    type:
+      - string
+      - 'null'
+    format: uuid
+  url:
+    type: string
+    format: uri
+    description: Public URL for the original stored object.
+  thumbnail_url:
+    type: string
+    format: uri
+    description: Imgproxy-generated thumbnail URL.
+  medium_url:
+    type: string
+    format: uri
+    description: Imgproxy-generated medium-size URL.
+  kind:
+    type: string
+    enum:
+      - image
+      - video
+  caption:
+    type:
+      - string
+      - 'null'
+    maxLength: 500
+  content_type:
+    type:
+      - string
+      - 'null'
+    examples:
+      - image/jpeg
+  size_bytes:
+    type: integer
+    minimum: 0
+  created_at:
+    type: string
+    format: date-time

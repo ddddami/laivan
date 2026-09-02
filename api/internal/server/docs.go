@@ -19,7 +19,7 @@ func (app *app) docs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *app) openapi(w http.ResponseWriter, r *http.Request) {
-	path, err := repoFilePath("openapi/openapi.yaml")
+	path, err := repoFilePath("openapi/bundle.yaml")
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("find OpenAPI contract: %w", err))
 		return

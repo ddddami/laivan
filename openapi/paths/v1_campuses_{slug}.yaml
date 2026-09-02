@@ -1,0 +1,36 @@
+get:
+  operationId: getCampusBySlug
+  tags:
+    - Campuses
+  summary: Resolve a public campus by slug.
+  description: Returns the stable public identity needed to scope marketplace discovery.
+  parameters:
+    - name: slug
+      in: path
+      required: true
+      description: Stable campus slug, such as `futa`.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+  responses:
+    '200':
+      description: Campus returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/CampusResponse.yaml
+          examples:
+            futa:
+              value:
+                campus:
+                  id: 550e8400-e29b-41d4-a716-446655440002
+                  slug: futa
+                  name: Federal University of Technology, Akure
+                  short_name: FUTA
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

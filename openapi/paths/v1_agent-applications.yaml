@@ -1,0 +1,53 @@
+post:
+  operationId: submitAgentApplication
+  tags:
+    - Agent Applications
+  summary: Submit an agent application.
+  description: >-
+    Submits a campus-scoped application using the authenticated user as the
+    applicant.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreateAgentApplicationRequest.yaml
+  responses:
+    '201':
+      description: Application submitted successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentApplicationResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '409':
+      $ref: ../components/responses/Conflict.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+get:
+  operationId: listAgentApplications
+  tags:
+    - Agent Applications
+  summary: List the authenticated user's agent applications.
+  security:
+    - sessionAuth: []
+  responses:
+    '200':
+      description: Applications returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentApplicationsResponse.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

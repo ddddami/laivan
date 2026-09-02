@@ -35,7 +35,14 @@ func TestOpenAPIServesContract(t *testing.T) {
 	if got := rr.Header().Get("Content-Type"); got != "text/yaml; charset=utf-8" {
 		t.Fatalf("Content-Type = %q, want text/yaml; charset=utf-8", got)
 	}
-	if !strings.Contains(rr.Body.String(), "openapi: 3.1.0") {
+	body := rr.Body.String()
+	if !strings.Contains(body, "openapi: 3.1.0") {
 		t.Fatal("OpenAPI response does not include contract version")
+	}
+	if !strings.Contains(body, "/v1/agent-applications:") {
+		t.Fatal("OpenAPI response does not include bundled paths")
+	}
+	if strings.Contains(body, "$ref: paths/") {
+		t.Fatal("OpenAPI response contains unresolved modular path references")
 	}
 }

@@ -1,0 +1,35 @@
+post:
+  operationId: declineAgentApplication
+  tags:
+    - Agent Applications
+  summary: Decline a pending agent application.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/ApplicationID.yaml
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/DeclineAgentApplicationRequest.yaml
+  responses:
+    '200':
+      description: Application declined successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentApplicationResponse.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '409':
+      $ref: ../components/responses/Conflict.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

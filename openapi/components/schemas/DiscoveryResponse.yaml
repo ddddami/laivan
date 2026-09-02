@@ -1,0 +1,11 @@
+type: object
+required:
+  - results
+  - metadata
+properties:
+  results:
+    type: array
+    items:
+      $ref: ./DiscoveryResult.yaml
+  metadata:
+    $ref: ./Metadata.yaml

@@ -1,0 +1,95 @@
+get:
+  operationId: listAgentOffers
+  tags:
+    - Agent Offers
+  summary: List agent offers for a unit type.
+  description: >-
+    Returns agent-specific offers for a property unit type ordered by newest
+    first.
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Unit type ID.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Agent offers returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentOffersResponse.yaml
+          examples:
+            agentOffers:
+              value:
+                agent_offers:
+                  - id: 550e8400-e29b-41d4-a716-446655440030
+                    property_unit_type_id: 550e8400-e29b-41d4-a716-446655440020
+                    agent_id: 550e8400-e29b-41d4-a716-446655440040
+                    title: Fresh self-contained room
+                    description: Recently painted room with private bathroom.
+                    notes: 2 left. Inspection tomorrow only.
+                    price_naira: 350000
+                    status: available
+                    created_at: '2026-05-01T10:00:00Z'
+                    updated_at: '2026-05-01T10:00:00Z'
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+post:
+  operationId: createAgentOffer
+  tags:
+    - Agent Offers
+  summary: Create an agent offer for a unit type.
+  description: >-
+    Creates an offer for the authenticated user's active agent profile,
+    including price and current availability status.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Unit type ID.
+      schema:
+        type: string
+        format: uuid
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreateAgentOfferRequest.yaml
+        examples:
+          agentOffer:
+            value:
+              title: Fresh self-contained room
+              description: Recently painted room with private bathroom.
+              notes: 2 left. Inspection tomorrow only.
+              price_naira: 350000
+              status: available
+  responses:
+    '201':
+      description: Agent offer created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentOfferResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

@@ -1,0 +1,10 @@
+type: object
+additionalProperties: false
+properties:
+  legacy_agent_id:
+    type: string
+    format: uuid
+    description: Explicitly selected legacy agent to link. Omit to create a new agent.
+  operator_note:
+    type: string
+    maxLength: 2000

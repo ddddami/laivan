@@ -1,0 +1,20 @@
+post:
+  operationId: logoutAuthSession
+  tags:
+    - Authentication
+  summary: Revoke the current browser session.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/CSRFToken.yaml
+  responses:
+    '204':
+      description: Session revoked and browser cookies cleared.
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+    '503':
+      $ref: ../components/responses/AuthUnavailable.yaml

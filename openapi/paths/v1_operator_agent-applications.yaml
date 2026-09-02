@@ -1,0 +1,35 @@
+get:
+  operationId: listOperatorAgentApplications
+  tags:
+    - Agent Applications
+  summary: List agent applications for an authorized campus.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: campus_id
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: status
+      in: query
+      required: false
+      schema:
+        $ref: ../components/schemas/AgentApplicationStatus.yaml
+      description: Filters applications by status. Defaults to pending.
+  responses:
+    '200':
+      description: Campus applications returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentApplicationsResponse.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

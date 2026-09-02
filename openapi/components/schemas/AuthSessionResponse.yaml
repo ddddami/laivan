@@ -1,0 +1,27 @@
+type: object
+required:
+  - authenticated
+  - user
+  - roles
+  - agent
+  - csrf_token
+properties:
+  authenticated:
+    type: boolean
+  user:
+    anyOf:
+      - $ref: ./AuthUser.yaml
+      - type: 'null'
+  roles:
+    type: array
+    items:
+      type: string
+  agent:
+    anyOf:
+      - $ref: ./LinkedAgent.yaml
+      - type: 'null'
+  csrf_token:
+    type:
+      - string
+      - 'null'
+    description: CSRF token for unsafe requests when authenticated.

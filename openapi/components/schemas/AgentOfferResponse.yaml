@@ -1,0 +1,6 @@
+type: object
+required:
+  - agent_offer
+properties:
+  agent_offer:
+    $ref: ./AgentOffer.yaml

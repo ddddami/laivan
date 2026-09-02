@@ -1,0 +1,157 @@
+get:
+  operationId: listProperties
+  tags:
+    - Properties
+  summary: List properties for a campus.
+  description: >
+    Returns campus-scoped properties ordered by newest first.
+
+
+    This is the initial discovery feed foundation. It intentionally returns
+    properties, not a separate generic listing model.
+  parameters:
+    - name: campus_id
+      in: query
+      required: true
+      description: Campus ID that scopes marketplace discovery.
+      schema:
+        type: string
+        format: uuid
+    - name: page
+      in: query
+      required: false
+      description: Page number. Defaults to 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: page_size
+      in: query
+      required: false
+      description: Number of items per page. Defaults to 20. Maximum is 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    - name: sort
+      in: query
+      required: false
+      description: Sort order. Prefix with `-` for descending. Defaults to `-created_at`.
+      schema:
+        type: string
+        enum:
+          - created_at
+          - '-created_at'
+          - name
+          - '-name'
+          - area
+          - '-area'
+          - lowest_price_naira
+          - '-lowest_price_naira'
+          - available_offer_count
+          - '-available_offer_count'
+        default: '-created_at'
+    - name: area
+      in: query
+      required: false
+      description: Filter by area text (case-insensitive partial match).
+      schema:
+        type: string
+    - name: name
+      in: query
+      required: false
+      description: Filter by property name (case-insensitive partial match).
+      schema:
+        type: string
+    - name: has_offers
+      in: query
+      required: false
+      description: >-
+        Filter to properties that have at least one available agent offer.
+        Accepts `true` or `false`.
+      schema:
+        type: boolean
+    - name: min_price
+      in: query
+      required: false
+      description: >-
+        Minimum price in naira. Filters by the property's lowest available offer
+        price.
+      schema:
+        type: integer
+        minimum: 1
+    - name: max_price
+      in: query
+      required: false
+      description: >-
+        Maximum price in naira. Filters by the property's lowest available offer
+        price.
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    '200':
+      description: Properties returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/PropertiesResponse.yaml
+          examples:
+            properties:
+              value:
+                properties:
+                  - id: 550e8400-e29b-41d4-a716-446655440010
+                    campus_id: 550e8400-e29b-41d4-a716-446655440002
+                    name: Alice Lodge
+                    area: Obanla
+                    landmark: Near South Gate
+                    description: Gated lodge with multiple unit types near campus.
+                    unit_type_count: 3
+                    available_offer_count: 5
+                    lowest_price_naira: 250000
+                    created_at: '2026-05-01T10:00:00Z'
+                    updated_at: '2026-05-01T10:00:00Z'
+                metadata:
+                  current_page: 1
+                  page_size: 20
+                  first_page: 1
+                  last_page: 1
+                  total_records: 1
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+post:
+  operationId: createProperty
+  tags:
+    - Properties
+  summary: Create a property.
+  description: Creates a real-world accommodation property within a campus.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreatePropertyRequest.yaml
+        examples:
+          property:
+            value:
+              campus_id: 550e8400-e29b-41d4-a716-446655440002
+              name: Alice Lodge
+              area: Obanla
+              landmark: Near South Gate
+              description: Gated lodge with multiple unit types near campus.
+  responses:
+    '201':
+      description: Property created successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/PropertyResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

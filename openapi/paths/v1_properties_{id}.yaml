@@ -1,0 +1,26 @@
+get:
+  operationId: getProperty
+  tags:
+    - Properties
+  summary: Get a property by ID.
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Property ID.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '200':
+      description: Property returned successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/PropertyDetailResponse.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

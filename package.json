@@ -3,8 +3,11 @@
   "private": true,
   "packageManager": "pnpm@10.22.0",
   "scripts": {
-    "contract:generate": "pnpm --package=openapi-typescript@7.13.0 dlx openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable",
-    "contract:check": "pnpm --package=openapi-typescript@7.13.0 dlx openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable --check",
+    "contract:lint": "redocly lint openapi/openapi.yaml",
+    "contract:bundle": "redocly bundle openapi/openapi.yaml --output openapi/bundle.yaml --ext yaml",
+    "contract:bundle:check": "node scripts/check-openapi-bundle.mjs",
+    "contract:generate": "pnpm contract:bundle && openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable",
+    "contract:check": "pnpm contract:lint && pnpm contract:bundle:check && openapi-typescript openapi/openapi.yaml -o web/src/api/schema.gen.ts --immutable --check",
     "web:build": "pnpm --filter web build",
     "web:check": "pnpm --filter web check",
     "web:dev": "pnpm --filter web dev",
@@ -14,6 +17,16 @@
     "web:typecheck": "pnpm --filter web typecheck"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@parcel/watcher", "esbuild", "lightningcss", "workerd"]
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild",
+      "lightningcss",
+      "workerd"
+    ]
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.31.4",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
   }
 }

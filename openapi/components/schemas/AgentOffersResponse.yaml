@@ -1,0 +1,8 @@
+type: object
+required:
+  - agent_offers
+properties:
+  agent_offers:
+    type: array
+    items:
+      $ref: ./AgentOffer.yaml

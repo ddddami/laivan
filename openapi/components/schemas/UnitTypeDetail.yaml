@@ -1,0 +1,66 @@
+type: object
+required:
+  - id
+  - property_id
+  - category
+  - name
+  - description
+  - bedroom_count
+  - has_parlour
+  - bathroom_type
+  - kitchen_type
+  - agent_offers
+  - media
+  - created_at
+  - updated_at
+properties:
+  id:
+    type: string
+    format: uuid
+  property_id:
+    type: string
+    format: uuid
+  category:
+    $ref: ./UnitCategory.yaml
+  name:
+    type: string
+  description:
+    type: string
+    description: Unit type description. May be empty when unavailable.
+  notes:
+    type:
+      - string
+      - 'null'
+    maxLength: 2000
+    description: Structural notes about the unit.
+  bedroom_count:
+    type:
+      - integer
+      - 'null'
+    minimum: 0
+  has_parlour:
+    type:
+      - boolean
+      - 'null'
+  bathroom_type:
+    anyOf:
+      - $ref: ./BathroomType.yaml
+      - type: 'null'
+  kitchen_type:
+    anyOf:
+      - $ref: ./KitchenType.yaml
+      - type: 'null'
+  agent_offers:
+    type: array
+    items:
+      $ref: ./AgentOfferDetail.yaml
+  media:
+    type: array
+    items:
+      $ref: ./Media.yaml
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

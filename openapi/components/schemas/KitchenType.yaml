@@ -1,0 +1,6 @@
+type: string
+enum:
+  - private
+  - shared
+  - none
+  - unknown

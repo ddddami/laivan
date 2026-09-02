@@ -1,0 +1,13 @@
+allOf:
+  - $ref: ./AgentOffer.yaml
+  - type: object
+    required:
+      - agent
+      - media
+    properties:
+      agent:
+        $ref: ./AgentSummary.yaml
+      media:
+        type: array
+        items:
+          $ref: ./Media.yaml

@@ -1,0 +1,6 @@
+type: object
+required:
+  - application
+properties:
+  application:
+    $ref: ./AgentApplication.yaml

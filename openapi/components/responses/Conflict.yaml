@@ -1,0 +1,5 @@
+description: The requested state transition conflicts with the current resource state.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

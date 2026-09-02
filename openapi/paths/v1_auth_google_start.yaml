@@ -1,0 +1,23 @@
+get:
+  operationId: startGoogleAuth
+  tags:
+    - Authentication
+  summary: Start Google sign-in.
+  description: >-
+    Creates a short-lived signed OIDC attempt cookie and redirects the browser
+    to Google.
+  responses:
+    '302':
+      description: Redirect to Google sign-in.
+      headers:
+        Location:
+          schema:
+            type: string
+            format: uri
+        Set-Cookie:
+          schema:
+            type: string
+    '429':
+      $ref: ../components/responses/RateLimited.yaml
+    '503':
+      $ref: ../components/responses/AuthUnavailable.yaml

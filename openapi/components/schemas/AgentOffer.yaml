@@ -1,0 +1,49 @@
+type: object
+required:
+  - id
+  - property_unit_type_id
+  - agent_id
+  - title
+  - description
+  - price_naira
+  - status
+  - created_at
+  - updated_at
+properties:
+  id:
+    type: string
+    format: uuid
+  property_unit_type_id:
+    type: string
+    format: uuid
+  agent_id:
+    type: string
+    format: uuid
+  title:
+    type: string
+  description:
+    type: string
+    description: Agent-specific offer description. May be empty when unavailable.
+  notes:
+    type:
+      - string
+      - 'null'
+    maxLength: 2000
+    description: >-
+      Operational notes about the offer. Examples include "2 left" or
+      "Inspection tomorrow only."
+  price_naira:
+    type: integer
+    minimum: 1
+  status:
+    type: string
+    enum:
+      - available
+      - unavailable
+      - paused
+  created_at:
+    type: string
+    format: date-time
+  updated_at:
+    type: string
+    format: date-time

@@ -146,7 +146,7 @@ git diff --exit-code -- internal/db/generated
 
 [tasks."api:docs:validate"]
 description = "Validate the OpenAPI contract"
-run = "pnpm --package=@redocly/cli@2.31.4 dlx redocly lint openapi/openapi.yaml"
+run = "pnpm contract:lint"
 
 [tasks."web:install"]
 description = "Install web dependencies"

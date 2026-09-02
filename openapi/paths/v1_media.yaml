@@ -1,0 +1,63 @@
+post:
+  operationId: uploadMedia
+  tags:
+    - Media
+  summary: Upload media for a marketplace entity.
+  description: >
+    Uploads one or more image files for exactly one target: property, property
+    unit type, or agent offer.
+
+    Images are stored as originals and delivery variants are generated through
+    Imgproxy URLs.
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+            - files
+            - uploaded_by_agent_id
+          properties:
+            files:
+              type: array
+              items:
+                type: string
+                format: binary
+              description: One or more JPEG, PNG, or WebP image files.
+            property_id:
+              type: string
+              format: uuid
+              description: Property target ID. Use exactly one target field.
+            property_unit_type_id:
+              type: string
+              format: uuid
+              description: Property unit type target ID. Use exactly one target field.
+            agent_offer_id:
+              type: string
+              format: uuid
+              description: Agent offer target ID. Use exactly one target field.
+            uploaded_by_agent_id:
+              type: string
+              format: uuid
+              description: >-
+                Uploading agent ID. This is explicit until authenticated agent
+                context exists.
+            caption:
+              type: string
+              maxLength: 500
+  responses:
+    '201':
+      description: Media uploaded successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/MediaUploadResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

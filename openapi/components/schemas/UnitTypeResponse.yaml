@@ -1,0 +1,6 @@
+type: object
+required:
+  - unit_type
+properties:
+  unit_type:
+    $ref: ./UnitType.yaml

@@ -1,0 +1,9 @@
+type: string
+enum:
+  - single_room
+  - self_contained
+  - room_and_parlour
+  - one_bedroom_flat
+  - two_bedroom_flat
+  - three_bedroom_flat
+  - other

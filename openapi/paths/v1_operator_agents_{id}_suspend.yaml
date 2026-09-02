@@ -1,0 +1,42 @@
+post:
+  operationId: suspendAgent
+  tags:
+    - Agent Lifecycle
+  summary: Suspend an agent profile.
+  description: >-
+    Suspends an agent within the operator's campus scope, suspends linked active
+    applications, revokes linked-user sessions, and records an audit event.
+    Public marketplace records remain visible through their own lifecycle
+    status.
+  security:
+    - sessionAuth: []
+  parameters:
+    - $ref: ../components/parameters/AgentID.yaml
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/AgentLifecycleRequest.yaml
+  responses:
+    '200':
+      description: Agent suspended successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/AgentLifecycleResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '409':
+      $ref: ../components/responses/Conflict.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
