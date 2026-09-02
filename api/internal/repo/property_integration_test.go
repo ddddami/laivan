@@ -1405,6 +1405,113 @@ func TestRepositoryDiscover(t *testing.T) {
 	}
 }
 
+func TestRepositoryDiscoverRanking(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, ctx, pool)
+		truncateAgents(t, ctx, pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	agentID := insertAgent(t, ctx, pool, "Ranking Agent")
+	repository := NewPropertyRepository(pool)
+
+	// Property A: Available, No Thumbnail, Low completeness
+	propA := insertPropertyWithArea(t, ctx, pool, campusID, "Property A", "Area", time.Now().Add(-10*time.Hour))
+	unitA := insertPropertyUnitTypeFull(t, ctx, pool, propA, "single_room", "", 1, false, "shared", "shared", "")
+	insertAgentOffer(t, ctx, pool, unitA, agentID, "Offer A", 10000000)
+
+	// Property B: Available, Has Thumbnail, High completeness
+	propB := insertPropertyWithArea(t, ctx, pool, campusID, "Property B", "Area", time.Now().Add(-10*time.Hour))
+	unitB := insertPropertyUnitTypeFull(t, ctx, pool, propB, "self_contained", "Nice Unit", 1, false, "private", "private", "Great notes")
+	insertAgentOffer(t, ctx, pool, unitB, agentID, "Offer B", 20000000)
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: unitB,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/b.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create B media: %v", err)
+	}
+
+	// Property C: Unavailable (paused offer), Has Thumbnail, High completeness
+	propC := insertPropertyWithArea(t, ctx, pool, campusID, "Property C", "Area", time.Now().Add(-10*time.Hour))
+	unitC := insertPropertyUnitTypeFull(t, ctx, pool, propC, "self_contained", "Nice Unit", 1, false, "private", "private", "Great notes")
+	insertAgentOfferWithStatus(t, ctx, pool, unitC, agentID, "Offer C", 30000000, "paused")
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: unitC,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/c.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create C media: %v", err)
+	}
+
+	// Property D: Available, No Thumbnail, High completeness
+	propD := insertPropertyWithArea(t, ctx, pool, campusID, "Property D", "Area", time.Now().Add(-10*time.Hour))
+	unitD := insertPropertyUnitTypeFull(t, ctx, pool, propD, "self_contained", "Detailed Unit", 1, false, "private", "private", "Very descriptive notes about the unit")
+	insertAgentOffer(t, ctx, pool, unitD, agentID, "Offer D", 40000000)
+
+	// Push A, B, C, D's updated_at back in time to avoid flakiness with E
+	pastTime := time.Now().Add(-5 * time.Hour)
+	_, err := pool.Exec(ctx, "UPDATE properties SET updated_at = $1", pastTime)
+	if err != nil {
+		t.Fatalf("update properties time: %v", err)
+	}
+	_, err = pool.Exec(ctx, "UPDATE property_unit_types SET updated_at = $1", pastTime)
+	if err != nil {
+		t.Fatalf("update property_unit_types time: %v", err)
+	}
+	_, err = pool.Exec(ctx, "UPDATE agent_offers SET updated_at = $1", pastTime)
+	if err != nil {
+		t.Fatalf("update agent_offers time: %v", err)
+	}
+
+	// Property E: Available, Has Thumbnail, High completeness, more recently updated
+	propE := insertPropertyWithArea(t, ctx, pool, campusID, "Property E", "Area", time.Now())
+	unitE := insertPropertyUnitTypeFull(t, ctx, pool, propE, "self_contained", "Recent Unit", 1, false, "private", "private", "Great notes")
+	insertAgentOffer(t, ctx, pool, unitE, agentID, "Offer E", 50000000)
+	if _, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyUnitTypeID: unitE,
+		UploadedByAgentID:  agentID,
+		URL:                "https://media.example.test/e.jpg",
+		Kind:               domain.MediaKindImage,
+	}); err != nil {
+		t.Fatalf("create E media: %v", err)
+	}
+
+	recommended := data.Filters{
+		Page:         1,
+		PageSize:     10,
+		Sort:         "recommended",
+		SortSafelist: []string{"recommended"},
+	}
+
+	results, _, err := repository.Discover(ctx, DiscoveryFilter{
+		CampusID:     campusID,
+		Availability: DiscoveryAvailabilityAll,
+		Filters:      recommended,
+	})
+	if err != nil {
+		t.Fatalf("discover recommended: %v", err)
+	}
+
+	if len(results) != 5 {
+		t.Fatalf("expected 5 results, got %d", len(results))
+	}
+
+	expectedOrder := []string{"Property E", "Property B", "Property D", "Property A", "Property C"}
+	for i, expected := range expectedOrder {
+		if results[i].PropertyName != expected {
+			t.Errorf("rank %d: got %q, want %q", i+1, results[i].PropertyName, expected)
+		}
+	}
+}
 func TestRepositoryListPropertiesWithFilters(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
