@@ -49,6 +49,8 @@ type PropertyStore interface {
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error)
+	GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error)
+	UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error)
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error)
 	Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error)

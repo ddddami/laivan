@@ -1,0 +1,60 @@
+patch:
+  operationId: updatePropertyUnitType
+  tags:
+    - Unit Types
+  summary: Correct a unit type.
+  description: >-
+    Updates shared canonical unit type data for a campus operator using an
+    optimistic-concurrency version precondition.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Unit type ID.
+      schema:
+        type: string
+        format: uuid
+    - name: If-Match
+      in: header
+      required: true
+      description: ETag returned by the latest unit type read.
+      schema:
+        type: string
+        minLength: 1
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UpdateUnitTypeRequest.yaml
+  responses:
+    '200':
+      description: Unit type updated successfully.
+      headers:
+        ETag:
+          description: Current unit type version after the update.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/UnitTypeResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '412':
+      $ref: ../components/responses/PreconditionFailed.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '428':
+      $ref: ../components/responses/PreconditionRequired.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

@@ -549,6 +549,12 @@ func (s *fkViolationRepo) Get(ctx context.Context, id domain.ID) (domain.Propert
 func (s *fkViolationRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
 	return s.stub.Update(ctx, id, expectedVersion, patch)
 }
+func (s *fkViolationRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
+	return s.stub.GetPropertyUnitType(ctx, id)
+}
+func (s *fkViolationRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
+}
 func (s *fkViolationRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }

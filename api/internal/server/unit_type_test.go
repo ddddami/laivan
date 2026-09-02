@@ -196,6 +196,66 @@ func TestCreatePropertyUnitTypeRejectsUnassignedCampus(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
 }
 
+func TestUpdatePropertyUnitTypeRequiresOperatorAccess(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated"}`, true)
+	req.Header.Set("If-Match", `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "Campus operator access is required")
+}
+
+func TestUpdatePropertyUnitTypeRequiresIfMatch(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated"}`, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+}
+
+func TestUpdatePropertyUnitTypeReturnsNewVersionAndETag(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated unit"}`, true)
+	req.Header.Set("If-Match", `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("ETag"); got != `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-2"` {
+		t.Fatalf("ETag = %q, want updated unit type ETag", got)
+	}
+	var body struct {
+		UnitType struct {
+			Description string `json:"description"`
+			Version     int    `json:"version"`
+		} `json:"unit_type"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.UnitType.Description != "Updated unit" {
+		t.Fatalf("description = %q, want Updated unit", body.UnitType.Description)
+	}
+	if body.UnitType.Version != 2 {
+		t.Fatalf("version = %d, want 2", body.UnitType.Version)
+	}
+}
+
 func TestListPropertyUnitTypesReturnsUnitTypes(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/properties/550e8400-e29b-41d4-a716-446655440000/unit-types", nil)

@@ -315,6 +315,56 @@ func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType 
 	return unitType, nil
 }
 
+func (s *stubPropertyRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
+	unitTypes, err := s.ListPropertyUnitTypes(ctx, domain.ID("550e8400-e29b-41d4-a716-446655440000"))
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
+	for _, unitType := range unitTypes {
+		if unitType.ID == id {
+			return unitType, nil
+		}
+	}
+	return domain.PropertyUnitType{}, repo.ErrNotFound
+}
+
+func (s *stubPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+	unitType, err := s.GetPropertyUnitType(ctx, id)
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
+	if unitType.Version != expectedVersion {
+		return domain.PropertyUnitType{}, repo.ErrStaleUpdate
+	}
+	if patch.Category != nil {
+		unitType.Category = *patch.Category
+	}
+	if patch.Name != nil {
+		unitType.Name = *patch.Name
+	}
+	if patch.Description != nil {
+		unitType.Description = *patch.Description
+	}
+	if patch.Notes != nil {
+		unitType.Notes = *patch.Notes
+	}
+	if patch.BedroomCount != nil {
+		unitType.Structure.BedroomCount = patch.BedroomCount
+	}
+	if patch.HasParlour != nil {
+		unitType.Structure.HasParlour = patch.HasParlour
+	}
+	if patch.BathroomType != nil {
+		unitType.Structure.BathroomType = *patch.BathroomType
+	}
+	if patch.KitchenType != nil {
+		unitType.Structure.KitchenType = *patch.KitchenType
+	}
+	unitType.Version++
+	unitType.UpdatedAt = time.Now()
+	return unitType, nil
+}
+
 func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
 	if string(propertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return nil, repo.ErrNotFound
@@ -327,6 +377,7 @@ func (s *stubPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID
 			Category:    domain.UnitCategorySelfContained,
 			Name:        "Self-contained",
 			Description: "Private room with bathroom and kitchenette.",
+			Version:     1,
 			Structure: domain.UnitStructure{
 				BedroomCount: intPointer(1),
 				HasParlour:   boolPointer(false),
@@ -418,6 +469,14 @@ func (s *spyPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVers
 	return s.stub.Update(ctx, id, expectedVersion, patch)
 }
 
+func (s *spyPropertyRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
+	return s.stub.GetPropertyUnitType(ctx, id)
+}
+
+func (s *spyPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
+}
+
 func (s *spyPropertyRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)
 }
@@ -491,6 +550,12 @@ func (s *duplicateAgentOfferRepo) Get(ctx context.Context, id domain.ID) (domain
 }
 func (s *duplicateAgentOfferRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
 	return s.stub.Update(ctx, id, expectedVersion, patch)
+}
+func (s *duplicateAgentOfferRepo) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
+	return s.stub.GetPropertyUnitType(ctx, id)
+}
+func (s *duplicateAgentOfferRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error) {
+	return s.stub.UpdatePropertyUnitType(ctx, id, expectedVersion, patch)
 }
 func (s *duplicateAgentOfferRepo) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	return s.stub.GetWithDetails(ctx, id)

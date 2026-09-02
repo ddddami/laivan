@@ -351,6 +351,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/unit-types/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /**
+         * Correct a unit type.
+         * @description Updates shared canonical unit type data for a campus operator using an optimistic-concurrency version precondition.
+         */
+        readonly patch: operations["updatePropertyUnitType"];
+        readonly trace?: never;
+    };
     readonly "/v1/media": {
         readonly parameters: {
             readonly query?: never;
@@ -774,6 +794,16 @@ export interface components {
             readonly area?: string;
             readonly landmark?: string;
             readonly description?: string;
+        };
+        readonly UpdateUnitTypeRequest: {
+            readonly category?: components["schemas"]["UnitCategory"];
+            readonly name?: string;
+            readonly description?: string;
+            readonly notes?: string;
+            readonly bedroom_count?: number;
+            readonly has_parlour?: boolean;
+            readonly bathroom_type?: components["schemas"]["BathroomType"];
+            readonly kitchen_type?: components["schemas"]["KitchenType"];
         };
     };
     responses: {
@@ -1537,6 +1567,8 @@ export interface operations {
             /** @description Unit type created successfully. */
             readonly 201: {
                 headers: {
+                    /** @description Current unit type version. */
+                    readonly ETag?: string;
                     readonly [name: string]: unknown;
                 };
                 content: {
@@ -1610,6 +1642,48 @@ export interface operations {
             readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly updatePropertyUnitType: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description ETag returned by the latest unit type read. */
+                readonly "If-Match": string;
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Unit type ID. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateUnitTypeRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Unit type updated successfully. */
+            readonly 200: {
+                headers: {
+                    /** @description Current unit type version after the update. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["UnitTypeResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
             readonly 500: components["responses"]["InternalServerError"];
         };
     };

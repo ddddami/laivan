@@ -8,6 +8,27 @@ SELECT id, campus_id, name, area, landmark, description, created_at, updated_at,
 FROM properties
 WHERE id = $1;
 
+-- name: GetPropertyUnitType :one
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+FROM property_unit_types
+WHERE id = $1;
+
+-- name: UpdatePropertyUnitType :one
+UPDATE property_unit_types
+SET category = COALESCE(sqlc.narg('category'), category),
+    name = COALESCE(sqlc.narg('name'), name),
+    description = COALESCE(sqlc.narg('description'), description),
+    notes = COALESCE(sqlc.narg('notes'), notes),
+    bedroom_count = COALESCE(sqlc.narg('bedroom_count'), bedroom_count),
+    has_parlour = COALESCE(sqlc.narg('has_parlour'), has_parlour),
+    bathroom_type = COALESCE(sqlc.narg('bathroom_type'), bathroom_type),
+    kitchen_type = COALESCE(sqlc.narg('kitchen_type'), kitchen_type),
+    version = version + 1,
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+  AND version = sqlc.arg('expected_version')
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version;
+
 -- name: UpdateProperty :one
 UPDATE properties
 SET name = COALESCE(sqlc.narg('name'), name),
@@ -37,11 +58,6 @@ SELECT id, property_id, name, description, created_at, updated_at, category, bed
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC;
-
--- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
-FROM property_unit_types
-WHERE id = $1;
 
 -- name: GetPropertyUnitTypeMediaTarget :one
 SELECT put.id AS property_unit_type_id, put.property_id, p.campus_id

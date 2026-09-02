@@ -399,6 +399,9 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	if created.ID == "" {
 		t.Fatal("created property unit type ID is empty")
 	}
+	if created.Version != 1 {
+		t.Fatalf("created version = %d, want 1", created.Version)
+	}
 	if created.PropertyID != propertyID {
 		t.Fatalf("property ID = %q, want %q", created.PropertyID, propertyID)
 	}
@@ -457,6 +460,20 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 	if listed[0].Notes != "Top floor corner unit with better ventilation." {
 		t.Fatalf("listed notes = %q, want Top floor corner unit with better ventilation.", listed[0].Notes)
+	}
+
+	updatedDescription := "Corrected unit description."
+	updated, err := repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription})
+	if err != nil {
+		t.Fatalf("update property unit type: %v", err)
+	}
+	if updated.Description != updatedDescription || updated.Version != 2 {
+		t.Fatalf("updated unit type = %#v, want corrected description at version 2", updated)
+	}
+
+	_, err = repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription})
+	if !errors.Is(err, ErrStaleUpdate) {
+		t.Fatalf("stale unit type update error = %v, want %v", err, ErrStaleUpdate)
 	}
 }
 

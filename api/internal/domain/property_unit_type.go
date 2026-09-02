@@ -24,6 +24,17 @@ type PropertyUnitType struct {
 	Timestamps
 }
 
+type PropertyUnitTypePatch struct {
+	Category     *UnitCategory
+	Name         *string
+	Description  *string
+	Notes        *string
+	BedroomCount *int
+	HasParlour   *bool
+	BathroomType *string
+	KitchenType  *string
+}
+
 type UnitStructure struct {
 	BedroomCount *int
 	HasParlour   *bool
