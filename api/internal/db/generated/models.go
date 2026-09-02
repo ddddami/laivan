@@ -34,7 +34,7 @@ type AgentApplication struct {
 	DecidedAt       pgtype.Timestamptz
 }
 
-type AgentCampuse struct {
+type AgentCampus struct {
 	AgentID   pgtype.UUID
 	CampusID  pgtype.UUID
 	CreatedAt pgtype.Timestamptz
@@ -65,13 +65,7 @@ type AuditEvent struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
-type CampusOperator struct {
-	UserID    pgtype.UUID
-	CampusID  pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-}
-
-type Campuse struct {
+type Campus struct {
 	ID        pgtype.UUID
 	Slug      string
 	Name      string
@@ -79,6 +73,12 @@ type Campuse struct {
 	IsActive  bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+}
+
+type CampusOperator struct {
+	UserID    pgtype.UUID
+	CampusID  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 }
 
 type GlobalAdminRole struct {
