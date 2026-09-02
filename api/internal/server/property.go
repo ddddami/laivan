@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/data"
@@ -136,7 +134,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, fmt.Errorf("create property: %w", err))
 		return
 	}
-	setPropertyETag(w, created)
+	setETag(w, "property", created.ID, created.Version)
 
 	data := envelope{
 		"property": propertyResponse(created),
@@ -167,7 +165,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, fmt.Errorf("get property: %w", err))
 		return
 	}
-	setPropertyETag(w, property.Property)
+	setETag(w, "property", property.ID, property.Version)
 
 	data := envelope{
 		"property": app.propertyDetailResponse(property),
@@ -193,7 +191,7 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 		app.preconditionRequiredResponse(w, r)
 		return
 	}
-	expectedVersion, ok := parsePropertyETag(ifMatch, domain.ID(id))
+	expectedVersion, ok := parseETag(ifMatch, "property", domain.ID(id))
 	if !ok {
 		app.preconditionFailedResponse(w, r)
 		return
@@ -261,32 +259,10 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setPropertyETag(w, updated)
+	setETag(w, "property", updated.ID, updated.Version)
 	if err := writeJSON(w, http.StatusOK, envelope{"property": propertyResponse(updated)}, nil); err != nil {
 		app.logger.Error("write updated property response", "error", err)
 	}
-}
-
-func propertyETag(id domain.ID, version int) string {
-	return fmt.Sprintf(`"property-%s-%d"`, id, version)
-}
-
-func setPropertyETag(w http.ResponseWriter, property domain.Property) {
-	w.Header().Set("ETag", propertyETag(property.ID, property.Version))
-}
-
-func parsePropertyETag(value string, id domain.ID) (int, bool) {
-	prefix := fmt.Sprintf(`"property-%s-`, id)
-	if !strings.HasPrefix(value, prefix) || !strings.HasSuffix(value, `"`) {
-		return 0, false
-	}
-
-	versionText := strings.TrimSuffix(strings.TrimPrefix(value, prefix), `"`)
-	version, err := strconv.Atoi(versionText)
-	if err != nil || version < 1 {
-		return 0, false
-	}
-	return version, true
 }
 
 func propertyResponse(p domain.Property) map[string]any {
