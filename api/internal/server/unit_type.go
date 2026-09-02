@@ -127,14 +127,14 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Category     PatchField[string] `json:"category"`
-		Name         PatchField[string] `json:"name"`
-		Description  PatchField[string] `json:"description"`
-		Notes        PatchField[string] `json:"notes"`
-		BedroomCount PatchField[int]    `json:"bedroom_count"`
-		HasParlour   PatchField[bool]   `json:"has_parlour"`
-		BathroomType PatchField[string] `json:"bathroom_type"`
-		KitchenType  PatchField[string] `json:"kitchen_type"`
+		Category     patchField[string] `json:"category"`
+		Name         patchField[string] `json:"name"`
+		Description  patchField[string] `json:"description"`
+		Notes        patchField[string] `json:"notes"`
+		BedroomCount patchField[int]    `json:"bedroom_count"`
+		HasParlour   patchField[bool]   `json:"has_parlour"`
+		BathroomType patchField[string] `json:"bathroom_type"`
+		KitchenType  patchField[string] `json:"kitchen_type"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
@@ -177,13 +177,13 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := app.propertyRepo.UpdatePropertyUnitType(r.Context(), domain.ID(id), expectedVersion, domain.PropertyUnitTypePatch{
 		Category:     optionalUnitCategoryValue(input.Category),
-		Name:         OptionalValue(input.Name),
-		Description:  OptionalValue(input.Description),
-		Notes:        OptionalValue(input.Notes),
-		BedroomCount: OptionalValue(input.BedroomCount),
-		HasParlour:   OptionalValue(input.HasParlour),
-		BathroomType: OptionalValue(input.BathroomType),
-		KitchenType:  OptionalValue(input.KitchenType),
+		Name:         patchValue(input.Name),
+		Description:  patchValue(input.Description),
+		Notes:        patchValue(input.Notes),
+		BedroomCount: patchValue(input.BedroomCount),
+		HasParlour:   patchValue(input.HasParlour),
+		BathroomType: patchValue(input.BathroomType),
+		KitchenType:  patchValue(input.KitchenType),
 	}, p.User.ID)
 	if err != nil {
 		switch {
@@ -205,7 +205,7 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func optionalUnitCategoryValue(value PatchField[string]) *domain.UnitCategory {
+func optionalUnitCategoryValue(value patchField[string]) *domain.UnitCategory {
 	if !value.Present {
 		return nil
 	}

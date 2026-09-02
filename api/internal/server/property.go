@@ -198,10 +198,10 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Name        PatchField[string] `json:"name"`
-		Area        PatchField[string] `json:"area"`
-		Landmark    PatchField[string] `json:"landmark"`
-		Description PatchField[string] `json:"description"`
+		Name        patchField[string] `json:"name"`
+		Area        patchField[string] `json:"area"`
+		Landmark    patchField[string] `json:"landmark"`
+		Description patchField[string] `json:"description"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
@@ -235,10 +235,10 @@ func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err := app.propertyRepo.Update(r.Context(), domain.ID(id), expectedVersion, domain.PropertyPatch{
-		Name:        OptionalValue(input.Name),
-		Area:        OptionalValue(input.Area),
-		Landmark:    OptionalValue(input.Landmark),
-		Description: OptionalValue(input.Description),
+		Name:        patchValue(input.Name),
+		Area:        patchValue(input.Area),
+		Landmark:    patchValue(input.Landmark),
+		Description: patchValue(input.Description),
 	}, p.User.ID)
 	if err != nil {
 		switch {
