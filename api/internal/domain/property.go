@@ -10,6 +10,13 @@ type Property struct {
 	Timestamps
 }
 
+type PropertyPatch struct {
+	Name        *string
+	Area        *string
+	Landmark    *string
+	Description *string
+}
+
 type PropertySummary struct {
 	Property
 	UnitTypeCount       int

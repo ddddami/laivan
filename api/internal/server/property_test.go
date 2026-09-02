@@ -128,6 +128,80 @@ func TestCreatePropertyRejectsUnassignedCampus(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to contribute to this campus")
 }
 
+func TestUpdatePropertyRequiresOperatorAccess(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "Campus operator access is required")
+}
+
+func TestUpdatePropertyRequiresIfMatch(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+}
+
+func TestUpdatePropertyRejectsStaleVersion(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
+	req.Header.Set("If-Match", `"property-550e8400-e29b-41d4-a716-446655440000-2"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusPreconditionFailed, "precondition_failed", "The resource has changed; refresh before retrying")
+}
+
+func TestUpdatePropertyReturnsNewVersionAndETag(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = &stubPropertyRepo{}
+	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
+	req.Header.Set("If-Match", `"property-550e8400-e29b-41d4-a716-446655440000-1"`)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("ETag"); got != `"property-550e8400-e29b-41d4-a716-446655440000-2"` {
+		t.Fatalf("ETag = %q, want updated property ETag", got)
+	}
+	var body struct {
+		Property struct {
+			Name    string `json:"name"`
+			Version int    `json:"version"`
+		} `json:"property"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.Property.Name != "Updated Lodge" {
+		t.Fatalf("property name = %q, want Updated Lodge", body.Property.Name)
+	}
+	if body.Property.Version != 2 {
+		t.Fatalf("version = %d, want 2", body.Property.Version)
+	}
+}
+
 func TestListPropertiesValidationErrors(t *testing.T) {
 	app := testAppWithRepo()
 	req := httptest.NewRequest(http.MethodGet, "/v1/properties?page_size=0", nil)
@@ -263,6 +337,9 @@ func TestGetPropertyReturnsPropertyWithDetails(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if got := rr.Header().Get("ETag"); got != `"property-550e8400-e29b-41d4-a716-446655440000-1"` {
+		t.Fatalf("ETag = %q, want current property ETag", got)
 	}
 
 	var body struct {

@@ -740,6 +740,11 @@ paths:
       responses:
         '201':
           description: Property created successfully.
+          headers:
+            ETag:
+              description: Current property version.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -771,6 +776,11 @@ paths:
       responses:
         '200':
           description: Property returned successfully.
+          headers:
+            ETag:
+              description: Current property version.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -779,6 +789,64 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      operationId: updateProperty
+      tags:
+        - Properties
+      summary: Correct a property.
+      description: Updates shared canonical property data for a campus operator using an optimistic-concurrency version precondition.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Property ID.
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          description: ETag returned by the latest property read.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePropertyRequest'
+      responses:
+        '200':
+          description: Property updated successfully.
+          headers:
+            ETag:
+              description: Current property version after the update.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /v1/properties/{id}/unit-types:
@@ -1168,6 +1236,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: The requested state transition conflicts with the current resource state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionFailed:
+      description: The resource version no longer matches the supplied precondition.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionRequired:
+      description: A resource version precondition is required.
       content:
         application/json:
           schema:
@@ -2145,3 +2225,22 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ValidationError'
+    UpdatePropertyRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        area:
+          type: string
+          minLength: 1
+          maxLength: 100
+        landmark:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000

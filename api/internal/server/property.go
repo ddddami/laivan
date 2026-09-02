@@ -1,9 +1,13 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ddddami/laivan/internal/data"
@@ -134,6 +138,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, fmt.Errorf("create property: %w", err))
 		return
 	}
+	setPropertyETag(w, created)
 
 	data := envelope{
 		"property": propertyResponse(created),
@@ -154,7 +159,6 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		app.validationFailedResponse(w, r, v.FieldErrors)
 		return
 	}
-
 	property, err := app.propertyRepo.GetWithDetails(r.Context(), domain.ID(id))
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
@@ -165,6 +169,7 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, fmt.Errorf("get property: %w", err))
 		return
 	}
+	setPropertyETag(w, property.Property)
 
 	data := envelope{
 		"property": app.propertyDetailResponse(property),
@@ -173,6 +178,144 @@ func (app *app) getProperty(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, data, nil); err != nil {
 		app.logger.Error("write property response", "error", err)
 	}
+}
+
+type optionalPropertyString struct {
+	value   string
+	present bool
+}
+
+func (s *optionalPropertyString) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return errors.New("property patch fields must not be null")
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return errors.New("property patch fields must be strings")
+	}
+
+	s.value = value
+	s.present = true
+	return nil
+}
+
+func (app *app) updateProperty(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	v := validator.New()
+	v.Check(validator.NotBlank(id), "id", "ID is required")
+	v.Check(validator.ValidUUID(id), "id", "ID must be a valid UUID")
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	ifMatch := r.Header.Get("If-Match")
+	if ifMatch == "" {
+		app.preconditionRequiredResponse(w, r)
+		return
+	}
+	expectedVersion, ok := parsePropertyETag(ifMatch, domain.ID(id))
+	if !ok {
+		app.preconditionFailedResponse(w, r)
+		return
+	}
+
+	var input struct {
+		Name        optionalPropertyString `json:"name"`
+		Area        optionalPropertyString `json:"area"`
+		Landmark    optionalPropertyString `json:"landmark"`
+		Description optionalPropertyString `json:"description"`
+	}
+	if err := readJSON(w, r, &input); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v.Check(input.Name.present || input.Area.present || input.Landmark.present || input.Description.present, "body", "At least one property field is required")
+	if input.Name.present {
+		v.Check(validator.NotBlank(input.Name.value), "name", "Name is required")
+		v.Check(validator.MaxChars(input.Name.value, 255), "name", "Name must not exceed 255 characters")
+	}
+	if input.Area.present {
+		v.Check(validator.NotBlank(input.Area.value), "area", "Area is required")
+		v.Check(validator.MaxChars(input.Area.value, 100), "area", "Area must not exceed 100 characters")
+	}
+	if input.Landmark.present {
+		v.Check(validator.MaxChars(input.Landmark.value, 100), "landmark", "Landmark must not exceed 100 characters")
+	}
+	if input.Description.present {
+		v.Check(validator.MaxChars(input.Description.value, 1000), "description", "Description must not exceed 1000 characters")
+	}
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	property, err := app.propertyRepo.Get(r.Context(), domain.ID(id))
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("get property for update: %w", err))
+		return
+	}
+
+	p, ok := principalFromContext(r.Context())
+	if !ok || (!p.Access.GlobalAdmin && !containsID(p.Access.CampusOperatorIDs, property.CampusID)) {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "Campus operator access is required for this property")
+		return
+	}
+
+	updated, err := app.propertyRepo.Update(r.Context(), domain.ID(id), expectedVersion, domain.PropertyPatch{
+		Name:        optionalPropertyValue(input.Name),
+		Area:        optionalPropertyValue(input.Area),
+		Landmark:    optionalPropertyValue(input.Landmark),
+		Description: optionalPropertyValue(input.Description),
+	})
+	if err != nil {
+		if errors.Is(err, repo.ErrStaleUpdate) {
+			app.preconditionFailedResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("update property: %w", err))
+		return
+	}
+
+	setPropertyETag(w, updated)
+	if err := writeJSON(w, http.StatusOK, envelope{"property": propertyResponse(updated)}, nil); err != nil {
+		app.logger.Error("write updated property response", "error", err)
+	}
+}
+
+func optionalPropertyValue(value optionalPropertyString) *string {
+	if !value.present {
+		return nil
+	}
+	return &value.value
+}
+
+func propertyETag(id domain.ID, version int) string {
+	return fmt.Sprintf(`"property-%s-%d"`, id, version)
+}
+
+func setPropertyETag(w http.ResponseWriter, property domain.Property) {
+	w.Header().Set("ETag", propertyETag(property.ID, property.Version))
+}
+
+func parsePropertyETag(value string, id domain.ID) (int, bool) {
+	prefix := fmt.Sprintf(`"property-%s-`, id)
+	if !strings.HasPrefix(value, prefix) || !strings.HasSuffix(value, `"`) {
+		return 0, false
+	}
+
+	versionText := strings.TrimSuffix(strings.TrimPrefix(value, prefix), `"`)
+	version, err := strconv.Atoi(versionText)
+	if err != nil || version < 1 {
+		return 0, false
+	}
+	return version, true
 }
 
 func propertyResponse(p domain.Property) map[string]any {

@@ -406,7 +406,7 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 
 const listPropertiesWithSummary = `-- name: ListPropertiesWithSummary :many
 SELECT
-   p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
+  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
   COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
   COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
   COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
@@ -511,4 +511,50 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateProperty = `-- name: UpdateProperty :one
+UPDATE properties
+SET name = COALESCE($1, name),
+    area = COALESCE($2, area),
+    landmark = COALESCE($3, landmark),
+    description = COALESCE($4, description),
+    version = version + 1,
+    updated_at = now()
+WHERE id = $5
+  AND version = $6
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version
+`
+
+type UpdatePropertyParams struct {
+	Name            pgtype.Text
+	Area            pgtype.Text
+	Landmark        pgtype.Text
+	Description     pgtype.Text
+	ID              pgtype.UUID
+	ExpectedVersion int
+}
+
+func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) (Property, error) {
+	row := q.db.QueryRow(ctx, updateProperty,
+		arg.Name,
+		arg.Area,
+		arg.Landmark,
+		arg.Description,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	var i Property
+	err := row.Scan(
+		&i.ID,
+		&i.CampusID,
+		&i.Name,
+		&i.Area,
+		&i.Landmark,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
 }

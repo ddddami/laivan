@@ -14,6 +14,11 @@ get:
   responses:
     '200':
       description: Property returned successfully.
+      headers:
+        ETag:
+          description: Current property version.
+          schema:
+            type: string
       content:
         application/json:
           schema:
@@ -22,5 +27,65 @@ get:
       $ref: ../components/responses/NotFound.yaml
     '422':
       $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
+patch:
+  operationId: updateProperty
+  tags:
+    - Properties
+  summary: Correct a property.
+  description: >-
+    Updates shared canonical property data for a campus operator using an
+    optimistic-concurrency version precondition.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Property ID.
+      schema:
+        type: string
+        format: uuid
+    - name: If-Match
+      in: header
+      required: true
+      description: ETag returned by the latest property read.
+      schema:
+        type: string
+        minLength: 1
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UpdatePropertyRequest.yaml
+  responses:
+    '200':
+      description: Property updated successfully.
+      headers:
+        ETag:
+          description: Current property version after the update.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/PropertyResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '412':
+      $ref: ../components/responses/PreconditionFailed.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '428':
+      $ref: ../components/responses/PreconditionRequired.yaml
     '500':
       $ref: ../components/responses/InternalServerError.yaml

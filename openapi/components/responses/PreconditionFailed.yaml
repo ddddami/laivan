@@ -1,0 +1,5 @@
+description: The resource version no longer matches the supplied precondition.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

@@ -88,6 +88,34 @@ func (r *PropertyRepository) Get(ctx context.Context, id domain.ID) (domain.Prop
 	return propertyFromRow(row), nil
 }
 
+func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	propertyUUID, err := uuidParam(id)
+	if err != nil {
+		return domain.Property{}, err
+	}
+
+	row, err := r.queries.UpdateProperty(ctx, generateddb.UpdatePropertyParams{
+		ID:              propertyUUID,
+		ExpectedVersion: expectedVersion,
+		Name:            optionalTextParam(patch.Name),
+		Area:            optionalTextParam(patch.Area),
+		Landmark:        optionalTextParam(patch.Landmark),
+		Description:     optionalTextParam(patch.Description),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Property{}, ErrStaleUpdate
+		}
+
+		return domain.Property{}, fmt.Errorf("update property: %w", err)
+	}
+
+	return propertyFromRow(row), nil
+}
+
 func (r *PropertyRepository) GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
@@ -594,6 +622,13 @@ func agentOfferDetailFromRow(row generateddb.ListAgentOfferDetailsByPropertyUnit
 
 func textParam(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: value != ""}
+}
+
+func optionalTextParam(value *string) pgtype.Text {
+	if value == nil {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *value, Valid: true}
 }
 
 func textString(value pgtype.Text) string {
