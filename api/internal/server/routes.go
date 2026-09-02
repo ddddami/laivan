@@ -57,7 +57,7 @@ func (app *app) routes() http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   app.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "If-Match"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
