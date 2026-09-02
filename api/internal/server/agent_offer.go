@@ -117,11 +117,11 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Title       PatchField[string] `json:"title"`
-		Description PatchField[string] `json:"description"`
-		Notes       PatchField[string] `json:"notes"`
-		PriceNaira  PatchField[int]    `json:"price_naira"`
-		Status      PatchField[string] `json:"status"`
+		Title       patchField[string] `json:"title"`
+		Description patchField[string] `json:"description"`
+		Notes       patchField[string] `json:"notes"`
+		PriceNaira  patchField[int]    `json:"price_naira"`
+		Status      patchField[string] `json:"status"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
@@ -168,9 +168,9 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		status = &value
 	}
 	updated, err := app.propertyRepo.UpdateAgentOffer(r.Context(), domain.ID(id), expectedVersion, domain.AgentOfferPatch{
-		Title:       optionalOfferValue(input.Title),
-		Description: optionalOfferValue(input.Description),
-		Notes:       optionalOfferValue(input.Notes),
+		Title:       patchValue(input.Title),
+		Description: patchValue(input.Description),
+		Notes:       patchValue(input.Notes),
 		PriceKobo:   priceKobo,
 		Status:      status,
 	}, p.User.ID)
@@ -238,13 +238,6 @@ func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(archived)}, nil); err != nil {
 		app.logger.Error("write archived agent offer response", "error", err)
 	}
-}
-
-func optionalOfferValue(value PatchField[string]) *string {
-	if !value.Present {
-		return nil
-	}
-	return &value.Value
 }
 
 func (app *app) listAgentOffers(w http.ResponseWriter, r *http.Request) {
