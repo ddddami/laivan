@@ -298,7 +298,7 @@ export interface paths {
         readonly head?: never;
         /**
          * Correct a property.
-         * @description Updates shared canonical property data for a campus operator using an optimistic-concurrency version precondition.
+         * @description Updates shared canonical property data for an operator of the property's campus or a global admin using an optimistic-concurrency version precondition.
          */
         readonly patch: operations["updateProperty"];
         readonly trace?: never;
@@ -366,7 +366,7 @@ export interface paths {
         readonly head?: never;
         /**
          * Correct a unit type.
-         * @description Updates shared canonical unit type data for a campus operator using an optimistic-concurrency version precondition.
+         * @description Updates shared canonical unit type data for an operator of the property's campus or a global admin using an optimistic-concurrency version precondition.
          */
         readonly patch: operations["updatePropertyUnitType"];
         readonly trace?: never;
@@ -386,7 +386,7 @@ export interface paths {
         readonly head?: never;
         /**
          * Update an agent offer.
-         * @description Updates an offer owned by the authenticated active agent or managed by a campus operator using an optimistic-concurrency version precondition.
+         * @description Updates an offer owned by the authenticated active agent currently assigned to the property's campus, managed by an operator for that campus, or managed by a global admin, using an optimistic-concurrency version precondition.
          */
         readonly patch: operations["updateAgentOffer"];
         readonly trace?: never;
@@ -402,7 +402,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Archive an agent offer.
-         * @description Archives an agent offer without physically deleting its history or provenance. The operation requires the authenticated owner or a campus operator and an optimistic-concurrency version precondition.
+         * @description Archives an agent offer without physically deleting its history or provenance. The operation requires the authenticated active owner currently assigned to the property's campus, an operator for that campus, or a global admin, plus an optimistic-concurrency version precondition.
          */
         readonly post: operations["archiveAgentOffer"];
         readonly delete?: never;
