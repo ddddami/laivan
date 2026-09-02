@@ -81,6 +81,8 @@ paths:
     $ref: paths/v1_unit-types_{id}.yaml
   /v1/agent-offers/{id}:
     $ref: paths/v1_agent-offers_{id}.yaml
+  /v1/agent-offers/{id}/archive:
+    $ref: paths/v1_agent-offers_{id}_archive.yaml
   /v1/media:
     $ref: paths/v1_media.yaml
 components:

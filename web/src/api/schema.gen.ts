@@ -380,11 +380,7 @@ export interface paths {
         };
         readonly get?: never;
         readonly put?: never;
-        /**
-         * Archive an agent offer.
-         * @description Archives an agent offer without physically deleting its history or provenance. The operation requires the authenticated owner or a campus operator and an optimistic-concurrency version precondition.
-         */
-        readonly post: operations["archiveAgentOffer"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -393,6 +389,26 @@ export interface paths {
          * @description Updates an offer owned by the authenticated active agent or managed by a campus operator using an optimistic-concurrency version precondition.
          */
         readonly patch: operations["updateAgentOffer"];
+        readonly trace?: never;
+    };
+    readonly "/v1/agent-offers/{id}/archive": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Archive an agent offer.
+         * @description Archives an agent offer without physically deleting its history or provenance. The operation requires the authenticated owner or a campus operator and an optimistic-concurrency version precondition.
+         */
+        readonly post: operations["archiveAgentOffer"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
         readonly trace?: never;
     };
     readonly "/v1/media": {
@@ -1721,43 +1737,6 @@ export interface operations {
             readonly 500: components["responses"]["InternalServerError"];
         };
     };
-    readonly archiveAgentOffer: {
-        readonly parameters: {
-            readonly query?: never;
-            readonly header: {
-                /** @description ETag returned by the latest agent offer read. */
-                readonly "If-Match": string;
-                /** @description CSRF token returned by the authenticated session endpoint. */
-                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
-            };
-            readonly path: {
-                /** @description Agent offer ID. */
-                readonly id: string;
-            };
-            readonly cookie?: never;
-        };
-        readonly requestBody?: never;
-        readonly responses: {
-            /** @description Agent offer archived successfully. */
-            readonly 200: {
-                headers: {
-                    /** @description Current archived agent offer version. */
-                    readonly ETag?: string;
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["AgentOfferResponse"];
-                };
-            };
-            readonly 401: components["responses"]["Unauthenticated"];
-            readonly 403: components["responses"]["Forbidden"];
-            readonly 404: components["responses"]["NotFound"];
-            readonly 412: components["responses"]["PreconditionFailed"];
-            readonly 422: components["responses"]["ValidationFailed"];
-            readonly 428: components["responses"]["PreconditionRequired"];
-            readonly 500: components["responses"]["InternalServerError"];
-        };
-    };
     readonly updateAgentOffer: {
         readonly parameters: {
             readonly query?: never;
@@ -1791,6 +1770,43 @@ export interface operations {
                 };
             };
             readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly archiveAgentOffer: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description ETag returned by the latest agent offer read. */
+                readonly "If-Match": string;
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent offer ID. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Agent offer archived successfully. */
+            readonly 200: {
+                headers: {
+                    /** @description Current archived agent offer version. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentOfferResponse"];
+                };
+            };
             readonly 401: components["responses"]["Unauthenticated"];
             readonly 403: components["responses"]["Forbidden"];
             readonly 404: components["responses"]["NotFound"];
