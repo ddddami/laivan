@@ -71,8 +71,8 @@ func (app *app) routes() http.Handler {
 	r.Get("/openapi.yaml", app.openapi)
 
 	r.Route("/v1/auth", func(r chi.Router) {
-		r.Get("/google/start", app.googleAuthStart)
-		r.Get("/google/callback", app.googleAuthCallback)
+		r.With(app.rateLimitOIDC).Get("/google/start", app.googleAuthStart)
+		r.With(app.rateLimitOIDC).Get("/google/callback", app.googleAuthCallback)
 		r.Get("/session", app.authSession)
 		r.Post("/logout", app.authLogout)
 	})

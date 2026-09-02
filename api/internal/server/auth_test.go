@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestAuthSessionReturnsAnonymousStateWithoutCookie(t *testing.T) {
@@ -46,4 +47,27 @@ func TestGoogleAuthStartReturnsUnavailableWhenNotConfigured(t *testing.T) {
 	app.routes().ServeHTTP(rr, req)
 
 	assertErrorResponse(t, rr, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is not configured")
+}
+
+func TestGoogleAuthRoutesRateLimitByRemoteAddress(t *testing.T) {
+	app := testApp()
+	app.oidcRateLimiter = newRateLimiter(1, time.Minute)
+
+	first := httptest.NewRequest(http.MethodGet, "/v1/auth/google/start", nil)
+	first.RemoteAddr = "192.0.2.1:1234"
+	firstResponse := httptest.NewRecorder()
+	app.routes().ServeHTTP(firstResponse, first)
+	if firstResponse.Code != http.StatusServiceUnavailable {
+		t.Fatalf("first status code = %d, want %d", firstResponse.Code, http.StatusServiceUnavailable)
+	}
+
+	second := httptest.NewRequest(http.MethodGet, "/v1/auth/google/start", nil)
+	second.RemoteAddr = "192.0.2.1:1234"
+	secondResponse := httptest.NewRecorder()
+	app.routes().ServeHTTP(secondResponse, second)
+
+	assertErrorResponse(t, secondResponse, http.StatusTooManyRequests, "rate_limited", "Too many authentication attempts. Try again later")
+	if secondResponse.Header().Get("Retry-After") == "" {
+		t.Fatal("Retry-After header is empty")
+	}
 }

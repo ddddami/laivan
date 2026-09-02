@@ -824,6 +824,17 @@ export interface components {
                 readonly "application/json": components["schemas"]["ErrorResponse"];
             };
         };
+        /** @description Too many authentication attempts from the client address. */
+        readonly RateLimited: {
+            headers: {
+                /** @description Number of seconds before another attempt should be made. */
+                readonly "Retry-After"?: number;
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Authentication is required or the session is invalid. */
         readonly Unauthenticated: {
             headers: {
@@ -906,6 +917,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            readonly 429: components["responses"]["RateLimited"];
             readonly 503: components["responses"]["AuthUnavailable"];
         };
     };
@@ -931,6 +943,7 @@ export interface operations {
                 content?: never;
             };
             readonly 400: components["responses"]["InvalidAuthCallback"];
+            readonly 429: components["responses"]["RateLimited"];
             readonly 500: components["responses"]["InternalServerError"];
             readonly 503: components["responses"]["AuthUnavailable"];
         };
