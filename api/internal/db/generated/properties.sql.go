@@ -325,7 +325,7 @@ SELECT
   a.display_name AS agent_display_name
 FROM agent_offers ao
 JOIN agents a ON a.id = ao.agent_id
-WHERE ao.property_unit_type_id = ANY($1::uuid[])
+WHERE ao.property_unit_type_id = ANY($1::uuid[]) AND ao.archived_at IS NULL
 ORDER BY ao.property_unit_type_id, ao.created_at DESC, ao.id DESC
 `
 
@@ -382,7 +382,7 @@ func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context
 const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
 SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version, archived_at
 FROM agent_offers
-WHERE property_unit_type_id = $1
+WHERE property_unit_type_id = $1 AND archived_at IS NULL
 ORDER BY created_at DESC, id DESC
 `
 
@@ -476,8 +476,8 @@ const listPropertiesWithSummary = `-- name: ListPropertiesWithSummary :many
 SELECT
   p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
   COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
-  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
-  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
+  COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL), 0)::integer AS available_offer_count,
+  COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL), 0)::integer AS lowest_price_kobo,
   COUNT(*) OVER() AS total_count
 FROM properties p
 WHERE p.campus_id = $1
