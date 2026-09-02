@@ -10,25 +10,28 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAgentUserForeignKeyRestrictsUserDeletion(t *testing.T) {
-	db := openIntegrationDB(t, t.Context())
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	db := openIntegrationDB(t, ctx)
 	t.Cleanup(db.Close)
-	resetAgentApplicationTables(t, t.Context(), db)
+	resetAgentApplicationTables(t, ctx, db)
 	t.Cleanup(func() { resetAgentApplicationTables(t, context.Background(), db) })
 
-	userID := insertIdentityUser(t, t.Context(), db, "restrict-agent@example.com", "Restrict Agent")
+	userID := insertIdentityUser(t, ctx, db, "restrict-agent@example.com", "Restrict Agent")
 	var agentID string
-	if err := db.QueryRow(t.Context(), `INSERT INTO agents (user_id, display_name, phone_number) VALUES ($1, 'Restrict Agent', '+2348012345678') RETURNING id::text`, string(userID)).Scan(&agentID); err != nil {
+	if err := db.QueryRow(ctx, `INSERT INTO agents (user_id, display_name, phone_number) VALUES ($1, 'Restrict Agent', '+2348012345678') RETURNING id::text`, string(userID)).Scan(&agentID); err != nil {
 		t.Fatalf("insert linked agent: %v", err)
 	}
 
-	if _, err := db.Exec(t.Context(), `DELETE FROM users WHERE id = $1`, string(userID)); !isForeignKeyViolation(err) {
+	if _, err := db.Exec(ctx, `DELETE FROM users WHERE id = $1`, string(userID)); !isForeignKeyViolation(err) {
 		t.Fatalf("delete linked agent user error = %v, want foreign key violation", err)
 	}
 	var linkedUserID string
-	if err := db.QueryRow(t.Context(), `SELECT user_id::text FROM agents WHERE id = $1`, agentID).Scan(&linkedUserID); err != nil {
+	if err := db.QueryRow(ctx, `SELECT user_id::text FROM agents WHERE id = $1`, agentID).Scan(&linkedUserID); err != nil {
 		t.Fatalf("load linked agent after rejected user deletion: %v", err)
 	}
 	if linkedUserID != string(userID) {
@@ -37,9 +40,11 @@ func TestAgentUserForeignKeyRestrictsUserDeletion(t *testing.T) {
 }
 
 func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing.T) {
-	db := openIntegrationDB(t, t.Context())
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	db := openIntegrationDB(t, ctx)
 	t.Cleanup(db.Close)
-	conn, err := db.Acquire(t.Context())
+	conn, err := db.Acquire(ctx)
 	if err != nil {
 		t.Fatalf("acquire migration connection: %v", err)
 	}
@@ -47,7 +52,7 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 
 	schemaName := "strict_identity_" + migrationTestSchemaSuffix(t)
 	schemaIdentifier := quoteIdentifier(schemaName)
-	if _, err := conn.Exec(t.Context(), "CREATE SCHEMA "+schemaIdentifier); err != nil {
+	if _, err := conn.Exec(ctx, "CREATE SCHEMA "+schemaIdentifier); err != nil {
 		t.Fatalf("create migration test schema: %v", err)
 	}
 	t.Cleanup(func() {
@@ -55,7 +60,7 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 			t.Errorf("drop migration test schema: %v", err)
 		}
 	})
-	if _, err := conn.Exec(t.Context(), "SET search_path TO "+schemaIdentifier+", public"); err != nil {
+	if _, err := conn.Exec(ctx, "SET search_path TO "+schemaIdentifier+", public"); err != nil {
 		t.Fatalf("set migration test search path: %v", err)
 	}
 
@@ -69,7 +74,7 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 		if err != nil {
 			t.Fatalf("read migration %06d: %v", version, err)
 		}
-		if _, err := conn.Exec(t.Context(), migrationUpSQL(sql)); err != nil {
+		if _, err := conn.Exec(ctx, migrationUpSQL(sql)); err != nil {
 			t.Fatalf("apply migration %06d: %v", version, err)
 		}
 	}
@@ -80,12 +85,13 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 		unitTypeID  = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 		offerID     = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 		application = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+		mediaID     = "ffffffff-ffff-4fff-8fff-ffffffffffff"
 	)
 	var campusID, applicantID string
-	if err := conn.QueryRow(t.Context(), `SELECT id::text FROM campuses WHERE slug = 'futa'`).Scan(&campusID); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT id::text FROM campuses WHERE slug = 'futa'`).Scan(&campusID); err != nil {
 		t.Fatalf("load migrated FUTA campus: %v", err)
 	}
-	if err := conn.QueryRow(t.Context(), `INSERT INTO users (email, display_name) VALUES ('upgrade-applicant@example.com', 'Upgrade Applicant') RETURNING id::text`).Scan(&applicantID); err != nil {
+	if err := conn.QueryRow(ctx, `INSERT INTO users (email, display_name) VALUES ('upgrade-applicant@example.com', 'Upgrade Applicant') RETURNING id::text`).Scan(&applicantID); err != nil {
 		t.Fatalf("insert upgrade applicant: %v", err)
 	}
 	statements := []struct {
@@ -99,32 +105,35 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 		{"offer", `INSERT INTO agent_offers (id, property_unit_type_id, agent_id, title, price_kobo) VALUES ($1, $2, $3, 'Upgrade Offer', 100000)`, []any{offerID, unitTypeID, agentID}},
 		{"agent campus", `INSERT INTO agent_campuses (agent_id, campus_id) VALUES ($1, $2)`, []any{agentID, campusID}},
 		{"application", `INSERT INTO agent_applications (id, applicant_user_id, campus_id, name, phone_number, status, agent_id) VALUES ($1, $2, $3, 'Legacy Application', '+2348098765432', 'active', $4)`, []any{application, applicantID, campusID, agentID}},
+		{"media", `INSERT INTO media (id, property_id, uploaded_by_agent_id, url, kind) VALUES ($1, $2, $3, 'https://example.com/upgrade.jpg', 'image')`, []any{mediaID, propertyID, agentID}},
 	}
 	for _, statement := range statements {
-		if _, err := conn.Exec(t.Context(), statement.sql, statement.args...); err != nil {
+		if _, err := conn.Exec(ctx, statement.sql, statement.args...); err != nil {
 			t.Fatalf("insert %s fixture: %v", statement.name, err)
 		}
 	}
 
 	var agentCount, offerCount, campusAssociationCount, applicationCount int
-	if err := conn.QueryRow(t.Context(), `SELECT count(*) FROM agents WHERE id = $1`, agentID).Scan(&agentCount); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM agents WHERE id = $1`, agentID).Scan(&agentCount); err != nil {
 		t.Fatalf("count legacy agent before migration: %v", err)
 	}
 	if agentCount != 1 {
 		t.Fatalf("legacy agent count before migration = %d, want 1", agentCount)
 	}
-	if err := conn.QueryRow(t.Context(), `SELECT count(*) FROM agent_applications WHERE id = $1`, application).Scan(&applicationCount); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM agent_applications WHERE id = $1`, application).Scan(&applicationCount); err != nil {
 		t.Fatalf("count dependent application before migration: %v", err)
 	}
 	if applicationCount != 1 {
 		t.Fatalf("dependent application count before migration = %d, want 1", applicationCount)
 	}
-
-	if err := conn.QueryRow(t.Context(), `SELECT count(*) FROM agent_offers WHERE id = $1`, offerID).Scan(&offerCount); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM agent_offers WHERE id = $1`, offerID).Scan(&offerCount); err != nil {
 		t.Fatalf("count legacy offer before migration: %v", err)
 	}
-	if err := conn.QueryRow(t.Context(), `SELECT count(*) FROM agent_campuses WHERE agent_id = $1`, agentID).Scan(&campusAssociationCount); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM agent_campuses WHERE agent_id = $1`, agentID).Scan(&campusAssociationCount); err != nil {
 		t.Fatalf("count legacy campus association before migration: %v", err)
+	}
+	if offerCount != 1 || campusAssociationCount != 1 {
+		t.Fatalf("legacy dependencies before migration = offer %d, campus %d, want 1/1", offerCount, campusAssociationCount)
 	}
 
 	var migrationSQL []byte
@@ -132,7 +141,7 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 	if err != nil {
 		t.Fatalf("read strict identity migration: %v", err)
 	}
-	if _, err := conn.Exec(t.Context(), migrationUpSQL(migrationSQL)); err != nil {
+	if _, err := conn.Exec(ctx, migrationUpSQL(migrationSQL)); err != nil {
 		t.Fatalf("apply strict identity migration: %v", err)
 	}
 
@@ -150,16 +159,23 @@ func TestStrictAgentIdentityMigrationRemovesUnlinkedAgentDependencies(t *testing
 		if name == "application" {
 			argument = application
 		}
-		if err := conn.QueryRow(t.Context(), query, argument).Scan(&count); err != nil {
+		if err := conn.QueryRow(ctx, query, argument).Scan(&count); err != nil {
 			t.Fatalf("count %s after migration: %v", name, err)
 		}
 		if count != 0 {
 			t.Fatalf("%s count after migration = %d, want 0", name, count)
 		}
 	}
+	var mediaCount, mediaUploaderCount int
+	if err := conn.QueryRow(ctx, `SELECT count(*), count(uploaded_by_agent_id) FROM media WHERE id = $1`, mediaID).Scan(&mediaCount, &mediaUploaderCount); err != nil {
+		t.Fatalf("inspect retained media after migration: %v", err)
+	}
+	if mediaCount != 1 || mediaUploaderCount != 0 {
+		t.Fatalf("retained media after migration = count %d, uploaded_by_agent count %d, want 1/0", mediaCount, mediaUploaderCount)
+	}
 
 	var nullable string
-	if err := conn.QueryRow(t.Context(), `SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'agents' AND column_name = 'user_id'`).Scan(&nullable); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'agents' AND column_name = 'user_id'`).Scan(&nullable); err != nil {
 		t.Fatalf("inspect agents.user_id nullability: %v", err)
 	}
 	if nullable != "NO" {

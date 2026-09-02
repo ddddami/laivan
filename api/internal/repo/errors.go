@@ -15,6 +15,5 @@ var (
 	ErrApplicationResolved    = errors.New("application is no longer pending")
 	ErrCampusForbidden        = errors.New("operator is not authorized for this campus")
 	ErrPhoneConflict          = errors.New("agent phone number conflicts with an existing agent")
-	ErrLegacyAgentConflict    = errors.New("legacy agent is unavailable for linking")
 	ErrAgentLifecycleConflict = errors.New("agent lifecycle transition conflicts with the current status")
 )
