@@ -48,9 +48,9 @@ type PropertyStore interface {
 	GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error)
 	Create(ctx context.Context, property domain.Property) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
-	Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch) (domain.Property, error)
+	Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, actorUserID domain.ID) (domain.Property, error)
 	GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error)
-	UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch) (domain.PropertyUnitType, error)
+	UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch, actorUserID domain.ID) (domain.PropertyUnitType, error)
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error)
 	Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error)
@@ -64,8 +64,8 @@ type PropertyStore interface {
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
 	GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error)
-	UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch) (domain.AgentOffer, error)
-	ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int) (domain.AgentOffer, error)
+	UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch, actorUserID domain.ID) (domain.AgentOffer, error)
+	ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, actorUserID domain.ID) (domain.AgentOffer, error)
 }
 
 func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore) *http.Server {

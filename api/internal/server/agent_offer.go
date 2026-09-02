@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -157,19 +156,6 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 		return
 	}
-	_, authorized, err := app.authorizedAgentOffer(r.Context(), domain.ID(id), p)
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("authorize agent offer update: %w", err))
-		return
-	}
-	if !authorized {
-		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
-		return
-	}
 
 	var priceKobo *int
 	if input.PriceNaira.Present {
@@ -187,13 +173,18 @@ func (app *app) updateAgentOffer(w http.ResponseWriter, r *http.Request) {
 		Notes:       optionalOfferValue(input.Notes),
 		PriceKobo:   priceKobo,
 		Status:      status,
-	})
+	}, p.User.ID)
 	if err != nil {
-		if errors.Is(err, repo.ErrStaleUpdate) {
+		switch {
+		case errors.Is(err, repo.ErrNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, repo.ErrStaleUpdate):
 			app.preconditionFailedResponse(w, r)
-			return
+		case errors.Is(err, repo.ErrAgentForbidden):
+			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
+		default:
+			app.serverErrorResponse(w, r, fmt.Errorf("update agent offer: %w", err))
 		}
-		app.serverErrorResponse(w, r, fmt.Errorf("update agent offer: %w", err))
 		return
 	}
 
@@ -228,27 +219,18 @@ func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
 		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 		return
 	}
-	offer, authorized, err := app.authorizedAgentOffer(r.Context(), domain.ID(id), p)
+	archived, err := app.propertyRepo.ArchiveAgentOffer(r.Context(), domain.ID(id), expectedVersion, p.User.ID)
 	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
+		switch {
+		case errors.Is(err, repo.ErrNotFound):
 			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("authorize agent offer archive: %w", err))
-		return
-	}
-	if !authorized {
-		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to archive this agent offer")
-		return
-	}
-
-	archived, err := app.propertyRepo.ArchiveAgentOffer(r.Context(), offer.ID, expectedVersion)
-	if err != nil {
-		if errors.Is(err, repo.ErrStaleUpdate) {
+		case errors.Is(err, repo.ErrStaleUpdate):
 			app.preconditionFailedResponse(w, r)
-			return
+		case errors.Is(err, repo.ErrAgentForbidden):
+			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to archive this agent offer")
+		default:
+			app.serverErrorResponse(w, r, fmt.Errorf("archive agent offer: %w", err))
 		}
-		app.serverErrorResponse(w, r, fmt.Errorf("archive agent offer: %w", err))
 		return
 	}
 
@@ -256,24 +238,6 @@ func (app *app) archiveAgentOffer(w http.ResponseWriter, r *http.Request) {
 	if err := writeJSON(w, http.StatusOK, envelope{"agent_offer": agentOfferResponse(archived)}, nil); err != nil {
 		app.logger.Error("write archived agent offer response", "error", err)
 	}
-}
-
-func (app *app) authorizedAgentOffer(ctx context.Context, id domain.ID, p principal) (domain.AgentOffer, bool, error) {
-	offer, err := app.propertyRepo.GetAgentOffer(ctx, id)
-	if err != nil {
-		return domain.AgentOffer{}, false, err
-	}
-	unitType, err := app.propertyRepo.GetPropertyUnitType(ctx, offer.PropertyUnitTypeID)
-	if err != nil {
-		return domain.AgentOffer{}, false, err
-	}
-	property, err := app.propertyRepo.Get(ctx, unitType.PropertyID)
-	if err != nil {
-		return domain.AgentOffer{}, false, err
-	}
-	isOperator := p.Access.GlobalAdmin || (hasRole(p.Access, "campus_operator") && containsID(p.Access.CampusOperatorIDs, property.CampusID))
-	isOwner := p.Access.Agent != nil && p.Access.Agent.Status == domain.AgentStatusActive && p.Access.Agent.ID == offer.AgentID
-	return offer, isOperator || isOwner, nil
 }
 
 func optionalOfferValue(value PatchField[string]) *string {

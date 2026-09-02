@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 )
 
 func TestCreateAgentOfferValidationErrors(t *testing.T) {
@@ -200,7 +202,7 @@ func TestUpdateAgentOfferRequiresOwnership(t *testing.T) {
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
 		Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440041"), Status: domain.AgentStatusActive},
 	}})
-	app.propertyRepo = &stubPropertyRepo{}
+	app.propertyRepo = &forbiddenAgentOfferRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
 	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
 	rr := httptest.NewRecorder()
@@ -208,6 +210,14 @@ func TestUpdateAgentOfferRequiresOwnership(t *testing.T) {
 	app.routes().ServeHTTP(rr, req)
 
 	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
+}
+
+type forbiddenAgentOfferRepo struct {
+	*stubPropertyRepo
+}
+
+func (s *forbiddenAgentOfferRepo) UpdateAgentOffer(context.Context, domain.ID, int, domain.AgentOfferPatch, domain.ID) (domain.AgentOffer, error) {
+	return domain.AgentOffer{}, repo.ErrAgentForbidden
 }
 
 func TestUpdateAgentOfferRequiresIfMatch(t *testing.T) {

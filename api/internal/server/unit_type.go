@@ -169,27 +169,9 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unitType, err := app.propertyRepo.GetPropertyUnitType(r.Context(), domain.ID(id))
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get property unit type for update: %w", err))
-		return
-	}
-	property, err := app.propertyRepo.Get(r.Context(), unitType.PropertyID)
-	if err != nil {
-		if errors.Is(err, repo.ErrNotFound) {
-			app.notFoundResponse(w, r)
-			return
-		}
-		app.serverErrorResponse(w, r, fmt.Errorf("get property for unit type update: %w", err))
-		return
-	}
 	p, ok := principalFromContext(r.Context())
-	if !ok || (!p.Access.GlobalAdmin && !containsID(p.Access.CampusOperatorIDs, property.CampusID)) {
-		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "Campus operator access is required for this unit type")
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 		return
 	}
 
@@ -202,13 +184,18 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 		HasParlour:   OptionalValue(input.HasParlour),
 		BathroomType: OptionalValue(input.BathroomType),
 		KitchenType:  OptionalValue(input.KitchenType),
-	})
+	}, p.User.ID)
 	if err != nil {
-		if errors.Is(err, repo.ErrStaleUpdate) {
+		switch {
+		case errors.Is(err, repo.ErrNotFound):
+			app.notFoundResponse(w, r)
+		case errors.Is(err, repo.ErrStaleUpdate):
 			app.preconditionFailedResponse(w, r)
-			return
+		case errors.Is(err, repo.ErrCampusForbidden):
+			app.errorResponse(w, r, http.StatusForbidden, "forbidden", "Campus operator access is required for this unit type")
+		default:
+			app.serverErrorResponse(w, r, fmt.Errorf("update property unit type: %w", err))
 		}
-		app.serverErrorResponse(w, r, fmt.Errorf("update property unit type: %w", err))
 		return
 	}
 
