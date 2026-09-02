@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/ddddami/laivan/internal/db"
 	"github.com/ddddami/laivan/internal/repo"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -39,20 +37,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	queries := db.New(pool)
-	identityRepo := repo.NewIdentityRepository(pool, queries)
 	agentAppRepo := repo.NewAgentApplicationRepository(pool)
 
 	cmd := os.Args[1]
 	switch cmd {
 	case "grant-role":
-		runGrantRole(ctx, pool, identityRepo, os.Args[2:])
+		runGrantRole(ctx, pool, os.Args[2:])
 	case "list-applications":
-		runListApplications(ctx, agentAppRepo, os.Args[2:])
+		runListApplications(ctx, pool, os.Args[2:])
 	case "approve-agent":
 		runApproveAgent(ctx, agentAppRepo, os.Args[2:])
 	case "suspend-agent":
-		runSuspendAgent(ctx, agentAppRepo, os.Args[2:])
+		runSuspendAgent(ctx, pool, agentAppRepo, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
