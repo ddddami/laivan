@@ -453,11 +453,6 @@ export interface components {
             readonly phone_number: string;
         };
         readonly ActivateAgentApplicationRequest: {
-            /**
-             * Format: uuid
-             * @description Explicitly selected legacy agent to link. Omit to create a new agent.
-             */
-            readonly legacy_agent_id?: string;
             readonly operator_note?: string;
         };
         readonly DeclineAgentApplicationRequest: {
