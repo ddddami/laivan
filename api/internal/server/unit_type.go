@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -109,63 +107,6 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type optionalUnitString struct {
-	value   string
-	present bool
-}
-
-func (s *optionalUnitString) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("unit type patch fields must not be null")
-	}
-
-	var value string
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("unit type patch fields must be strings")
-	}
-	s.value = value
-	s.present = true
-	return nil
-}
-
-type optionalUnitInt struct {
-	value   int
-	present bool
-}
-
-func (i *optionalUnitInt) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("unit type patch fields must not be null")
-	}
-
-	var value int
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("unit type patch fields must be numbers")
-	}
-	i.value = value
-	i.present = true
-	return nil
-}
-
-type optionalUnitBool struct {
-	value   bool
-	present bool
-}
-
-func (b *optionalUnitBool) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("unit type patch fields must not be null")
-	}
-
-	var value bool
-	if err := json.Unmarshal(data, &value); err != nil {
-		return errors.New("unit type patch fields must be booleans")
-	}
-	b.value = value
-	b.present = true
-	return nil
-}
-
 func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	v := validator.New()
@@ -188,42 +129,42 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Category     optionalUnitString `json:"category"`
-		Name         optionalUnitString `json:"name"`
-		Description  optionalUnitString `json:"description"`
-		Notes        optionalUnitString `json:"notes"`
-		BedroomCount optionalUnitInt    `json:"bedroom_count"`
-		HasParlour   optionalUnitBool   `json:"has_parlour"`
-		BathroomType optionalUnitString `json:"bathroom_type"`
-		KitchenType  optionalUnitString `json:"kitchen_type"`
+		Category     PatchField[string] `json:"category"`
+		Name         PatchField[string] `json:"name"`
+		Description  PatchField[string] `json:"description"`
+		Notes        PatchField[string] `json:"notes"`
+		BedroomCount PatchField[int]    `json:"bedroom_count"`
+		HasParlour   PatchField[bool]   `json:"has_parlour"`
+		BathroomType PatchField[string] `json:"bathroom_type"`
+		KitchenType  PatchField[string] `json:"kitchen_type"`
 	}
 	if err := readJSON(w, r, &input); err != nil {
 		app.badRequestResponse(w, r, err)
 		return
 	}
 
-	v.Check(input.Category.present || input.Name.present || input.Description.present || input.Notes.present || input.BedroomCount.present || input.HasParlour.present || input.BathroomType.present || input.KitchenType.present, "body", "At least one unit type field is required")
-	if input.Category.present {
-		v.Check(validUnitCategory(input.Category.value), "category", "Category is invalid")
+	v.Check(input.Category.Present || input.Name.Present || input.Description.Present || input.Notes.Present || input.BedroomCount.Present || input.HasParlour.Present || input.BathroomType.Present || input.KitchenType.Present, "body", "At least one unit type field is required")
+	if input.Category.Present {
+		v.Check(validUnitCategory(input.Category.Value), "category", "Category is invalid")
 	}
-	if input.Name.present {
-		v.Check(validator.NotBlank(input.Name.value), "name", "Name is required")
-		v.Check(validator.MaxChars(input.Name.value, 100), "name", "Name must not exceed 100 characters")
+	if input.Name.Present {
+		v.Check(validator.NotBlank(input.Name.Value), "name", "Name is required")
+		v.Check(validator.MaxChars(input.Name.Value, 100), "name", "Name must not exceed 100 characters")
 	}
-	if input.Description.present {
-		v.Check(validator.MaxChars(input.Description.value, 1000), "description", "Description must not exceed 1000 characters")
+	if input.Description.Present {
+		v.Check(validator.MaxChars(input.Description.Value, 1000), "description", "Description must not exceed 1000 characters")
 	}
-	if input.Notes.present {
-		v.Check(validator.MaxChars(input.Notes.value, 2000), "notes", "Notes must not exceed 2000 characters")
+	if input.Notes.Present {
+		v.Check(validator.MaxChars(input.Notes.Value, 2000), "notes", "Notes must not exceed 2000 characters")
 	}
-	if input.BedroomCount.present {
-		v.Check(input.BedroomCount.value >= 0, "bedroom_count", "Bedroom count must be greater than or equal to 0")
+	if input.BedroomCount.Present {
+		v.Check(input.BedroomCount.Value >= 0, "bedroom_count", "Bedroom count must be greater than or equal to 0")
 	}
-	if input.BathroomType.present {
-		v.Check(input.BathroomType.value == "" || validBathroomType(input.BathroomType.value), "bathroom_type", "Bathroom type is invalid")
+	if input.BathroomType.Present {
+		v.Check(input.BathroomType.Value == "" || validBathroomType(input.BathroomType.Value), "bathroom_type", "Bathroom type is invalid")
 	}
-	if input.KitchenType.present {
-		v.Check(input.KitchenType.value == "" || validKitchenType(input.KitchenType.value), "kitchen_type", "Kitchen type is invalid")
+	if input.KitchenType.Present {
+		v.Check(input.KitchenType.Value == "" || validKitchenType(input.KitchenType.Value), "kitchen_type", "Kitchen type is invalid")
 	}
 	if !v.Valid() {
 		app.validationFailedResponse(w, r, v.FieldErrors)
@@ -256,13 +197,13 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := app.propertyRepo.UpdatePropertyUnitType(r.Context(), domain.ID(id), expectedVersion, domain.PropertyUnitTypePatch{
 		Category:     optionalUnitCategoryValue(input.Category),
-		Name:         optionalUnitStringValue(input.Name),
-		Description:  optionalUnitStringValue(input.Description),
-		Notes:        optionalUnitStringValue(input.Notes),
-		BedroomCount: optionalUnitIntValue(input.BedroomCount),
-		HasParlour:   optionalUnitBoolValue(input.HasParlour),
-		BathroomType: optionalUnitStringValue(input.BathroomType),
-		KitchenType:  optionalUnitStringValue(input.KitchenType),
+		Name:         OptionalValue(input.Name),
+		Description:  OptionalValue(input.Description),
+		Notes:        OptionalValue(input.Notes),
+		BedroomCount: OptionalValue(input.BedroomCount),
+		HasParlour:   OptionalValue(input.HasParlour),
+		BathroomType: OptionalValue(input.BathroomType),
+		KitchenType:  OptionalValue(input.KitchenType),
 	})
 	if err != nil {
 		if errors.Is(err, repo.ErrStaleUpdate) {
@@ -279,33 +220,12 @@ func (app *app) updatePropertyUnitType(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func optionalUnitStringValue(value optionalUnitString) *string {
-	if !value.present {
+func optionalUnitCategoryValue(value PatchField[string]) *domain.UnitCategory {
+	if !value.Present {
 		return nil
 	}
-	return &value.value
-}
-
-func optionalUnitCategoryValue(value optionalUnitString) *domain.UnitCategory {
-	if !value.present {
-		return nil
-	}
-	category := domain.UnitCategory(value.value)
+	category := domain.UnitCategory(value.Value)
 	return &category
-}
-
-func optionalUnitIntValue(value optionalUnitInt) *int {
-	if !value.present {
-		return nil
-	}
-	return &value.value
-}
-
-func optionalUnitBoolValue(value optionalUnitBool) *bool {
-	if !value.present {
-		return nil
-	}
-	return &value.value
 }
 
 func unitTypeETag(unitType domain.PropertyUnitType) string {
