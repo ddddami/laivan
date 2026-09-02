@@ -140,6 +140,7 @@ func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 			BedroomCount int    `json:"bedroom_count"`
 			BathroomType string `json:"bathroom_type"`
 			KitchenType  string `json:"kitchen_type"`
+			Version      int    `json:"version"`
 		} `json:"unit_type"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
@@ -163,6 +164,9 @@ func TestCreatePropertyUnitTypeReturnsUnitType(t *testing.T) {
 	}
 	if bodyDecoded.UnitType.PropertyID != "550e8400-e29b-41d4-a716-446655440000" {
 		t.Fatalf("property ID = %q, want 550e8400-e29b-41d4-a716-446655440000", bodyDecoded.UnitType.PropertyID)
+	}
+	if bodyDecoded.UnitType.Version != 1 {
+		t.Fatalf("version = %d, want 1", bodyDecoded.UnitType.Version)
 	}
 }
 

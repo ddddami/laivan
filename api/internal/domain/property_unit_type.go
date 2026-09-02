@@ -20,6 +20,7 @@ type PropertyUnitType struct {
 	Description string
 	Notes       string
 	Structure   UnitStructure
+	Version     int
 	Timestamps
 }
 

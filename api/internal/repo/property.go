@@ -239,7 +239,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		SELECT *, COUNT(*) OVER() AS total_count
 		FROM (
 		  SELECT
-		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+		    p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
 		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
 		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
 		    ((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'))::integer AS lowest_price_kobo,
@@ -274,6 +274,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 			&row.Description,
 			&row.CreatedAt,
 			&row.UpdatedAt,
+			&row.Version,
 			&row.UnitTypeCount,
 			&row.AvailableOfferCount,
 			&lowestPriceKobo,
@@ -519,6 +520,7 @@ func propertyFromRow(row generateddb.Property) domain.Property {
 			Landmark: textString(row.Landmark),
 		},
 		Description: textString(row.Description),
+		Version:     row.Version,
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
@@ -533,6 +535,7 @@ func propertyUnitTypeFromRow(row generateddb.PropertyUnitType) domain.PropertyUn
 		Category:    domain.UnitCategory(row.Category),
 		Name:        row.Name,
 		Description: textString(row.Description),
+		Version:     row.Version,
 		Notes:       textString(row.Notes),
 		Structure: domain.UnitStructure{
 			BedroomCount: intPointer(row.BedroomCount),
@@ -557,6 +560,7 @@ func agentOfferFromRow(row generateddb.AgentOffer) domain.AgentOffer {
 		Notes:              textString(row.Notes),
 		Price:              domain.Money{AmountKobo: row.PriceKobo},
 		Status:             domain.AgentOfferStatus(row.Status),
+		Version:            row.Version,
 		Timestamps: domain.Timestamps{
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
@@ -575,6 +579,7 @@ func agentOfferDetailFromRow(row generateddb.ListAgentOfferDetailsByPropertyUnit
 			Notes:              textString(row.Notes),
 			Price:              domain.Money{AmountKobo: row.PriceKobo},
 			Status:             domain.AgentOfferStatus(row.Status),
+			Version:            row.Version,
 			Timestamps: domain.Timestamps{
 				CreatedAt: row.CreatedAt.Time,
 				UpdatedAt: row.UpdatedAt.Time,
@@ -687,6 +692,7 @@ func propertySummaryFromRow(row generateddb.ListPropertiesWithSummaryRow) domain
 				Landmark: textString(row.Landmark),
 			},
 			Description: textString(row.Description),
+			Version:     row.Version,
 			Timestamps: domain.Timestamps{
 				CreatedAt: row.CreatedAt.Time,
 				UpdatedAt: row.UpdatedAt.Time,

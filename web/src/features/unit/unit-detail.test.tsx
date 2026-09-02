@@ -19,6 +19,7 @@ const property: PropertyDetail = {
   area: 'Obanla',
   landmark: 'Near South Gate',
   description: 'Building-level description must stay on the property page.',
+  version: 1,
   media: [
     {
       id: 'property-media-1',
@@ -77,6 +78,7 @@ const property: PropertyDetail = {
           notes: 'Inspection schedule is not open.',
           price_naira: 340_000,
           status: 'paused',
+          version: 1,
           agent: { id: 'agent-2', display_name: 'Bola Ajayi' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',
@@ -91,6 +93,7 @@ const property: PropertyDetail = {
           notes: 'Inspection on weekdays.',
           price_naira: 350_000,
           status: 'available',
+          version: 1,
           agent: { id: 'agent-1', display_name: 'Ade Martins' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',
@@ -120,6 +123,7 @@ const property: PropertyDetail = {
           description: '',
           price_naira: 180_000,
           status: 'available',
+          version: 1,
           agent: { id: 'agent-3', display_name: 'Wrong Unit Agent' },
           media: [],
           created_at: '2026-05-01T10:00:00Z',

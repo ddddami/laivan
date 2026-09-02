@@ -57,6 +57,7 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 			Title              string `json:"title"`
 			PriceNaira         int    `json:"price_naira"`
 			Status             string `json:"status"`
+			Version            int    `json:"version"`
 		} `json:"agent_offer"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&bodyDecoded); err != nil {
@@ -74,6 +75,9 @@ func TestCreateAgentOfferReturnsAgentOffer(t *testing.T) {
 	}
 	if bodyDecoded.AgentOffer.Status != "available" {
 		t.Fatalf("status = %q, want available", bodyDecoded.AgentOffer.Status)
+	}
+	if bodyDecoded.AgentOffer.Version != 1 {
+		t.Fatalf("version = %d, want 1", bodyDecoded.AgentOffer.Version)
 	}
 }
 

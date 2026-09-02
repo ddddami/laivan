@@ -19,7 +19,7 @@ JOIN properties p ON p.id = put.property_id
 JOIN agents a ON a.id = $2 AND a.status = 'active'
 JOIN agent_campuses ac ON ac.agent_id = a.id AND ac.campus_id = p.campus_id
 WHERE put.id = $1
-RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
+RETURNING id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
 `
 
 type CreateAuthorizedAgentOfferParams struct {
@@ -54,6 +54,7 @@ func (q *Queries) CreateAuthorizedAgentOffer(ctx context.Context, arg CreateAuth
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Notes,
+		&i.Version,
 	)
 	return i, err
 }
@@ -61,7 +62,7 @@ func (q *Queries) CreateAuthorizedAgentOffer(ctx context.Context, arg CreateAuth
 const createProperty = `-- name: CreateProperty :one
 INSERT INTO properties (campus_id, name, area, landmark, description)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version
 `
 
 type CreatePropertyParams struct {
@@ -90,6 +91,7 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }
@@ -97,7 +99,7 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 const createPropertyUnitType = `-- name: CreatePropertyUnitType :one
 INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 `
 
 type CreatePropertyUnitTypeParams struct {
@@ -138,6 +140,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		&i.BathroomType,
 		&i.KitchenType,
 		&i.Notes,
+		&i.Version,
 	)
 	return i, err
 }
@@ -172,7 +175,7 @@ func (q *Queries) GetAgentOfferMediaTarget(ctx context.Context, id pgtype.UUID) 
 }
 
 const getProperty = `-- name: GetProperty :one
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version
 FROM properties
 WHERE id = $1
 `
@@ -189,12 +192,13 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }
 
 const getPropertyUnitType = `-- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 FROM property_unit_types
 WHERE id = $1
 `
@@ -215,6 +219,7 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 		&i.BathroomType,
 		&i.KitchenType,
 		&i.Notes,
+		&i.Version,
 	)
 	return i, err
 }
@@ -251,6 +256,7 @@ SELECT
   ao.created_at,
   ao.updated_at,
   ao.notes,
+  ao.version,
   a.display_name AS agent_display_name
 FROM agent_offers ao
 JOIN agents a ON a.id = ao.agent_id
@@ -269,6 +275,7 @@ type ListAgentOfferDetailsByPropertyUnitTypeIDsRow struct {
 	CreatedAt          pgtype.Timestamptz
 	UpdatedAt          pgtype.Timestamptz
 	Notes              pgtype.Text
+	Version            int
 	AgentDisplayName   string
 }
 
@@ -292,6 +299,7 @@ func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Notes,
+			&i.Version,
 			&i.AgentDisplayName,
 		); err != nil {
 			return nil, err
@@ -305,7 +313,7 @@ func (q *Queries) ListAgentOfferDetailsByPropertyUnitTypeIDs(ctx context.Context
 }
 
 const listAgentOffersByPropertyUnitType = `-- name: ListAgentOffersByPropertyUnitType :many
-SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes
+SELECT id, property_unit_type_id, agent_id, title, description, price_kobo, status, created_at, updated_at, notes, version
 FROM agent_offers
 WHERE property_unit_type_id = $1
 ORDER BY created_at DESC, id DESC
@@ -331,6 +339,7 @@ func (q *Queries) ListAgentOffersByPropertyUnitType(ctx context.Context, propert
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Notes,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -355,15 +364,26 @@ type ListPropertiesParams struct {
 	Limit    int32
 }
 
-func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) ([]Property, error) {
+type ListPropertiesRow struct {
+	ID          pgtype.UUID
+	CampusID    pgtype.UUID
+	Name        string
+	Area        string
+	Landmark    pgtype.Text
+	Description pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) ([]ListPropertiesRow, error) {
 	rows, err := q.db.Query(ctx, listProperties, arg.CampusID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Property
+	var items []ListPropertiesRow
 	for rows.Next() {
-		var i Property
+		var i ListPropertiesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CampusID,
@@ -386,7 +406,7 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 
 const listPropertiesWithSummary = `-- name: ListPropertiesWithSummary :many
 SELECT
-  p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at,
+   p.id, p.campus_id, p.name, p.area, p.landmark, p.description, p.created_at, p.updated_at, p.version,
   COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
   COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS available_offer_count,
   COALESCE((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available'), 0)::integer AS lowest_price_kobo,
@@ -411,6 +431,7 @@ type ListPropertiesWithSummaryRow struct {
 	Description         pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Version             int
 	UnitTypeCount       int
 	AvailableOfferCount int
 	LowestPriceKobo     int
@@ -435,6 +456,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Version,
 			&i.UnitTypeCount,
 			&i.AvailableOfferCount,
 			&i.LowestPriceKobo,
@@ -451,7 +473,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 }
 
 const listPropertyUnitTypesByProperty = `-- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC
@@ -479,6 +501,7 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 			&i.BathroomType,
 			&i.KitchenType,
 			&i.Notes,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}

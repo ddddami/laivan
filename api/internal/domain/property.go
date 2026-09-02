@@ -6,6 +6,7 @@ type Property struct {
 	Name        string
 	Location    ApproxLocation
 	Description string
+	Version     int
 	Timestamps
 }
 

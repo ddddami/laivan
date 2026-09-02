@@ -51,6 +51,7 @@ type AgentOffer struct {
 	CreatedAt          pgtype.Timestamptz
 	UpdatedAt          pgtype.Timestamptz
 	Notes              pgtype.Text
+	Version            int
 }
 
 type AuditEvent struct {
@@ -108,6 +109,7 @@ type Property struct {
 	Description pgtype.Text
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	Version     int
 }
 
 type PropertyUnitType struct {
@@ -123,6 +125,7 @@ type PropertyUnitType struct {
 	BathroomType pgtype.Text
 	KitchenType  pgtype.Text
 	Notes        pgtype.Text
+	Version      int
 }
 
 type Session struct {

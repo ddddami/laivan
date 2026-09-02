@@ -496,6 +496,8 @@ export interface components {
             readonly available_offer_count: number;
             /** @description Lowest price among available offers in whole Naira. 0 when no offers exist. */
             readonly lowest_price_naira: number;
+            /** @description Current optimistic-concurrency version. */
+            readonly version: number;
             /**
              * Format: uri
              * @description Imgproxy-generated thumbnail URL for the first available image, when present.
@@ -539,6 +541,8 @@ export interface components {
             readonly has_parlour: boolean | null;
             readonly bathroom_type: components["schemas"]["BathroomType"] | null;
             readonly kitchen_type: components["schemas"]["KitchenType"] | null;
+            /** @description Current optimistic-concurrency version. */
+            readonly version: number;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -571,6 +575,8 @@ export interface components {
             readonly price_naira: number;
             /** @enum {string} */
             readonly status: "available" | "unavailable" | "paused";
+            /** @description Current optimistic-concurrency version. */
+            readonly version: number;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -618,6 +624,8 @@ export interface components {
             readonly landmark: string;
             /** @description Building-level notes. May be empty when unavailable. */
             readonly description: string;
+            /** @description Current optimistic-concurrency version. */
+            readonly version: number;
             readonly unit_types: readonly components["schemas"]["UnitTypeDetail"][];
             readonly media: readonly components["schemas"]["Media"][];
             /** Format: date-time */

@@ -7,6 +7,7 @@ required:
   - description
   - price_naira
   - status
+  - version
   - created_at
   - updated_at
 properties:
@@ -41,6 +42,10 @@ properties:
       - available
       - unavailable
       - paused
+  version:
+    type: integer
+    minimum: 1
+    description: Current optimistic-concurrency version.
   created_at:
     type: string
     format: date-time

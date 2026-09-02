@@ -38,6 +38,7 @@ func TestCreatePropertyReturnsProperty(t *testing.T) {
 			Name      string `json:"name"`
 			Area      string `json:"area"`
 			Landmark  string `json:"landmark"`
+			Version   int    `json:"version"`
 			CreatedAt string `json:"created_at"`
 		} `json:"property"`
 	}
@@ -55,6 +56,9 @@ func TestCreatePropertyReturnsProperty(t *testing.T) {
 	}
 	if bodyDecoded.Property.CampusID != "550e8400-e29b-41d4-a716-446655440002" {
 		t.Fatalf("campus ID = %q, want 550e8400-e29b-41d4-a716-446655440002", bodyDecoded.Property.CampusID)
+	}
+	if bodyDecoded.Property.Version != 1 {
+		t.Fatalf("version = %d, want 1", bodyDecoded.Property.Version)
 	}
 }
 
