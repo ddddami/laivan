@@ -143,11 +143,6 @@ INSERT INTO agents (user_id, display_name, phone_number, status)
 VALUES ($1, $2, $3, 'active')
 RETURNING id, user_id, display_name, phone_number, whatsapp_number, status, created_at, updated_at;
 
--- name: LinkAgentToUser :one
-UPDATE agents
-SET user_id = $2, updated_at = now()
-WHERE id = $1 AND user_id IS NULL AND status = 'active'
-RETURNING id, user_id, display_name, phone_number, whatsapp_number, status, created_at, updated_at;
 
 -- name: ActivateAgentApplication :one
 UPDATE agent_applications
