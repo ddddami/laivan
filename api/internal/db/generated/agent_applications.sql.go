@@ -426,45 +426,6 @@ func (q *Queries) IsGlobalAdmin(ctx context.Context, userID pgtype.UUID) (bool, 
 	return is_global_admin, err
 }
 
-const linkAgentToUser = `-- name: LinkAgentToUser :one
-UPDATE agents
-SET user_id = $2, updated_at = now()
-WHERE id = $1 AND user_id IS NULL AND status = 'active'
-RETURNING id, user_id, display_name, phone_number, whatsapp_number, status, created_at, updated_at
-`
-
-type LinkAgentToUserParams struct {
-	ID     pgtype.UUID
-	UserID pgtype.UUID
-}
-
-type LinkAgentToUserRow struct {
-	ID             pgtype.UUID
-	UserID         pgtype.UUID
-	DisplayName    string
-	PhoneNumber    string
-	WhatsappNumber pgtype.Text
-	Status         string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-}
-
-func (q *Queries) LinkAgentToUser(ctx context.Context, arg LinkAgentToUserParams) (LinkAgentToUserRow, error) {
-	row := q.db.QueryRow(ctx, linkAgentToUser, arg.ID, arg.UserID)
-	var i LinkAgentToUserRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.DisplayName,
-		&i.PhoneNumber,
-		&i.WhatsappNumber,
-		&i.Status,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const listAgentApplicationsByApplicant = `-- name: ListAgentApplicationsByApplicant :many
 SELECT
     aa.id,
