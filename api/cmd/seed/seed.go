@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 
 	appdb "github.com/ddddami/laivan/internal/db"
@@ -74,8 +73,7 @@ func seedAgents(ctx context.Context, tx pgx.Tx) error {
 			return fmt.Errorf("seed user for agent %s: %w", agent.ID, err)
 		}
 
-		var seededAgentID string
-		err = tx.QueryRow(ctx, `
+		tag, err := tx.Exec(ctx, `
 			INSERT INTO agents (id, user_id, display_name, phone_number, whatsapp_number, status)
 			VALUES ($1, $2, $3, $4, $5, 'active')
 			ON CONFLICT (id) DO UPDATE SET
@@ -85,13 +83,12 @@ func seedAgents(ctx context.Context, tx pgx.Tx) error {
 			  status = EXCLUDED.status,
 			  updated_at = now()
 			WHERE agents.user_id = EXCLUDED.user_id
-			RETURNING id
-		`, agent.ID, userID, agent.DisplayName, agent.PhoneNumber, agent.WhatsAppNumber).Scan(&seededAgentID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("seed agent %s: existing agent is linked to another user", agent.ID)
-		}
+		`, agent.ID, userID, agent.DisplayName, agent.PhoneNumber, agent.WhatsAppNumber)
 		if err != nil {
 			return fmt.Errorf("seed agent %s: %w", agent.ID, err)
+		}
+		if tag.RowsAffected() == 0 {
+			return fmt.Errorf("seed agent %s: existing agent is linked to another user", agent.ID)
 		}
 	}
 
