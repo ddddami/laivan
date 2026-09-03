@@ -167,10 +167,6 @@ sqlc generate
 git diff --exit-code -- internal/db/generated
 '''
 
-[tasks."api:docs:validate"]
-description = "Validate the OpenAPI contract"
-run = "pnpm contract:lint"
-
 [tasks."contract:check"]
 description = "Run all OpenAPI contract checks"
 run = "pnpm contract:check"
