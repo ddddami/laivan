@@ -50,7 +50,7 @@ export interface paths {
         };
         /**
          * Complete Google sign-in.
-         * @description Validates the OIDC callback, creates an opaque browser session, and redirects to the configured web origin.
+         * @description Validates the OIDC callback, creates an opaque browser session, and redirects to the validated in-app return path on the configured web origin.
          */
         readonly get: operations["completeGoogleAuth"];
         readonly put?: never;
@@ -1071,7 +1071,10 @@ export interface operations {
     };
     readonly startGoogleAuth: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Relative in-app path to open after successful sign-in. */
+                readonly return_to?: string;
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -1103,7 +1106,7 @@ export interface operations {
         };
         readonly requestBody?: never;
         readonly responses: {
-            /** @description Redirect to the configured web origin after successful sign-in. */
+            /** @description Redirect to the validated in-app return path after successful sign-in. */
             readonly 302: {
                 headers: {
                     readonly Location?: string;

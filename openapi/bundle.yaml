@@ -68,6 +68,14 @@ paths:
         - Authentication
       summary: Start Google sign-in.
       description: Creates a short-lived signed OIDC attempt cookie and redirects the browser to Google.
+      parameters:
+        - name: return_to
+          in: query
+          required: false
+          description: Relative in-app path to open after successful sign-in.
+          schema:
+            type: string
+            pattern: ^/[^/].*|^/$
       responses:
         '302':
           description: Redirect to Google sign-in.
@@ -89,7 +97,7 @@ paths:
       tags:
         - Authentication
       summary: Complete Google sign-in.
-      description: Validates the OIDC callback, creates an opaque browser session, and redirects to the configured web origin.
+      description: Validates the OIDC callback, creates an opaque browser session, and redirects to the validated in-app return path on the configured web origin.
       parameters:
         - name: code
           in: query
@@ -103,7 +111,7 @@ paths:
             type: string
       responses:
         '302':
-          description: Redirect to the configured web origin after successful sign-in.
+          description: Redirect to the validated in-app return path after successful sign-in.
           headers:
             Location:
               schema:

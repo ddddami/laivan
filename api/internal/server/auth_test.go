@@ -49,6 +49,19 @@ func TestGoogleAuthStartReturnsUnavailableWhenNotConfigured(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusServiceUnavailable, "auth_unavailable", "Authentication is not configured")
 }
 
+func TestValidReturnToAcceptsRelativePathAndRejectsAmbiguousURLs(t *testing.T) {
+	valid, ok := validReturnTo("/properties/one?tab=offers")
+	if !ok || valid != "/properties/one?tab=offers" {
+		t.Fatalf("valid return path = %q, %t", valid, ok)
+	}
+
+	for _, value := range []string{"https://evil.example", "//evil.example", "/\\evil.example", "/\nredirect"} {
+		if _, ok := validReturnTo(value); ok {
+			t.Fatalf("return path %q was accepted", value)
+		}
+	}
+}
+
 func TestGoogleAuthRoutesRateLimitByRemoteAddress(t *testing.T) {
 	app := testApp()
 	app.oidcRateLimiter = newRateLimiter(1, time.Minute)

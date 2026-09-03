@@ -3,6 +3,8 @@ package server
 import (
 	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/ddddami/laivan/internal/auth"
 	"github.com/ddddami/laivan/internal/domain"
@@ -14,7 +16,13 @@ func (app *app) googleAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL, cookieValue, err := app.auth.Begin()
+	returnTo, ok := validReturnTo(r.URL.Query().Get("return_to"))
+	if !ok {
+		app.badRequestResponse(w, r, errors.New("return_to must be a relative in-app path"))
+		return
+	}
+
+	redirectURL, cookieValue, err := app.auth.Begin(returnTo)
 	if err != nil {
 		if errors.Is(err, auth.ErrAuthUnavailable) {
 			app.authUnavailableResponse(w, r)
@@ -55,7 +63,27 @@ func (app *app) googleAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	app.setSessionCookie(w, result.SessionToken)
 	app.setCSRFCookie(w, result.CSRFToken)
-	http.Redirect(w, r, app.cfg.Auth.WebOrigin, http.StatusFound)
+	returnTo := result.ReturnTo
+	if returnTo == "" {
+		returnTo = "/"
+	}
+	http.Redirect(w, r, strings.TrimRight(app.cfg.Auth.WebOrigin, "/")+returnTo, http.StatusFound)
+}
+
+func validReturnTo(value string) (string, bool) {
+	if value == "" {
+		return "/", true
+	}
+	if strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n") {
+		return "", false
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.User != nil || !strings.HasPrefix(parsed.Path, "/") {
+		return "", false
+	}
+
+	return value, true
 }
 
 func (app *app) authSession(w http.ResponseWriter, r *http.Request) {

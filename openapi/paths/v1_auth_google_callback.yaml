@@ -5,7 +5,7 @@ get:
   summary: Complete Google sign-in.
   description: >-
     Validates the OIDC callback, creates an opaque browser session, and
-    redirects to the configured web origin.
+    redirects to the validated in-app return path on the configured web origin.
   parameters:
     - name: code
       in: query
@@ -19,7 +19,7 @@ get:
         type: string
   responses:
     '302':
-      description: Redirect to the configured web origin after successful sign-in.
+      description: Redirect to the validated in-app return path after successful sign-in.
       headers:
         Location:
           schema:
