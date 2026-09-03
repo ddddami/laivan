@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 )
 
 func TestCreatePropertyRequiresAuthentication(t *testing.T) {
@@ -129,42 +130,138 @@ func TestCreatePropertyRejectsUnassignedCampus(t *testing.T) {
 }
 
 func TestUpdatePropertyRequiresOperatorAccess(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "Campus operator access is required")
+	assertErrorCodeResponse(t, rr, http.StatusForbidden, "forbidden")
+	if spy.updatePropertyCalls != 0 {
+		t.Fatalf("update property calls = %d, want 0", spy.updatePropertyCalls)
+	}
 }
 
 func TestUpdatePropertyRequiresIfMatch(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
 		Roles:             []string{"campus_operator"},
 		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
 	}})
-	app.propertyRepo = &stubPropertyRepo{}
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+	assertErrorCodeResponse(t, rr, http.StatusPreconditionRequired, "precondition_required")
+	if spy.updatePropertyCalls != 0 {
+		t.Fatalf("update property calls = %d, want 0", spy.updatePropertyCalls)
+	}
 }
 
 func TestUpdatePropertyRejectsStaleVersion(t *testing.T) {
-	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
-		Roles:             []string{"campus_operator"},
-		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
-	}})
-	app.propertyRepo = &stubPropertyRepo{}
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app := testAppWithCampusOperatorRepo(spy)
 	req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
 	req.Header.Set("If-Match", `"property-550e8400-e29b-41d4-a716-446655440000-2"`)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusPreconditionFailed, "precondition_failed", "The resource has changed; refresh before retrying")
+	assertErrorCodeResponse(t, rr, http.StatusPreconditionFailed, "precondition_failed")
+	if spy.updatePropertyCalls != 1 {
+		t.Fatalf("update property calls = %d, want 1", spy.updatePropertyCalls)
+	}
+}
+
+func TestUpdatePropertyRejectsInvalidRequestsWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		body     string
+		ifMatch  string
+		wantCode string
+	}{
+		{name: "malformed id", path: "/v1/properties/not-a-uuid", body: `{"name":"Updated Lodge"}`, wantCode: "validation_failed"},
+		{name: "invalid body", path: "/v1/properties/550e8400-e29b-41d4-a716-446655440000", body: `{`, ifMatch: `"property-550e8400-e29b-41d4-a716-446655440000-1"`, wantCode: "bad_request"},
+		{name: "missing if-match", path: "/v1/properties/550e8400-e29b-41d4-a716-446655440000", body: `{"name":"Updated Lodge"}`, wantCode: "precondition_required"},
+		{name: "malformed if-match", path: "/v1/properties/550e8400-e29b-41d4-a716-446655440000", body: `{"name":"Updated Lodge"}`, ifMatch: "not-an-etag", wantCode: "precondition_failed"},
+		{name: "non-matching if-match", path: "/v1/properties/550e8400-e29b-41d4-a716-446655440000", body: `{"name":"Updated Lodge"}`, ifMatch: `"property-550e8400-e29b-41d4-a716-446655440001-1"`, wantCode: "precondition_failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+			app := testAppWithCampusOperatorRepo(spy)
+			req := authenticatedRequest(http.MethodPatch, tt.path, tt.body, true)
+			if tt.ifMatch != "" {
+				req.Header.Set("If-Match", tt.ifMatch)
+			}
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			wantStatus := http.StatusUnprocessableEntity
+			if tt.wantCode == "bad_request" {
+				wantStatus = http.StatusBadRequest
+			} else if tt.wantCode == "precondition_required" {
+				wantStatus = http.StatusPreconditionRequired
+			} else if tt.wantCode == "precondition_failed" {
+				wantStatus = http.StatusPreconditionFailed
+			}
+			assertErrorCodeResponse(t, rr, wantStatus, tt.wantCode)
+			if spy.updatePropertyCalls != 0 {
+				t.Fatalf("update property calls = %d, want 0", spy.updatePropertyCalls)
+			}
+		})
+	}
+}
+
+func TestUpdatePropertyRequiresAuthenticationWithoutMutation(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+	req := httptest.NewRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorCodeResponse(t, rr, http.StatusUnauthorized, "unauthenticated")
+	if spy.updatePropertyCalls != 0 {
+		t.Fatalf("update property calls = %d, want 0", spy.updatePropertyCalls)
+	}
+}
+
+func TestUpdatePropertyMapsRepositoryErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		status   int
+		wantCode string
+	}{
+		{name: "not found", err: repo.ErrNotFound, status: http.StatusNotFound, wantCode: "not_found"},
+		{name: "campus forbidden", err: repo.ErrCampusForbidden, status: http.StatusForbidden, wantCode: "forbidden"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}, updatePropertyErr: tt.err}
+			app := testAppWithCampusOperatorRepo(spy)
+			req := authenticatedRequest(http.MethodPatch, "/v1/properties/550e8400-e29b-41d4-a716-446655440000", `{"name":"Updated Lodge"}`, true)
+			req.Header.Set("If-Match", `"property-550e8400-e29b-41d4-a716-446655440000-1"`)
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			assertErrorCodeResponse(t, rr, tt.status, tt.wantCode)
+			if spy.updatePropertyCalls != 1 {
+				t.Fatalf("update property calls = %d, want 1", spy.updatePropertyCalls)
+			}
+		})
+	}
 }
 
 func TestUpdatePropertyReturnsNewVersionAndETag(t *testing.T) {

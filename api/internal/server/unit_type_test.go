@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ddddami/laivan/internal/domain"
+	"github.com/ddddami/laivan/internal/repo"
 )
 
 func TestCreatePropertyUnitTypeRequiresAuthentication(t *testing.T) {
@@ -197,28 +198,33 @@ func TestCreatePropertyUnitTypeRejectsUnassignedCampus(t *testing.T) {
 }
 
 func TestUpdatePropertyUnitTypeRequiresOperatorAccess(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated"}`, true)
 	req.Header.Set("If-Match", `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-1"`)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "Campus operator access is required")
+	assertErrorCodeResponse(t, rr, http.StatusForbidden, "forbidden")
+	if spy.updateUnitTypeCalls != 0 {
+		t.Fatalf("update unit type calls = %d, want 0", spy.updateUnitTypeCalls)
+	}
 }
 
 func TestUpdatePropertyUnitTypeRequiresIfMatch(t *testing.T) {
-	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
-		Roles:             []string{"campus_operator"},
-		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
-	}})
-	app.propertyRepo = &stubPropertyRepo{}
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app := testAppWithCampusOperatorRepo(spy)
 	req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated"}`, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+	assertErrorCodeResponse(t, rr, http.StatusPreconditionRequired, "precondition_required")
+	if spy.updateUnitTypeCalls != 0 {
+		t.Fatalf("update unit type calls = %d, want 0", spy.updateUnitTypeCalls)
+	}
 }
 
 func TestUpdatePropertyUnitTypeReturnsNewVersionAndETag(t *testing.T) {
@@ -253,6 +259,94 @@ func TestUpdatePropertyUnitTypeReturnsNewVersionAndETag(t *testing.T) {
 	}
 	if body.UnitType.Version != 2 {
 		t.Fatalf("version = %d, want 2", body.UnitType.Version)
+	}
+}
+
+func TestUpdatePropertyUnitTypeRejectsInvalidRequestsWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		body     string
+		ifMatch  string
+		wantCode string
+	}{
+		{name: "malformed id", path: "/v1/unit-types/not-a-uuid", body: `{"description":"Updated"}`, wantCode: "validation_failed"},
+		{name: "invalid body", path: "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", body: `{`, ifMatch: `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-1"`, wantCode: "bad_request"},
+		{name: "missing if-match", path: "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", body: `{"description":"Updated"}`, wantCode: "precondition_required"},
+		{name: "malformed if-match", path: "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", body: `{"description":"Updated"}`, ifMatch: "not-an-etag", wantCode: "precondition_failed"},
+		{name: "non-matching if-match", path: "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", body: `{"description":"Updated"}`, ifMatch: `"property-unit-type-550e8400-e29b-41d4-a716-446655440021-1"`, wantCode: "precondition_failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+			app := testAppWithCampusOperatorRepo(spy)
+			req := authenticatedRequest(http.MethodPatch, tt.path, tt.body, true)
+			if tt.ifMatch != "" {
+				req.Header.Set("If-Match", tt.ifMatch)
+			}
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			wantStatus := http.StatusUnprocessableEntity
+			if tt.wantCode == "bad_request" {
+				wantStatus = http.StatusBadRequest
+			} else if tt.wantCode == "precondition_required" {
+				wantStatus = http.StatusPreconditionRequired
+			} else if tt.wantCode == "precondition_failed" {
+				wantStatus = http.StatusPreconditionFailed
+			}
+			assertErrorCodeResponse(t, rr, wantStatus, tt.wantCode)
+			if spy.updateUnitTypeCalls != 0 {
+				t.Fatalf("update unit type calls = %d, want 0", spy.updateUnitTypeCalls)
+			}
+		})
+	}
+}
+
+func TestUpdatePropertyUnitTypeRequiresAuthenticationWithoutMutation(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+	req := httptest.NewRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorCodeResponse(t, rr, http.StatusUnauthorized, "unauthenticated")
+	if spy.updateUnitTypeCalls != 0 {
+		t.Fatalf("update unit type calls = %d, want 0", spy.updateUnitTypeCalls)
+	}
+}
+
+func TestUpdatePropertyUnitTypeMapsRepositoryErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		status   int
+		wantCode string
+	}{
+		{name: "not found", err: repo.ErrNotFound, status: http.StatusNotFound, wantCode: "not_found"},
+		{name: "stale update", err: repo.ErrStaleUpdate, status: http.StatusPreconditionFailed, wantCode: "precondition_failed"},
+		{name: "campus forbidden", err: repo.ErrCampusForbidden, status: http.StatusForbidden, wantCode: "forbidden"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}, updateUnitTypeErr: tt.err}
+			app := testAppWithCampusOperatorRepo(spy)
+			req := authenticatedRequest(http.MethodPatch, "/v1/unit-types/550e8400-e29b-41d4-a716-446655440020", `{"description":"Updated"}`, true)
+			req.Header.Set("If-Match", `"property-unit-type-550e8400-e29b-41d4-a716-446655440020-1"`)
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			assertErrorCodeResponse(t, rr, tt.status, tt.wantCode)
+			if spy.updateUnitTypeCalls != 1 {
+				t.Fatalf("update unit type calls = %d, want 1", spy.updateUnitTypeCalls)
+			}
+		})
 	}
 }
 
