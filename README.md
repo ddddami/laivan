@@ -16,48 +16,47 @@ curl https://mise.run | sh
 eval "$(~/.local/bin/mise activate zsh)"   # add to ~/.zshrc
 cd laivan
 mise install                                # installs Go, Node, pnpm, dev tools
+mise trust                                  # trust this mise.toml on first use
 cp .env.example .env                        # configure environment
 mise run infra:up                           # start postgres, minio, imgproxy
 mise run db:up                              # run database migrations
-mise run db:seed:dev                        # seed database (optional)
-mise run api:dev                            # start API server on :4000
-# in another terminal:
-mise run web:dev                            # start web dev server on :3000
+mise run db:seed:dev                        # seed database (optional, after migrations)
+mise run app                                # start API and web together
 ```
+
+The API listens on `:4000` and the Vite development server listens on `:5173`.
+The `app` task starts infrastructure and applies database migrations before
+starting both development servers.
 
 ### Preview on a phone
 
-Connect the phone and development machine to the same local network. Start the
-infrastructure, then run the mobile API and web tasks in separate terminals:
+Connect the phone and development machine to the same local network. After the
+one-time setup above, run the mobile app task:
 
 ```sh
-mise run infra:up
-mise run api:dev:mobile
+mise run app:mobile
 ```
 
-```sh
-mise run web:dev:mobile
-```
-
-Open the network URL printed by Vite, such as `http://192.168.0.101:3000`, on the
-phone. This is an HTTP development preview; installing the PWA and testing offline
-behaviour still require a secure context.
+Open the network URL printed by Vite, such as `http://192.168.0.101:5173`, on the
+phone. The mobile task exposes Vite on the local network and routes image delivery
+through the development proxy. Keep `VITE_API_BASE_URL` empty or unset for this
+workflow so the browser uses the relative `/v1` proxy instead of trying to reach
+`localhost` on the phone. This is an HTTP development preview; installing the PWA
+and testing offline behaviour still require a secure context.
 
 ### Common commands
 
 | Command | Description |
 |---|---|
-| `mise run api:dev` | API server with hot reload |
-| `mise run api:dev:mobile` | API server with phone-accessible image URLs |
-| `mise run api:test` | Run API tests |
-| `mise run api:lint` | Lint API code |
-| `mise run api:check` | Format, tidy, lint, and test API |
-| `mise run api:verify` | Non-integration API checks |
-| `mise run verify` | Complete local CI verification |
-| `mise run web:dev` | Web dev server |
-| `mise run web:dev:mobile` | Web dev server exposed to the local network |
-| `mise run web:test` | Run web tests |
-| `mise run test` | All tests |
+| `mise run app` | Run the full app on this computer |
+| `mise run app:mobile` | Run the full app for phone preview |
+| `mise run api` | Run only the API with hot reload |
+| `mise run web` | Run only the web app with Vite |
+| `mise run test` | Run fast backend and frontend tests |
+| `mise run verify` | Run complete local CI verification |
 | `mise run infra:up` | Start Docker services |
+| `mise run infra:ps` | Show Docker service status |
+| `mise run infra:logs` | Follow Docker service logs |
 | `mise run db:up` | Run database migrations |
 | `mise run db:seed:dev` | Seed dev data |
+| `mise run db:reset` | Reset the local development database |
