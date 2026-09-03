@@ -5,6 +5,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -399,20 +400,21 @@ func TestPropertyRepositoryConcurrentAgentOfferUpdates(t *testing.T) {
 		t.Fatalf("create agent offer: %v", err)
 	}
 
-	type result struct {
+	type updateOutcome struct {
 		offer domain.AgentOffer
 		err   error
 	}
 	ready := make(chan struct{}, 2)
 	release := make(chan struct{})
-	results := make(chan result, 2)
+	results := make(chan updateOutcome, 2)
+	candidateTitles := []string{"First concurrent offer update", "Second concurrent offer update"}
 
-	for _, title := range []string{"First concurrent offer update", "Second concurrent offer update"} {
+	for _, title := range candidateTitles {
 		go func(title string) {
 			ready <- struct{}{}
 			<-release
 			updated, err := repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, actorUserID)
-			results <- result{offer: updated, err: err}
+			results <- updateOutcome{offer: updated, err: err}
 		}(title)
 	}
 
@@ -421,19 +423,27 @@ func TestPropertyRepositoryConcurrentAgentOfferUpdates(t *testing.T) {
 	close(release)
 
 	var successes, stale int
+	var successfulOffer domain.AgentOffer
 	for range 2 {
-		result := <-results
+		outcome := <-results
 		switch {
-		case result.err == nil:
+		case outcome.err == nil:
 			successes++
-		case errors.Is(result.err, ErrStaleUpdate):
+			successfulOffer = outcome.offer
+		case errors.Is(outcome.err, ErrStaleUpdate):
 			stale++
 		default:
-			t.Fatalf("concurrent agent offer update error = %v, want one success and one stale update", result.err)
+			t.Fatalf("concurrent agent offer update error = %v, want one success and one stale update", outcome.err)
 		}
 	}
 	if successes != 1 || stale != 1 {
 		t.Fatalf("concurrent agent offer updates = %d successes, %d stale updates; want 1, 1", successes, stale)
+	}
+	if successfulOffer.Version != 2 {
+		t.Fatalf("successful concurrent offer version = %d, want 2", successfulOffer.Version)
+	}
+	if !slices.Contains(candidateTitles, successfulOffer.Title) {
+		t.Fatalf("successful concurrent offer title = %q, want one of %v", successfulOffer.Title, candidateTitles)
 	}
 
 	final, err := repository.GetAgentOffer(ctx, offer.ID)
@@ -442,6 +452,9 @@ func TestPropertyRepositoryConcurrentAgentOfferUpdates(t *testing.T) {
 	}
 	if final.Version != 2 {
 		t.Fatalf("final agent offer version = %d, want 2", final.Version)
+	}
+	if final.Title != successfulOffer.Title {
+		t.Fatalf("final agent offer title = %q, want successful title %q", final.Title, successfulOffer.Title)
 	}
 }
 

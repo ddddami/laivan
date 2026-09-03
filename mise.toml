@@ -36,11 +36,22 @@ description = "Run API tests"
 dir = "api"
 run = "go test ./..."
 
+[tasks."api:test:race"]
+description = "Run API tests with the race detector"
+dir = "api"
+run = "go test -race ./..."
+
 [tasks."api:test:integration"]
 description = "Run API integration tests against local test database"
 depends = ["db:test:reset"]
 dir = "api"
 run = "go test -tags=integration ./..."
+
+[tasks."api:test:integration:race"]
+description = "Run API integration tests with the race detector"
+depends = ["db:test:reset"]
+dir = "api"
+run = "go test -race -tags=integration ./..."
 
 [tasks."api:fmt"]
 description = "Format API Go code"
@@ -86,12 +97,14 @@ mise run "api:test"
 '''
 
 [tasks."api:verify"]
-description = "Run all non-mutating API checks (matches CI)"
+description = "Run non-integration API checks"
 run = '''
 mise run "api:fmt:check" &&
 mise run "api:tidy:check" &&
 mise run "api:lint" &&
-mise run "api:test"
+mise run "sqlc:check" &&
+mise run "api:test" &&
+mise run "api:test:race"
 '''
 
 [tasks."infra:up"]
@@ -153,6 +166,10 @@ git diff --exit-code -- internal/db/generated
 description = "Validate the OpenAPI contract"
 run = "pnpm contract:lint"
 
+[tasks."contract:check"]
+description = "Run all OpenAPI contract checks"
+run = "pnpm contract:check"
+
 [tasks."web:install"]
 description = "Install web dependencies"
 dir = "web"
@@ -203,4 +220,14 @@ description = "Run backend and frontend tests"
 run = '''
 mise run api:test &&
 mise run web:test
+'''
+
+[tasks.verify]
+description = "Run complete local CI verification"
+run = '''
+mise run "api:verify" &&
+mise run "api:test:integration" &&
+mise run "api:test:integration:race" &&
+mise run "contract:check" &&
+mise run "web:check"
 '''
