@@ -111,7 +111,10 @@ mise run "api:test:race"
 
 [tasks."infra:up"]
 description = "Start local infra services"
-run = "docker compose up -d --wait"
+run = '''
+docker compose up -d --wait postgres minio imgproxy &&
+docker compose run --rm minio-setup
+'''
 
 [tasks."infra:down"]
 description = "Stop local infra services"
