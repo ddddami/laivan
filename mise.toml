@@ -14,7 +14,9 @@ air = "v1.65.3"
 [env]
 _.file = ".env"
 
-[tasks]
+[tasks.api]
+description = "Run the API server with hot reload"
+run = "mise run api:dev"
 
 [tasks."api:dev"]
 description = "Run the API server with hot reload"
@@ -109,7 +111,7 @@ mise run "api:test:race"
 
 [tasks."infra:up"]
 description = "Start local infra services"
-run = "docker compose up -d"
+run = "docker compose up -d --wait"
 
 [tasks."infra:down"]
 description = "Stop local infra services"
@@ -185,6 +187,10 @@ description = "Expose the web dev server on the local network"
 dir = "web"
 run = "pnpm dev --host 0.0.0.0"
 
+[tasks.web]
+description = "Run the web dev server"
+run = "mise run web:dev"
+
 [tasks."web:test"]
 description = "Run web tests"
 dir = "web"
@@ -230,4 +236,20 @@ mise run "api:test:integration" &&
 mise run "api:test:integration:race" &&
 mise run "contract:check" &&
 mise run "web:check"
+'''
+
+[tasks.app]
+description = "Run the full Laivan app on this computer"
+run = '''
+mise run infra:up &&
+mise run db:up &&
+mise run api ::: web
+'''
+
+[tasks."app:mobile"]
+description = "Run the full Laivan app for phone preview"
+run = '''
+mise run infra:up &&
+mise run db:up &&
+mise run api:dev:mobile ::: web:dev:mobile
 '''
