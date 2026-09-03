@@ -31,6 +31,9 @@ func run(ctx context.Context, databaseURL string, maxConns int32, mediaUploader 
 	if err := seedAgents(ctx, tx); err != nil {
 		return err
 	}
+	if err := seedAgentCampuses(ctx, tx, campusID); err != nil {
+		return err
+	}
 	if err := seedProperties(ctx, tx, campusID); err != nil {
 		return err
 	}
@@ -89,6 +92,20 @@ func seedAgents(ctx context.Context, tx pgx.Tx) error {
 		}
 		if tag.RowsAffected() == 0 {
 			return fmt.Errorf("seed agent %s: existing agent is linked to another user", agent.ID)
+		}
+	}
+
+	return nil
+}
+
+func seedAgentCampuses(ctx context.Context, tx pgx.Tx, campusID string) error {
+	for _, agent := range agents {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO agent_campuses (agent_id, campus_id)
+			VALUES ($1, $2)
+			ON CONFLICT (agent_id, campus_id) DO NOTHING
+		`, agent.ID, campusID); err != nil {
+			return fmt.Errorf("seed campus association for agent %s: %w", agent.ID, err)
 		}
 	}
 
