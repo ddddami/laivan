@@ -16,4 +16,6 @@ var (
 	ErrCampusForbidden        = errors.New("operator is not authorized for this campus")
 	ErrPhoneConflict          = errors.New("agent phone number conflicts with an existing agent")
 	ErrAgentLifecycleConflict = errors.New("agent lifecycle transition conflicts with the current status")
+	ErrOfferUnavailable       = errors.New("agent offer is unavailable for inquiries")
+	ErrOwnOffer               = errors.New("agent cannot inquire about their own offer")
 )

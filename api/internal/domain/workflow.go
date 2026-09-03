@@ -8,12 +8,23 @@ const (
 )
 
 type Inquiry struct {
-	ID           ID
-	StudentID    ID
-	AgentOfferID ID
-	Message      string
-	Status       InquiryStatus
+	ID            ID
+	StudentUserID ID
+	AgentOfferID  ID
+	SubmissionID  ID
+	Message       string
+	Status        InquiryStatus
 	Timestamps
+}
+
+type InquiryHandoff struct {
+	AgentDisplayName string
+	PhoneNumber      string
+	WhatsAppNumber   string
+	OfferTitle       string
+	PropertyName     string
+	UnitName         string
+	Area             string
 }
 
 type InspectionRequestStatus string

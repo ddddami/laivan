@@ -86,6 +86,17 @@ type GlobalAdminRole struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Inquiry struct {
+	ID            pgtype.UUID
+	StudentUserID pgtype.UUID
+	AgentOfferID  pgtype.UUID
+	SubmissionID  pgtype.UUID
+	Message       string
+	Status        string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type Medium struct {
 	ID                 pgtype.UUID
 	PropertyID         pgtype.UUID
