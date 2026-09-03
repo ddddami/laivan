@@ -24,7 +24,7 @@ mise run db:seed:dev                        # seed database (optional, after mig
 mise run app                                # start API and web together
 ```
 
-The API listens on `:4000` and the Vite development server listens on `:5173`.
+The API listens on `:4000` and the Vite development server listens on `:3000`.
 The `app` task starts infrastructure and applies database migrations before
 starting both development servers.
 
@@ -37,7 +37,7 @@ one-time setup above, run the mobile app task:
 mise run app:mobile
 ```
 
-Open the network URL printed by Vite, such as `http://192.168.0.101:5173`, on the
+Open the network URL printed by Vite, such as `http://192.168.0.101:3000`, on the
 phone. The mobile task exposes Vite on the local network and routes image delivery
 through the development proxy. Keep `VITE_API_BASE_URL` empty or unset for this
 workflow so the browser uses the relative `/v1` proxy instead of trying to reach
