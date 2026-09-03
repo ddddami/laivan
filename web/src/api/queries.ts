@@ -2,6 +2,7 @@ import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
   createPublicApiClient,
+  createAuthenticatedApiClient,
   normalizeDiscoveryParams,
   type DiscoveryParams,
   type PublicApiClient,
@@ -12,11 +13,27 @@ export const publicApiClient = createPublicApiClient({
   baseUrl: publicConfig.apiBaseUrl,
 })
 
+export const authenticatedApiClient = createAuthenticatedApiClient({
+  baseUrl: publicConfig.apiBaseUrl,
+})
+
 export const publicQueryKeys = {
   campus: (slug: string) => ['public', 'campus', slug.trim().toLowerCase()] as const,
   discovery: (params: DiscoveryParams) =>
     ['public', 'discovery', normalizeDiscoveryParams(params)] as const,
   property: (id: string) => ['public', 'property', id.trim()] as const,
+}
+
+export const authQueryKeys = {
+  session: ['auth', 'session'] as const,
+}
+
+export function sessionQueryOptions(client = authenticatedApiClient) {
+  return queryOptions({
+    queryKey: authQueryKeys.session,
+    queryFn: () => client.getSession(),
+    staleTime: 30_000,
+  })
 }
 
 export function campusQueryOptions(slug: string, client: PublicApiClient = publicApiClient) {

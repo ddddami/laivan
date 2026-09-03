@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
-import type { PropertyDetail, UnitTypeDetail } from '../../api/client'
+import type { AuthenticatedApiClient, PropertyDetail, UnitTypeDetail } from '../../api/client'
 import { AgentOfferCard } from '../../components/marketplace/agent-offer-card'
 import { unitCategoryLabel } from '../../components/marketplace/labels'
 import { MediaGallery } from '../../components/marketplace/media-gallery'
@@ -11,9 +11,10 @@ import { navigationEntryPoint } from '../discovery/navigation-state'
 type UnitDetailProps = {
   property: PropertyDetail
   unit: UnitTypeDetail
+  workflowClient?: AuthenticatedApiClient
 }
 
-export function UnitDetail({ property, unit }: UnitDetailProps) {
+export function UnitDetail({ property, unit, workflowClient }: UnitDetailProps) {
   const category = unitCategoryLabel(unit.category)
   const mediaSelection = selectAccommodationMedia(unit.media, property.media)
   const offers = [...unit.agent_offers].sort((first, second) => {
@@ -109,7 +110,13 @@ export function UnitDetail({ property, unit }: UnitDetailProps) {
           {offers.length > 0 ? (
             <div className="bg-surface rounded-sheet space-y-2 p-2">
               {offers.map((offer) => (
-                <AgentOfferCard key={offer.id} offer={offer} property={property} unit={unit} />
+                <AgentOfferCard
+                  key={offer.id}
+                  offer={offer}
+                  property={property}
+                  unit={unit}
+                  workflowClient={workflowClient}
+                />
               ))}
             </div>
           ) : (

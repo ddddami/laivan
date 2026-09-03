@@ -8,6 +8,9 @@ export type UnitTypeDetail = components['schemas']['UnitTypeDetail']
 export type AgentOfferDetail = components['schemas']['AgentOfferDetail']
 export type Media = components['schemas']['Media']
 export type DiscoveryParams = operations['discover']['parameters']['query']
+export type AuthSessionResponse = components['schemas']['AuthSessionResponse']
+export type CreateInquiryRequest = components['schemas']['CreateInquiryRequest']
+export type InquiryResponse = components['schemas']['InquiryResponse']
 
 type ClientOptions = {
   baseUrl: string
@@ -46,36 +49,9 @@ export function createPublicApiClient({
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, '')
 
   async function getJson<T>(path: string): Promise<T> {
-    let response: Response
-    try {
-      response = await fetcher(`${normalizedBaseUrl}${path}`, {
-        headers: { Accept: 'application/json' },
-      })
-    } catch (cause) {
-      throw new ApiError({
-        kind: 'network',
-        code: 'network_error',
-        message: 'Unable to reach Laivan',
-        cause,
-      })
-    }
-
-    if (!response.ok) {
-      throw await responseError(response)
-    }
-
-    try {
-      // The generated OpenAPI contract supplies the response type; JSON has no runtime type metadata.
-      return (await response.json()) as T
-    } catch (cause) {
-      throw new ApiError({
-        kind: 'response',
-        status: response.status,
-        code: 'invalid_response',
-        message: 'Laivan returned an invalid response',
-        cause,
-      })
-    }
+    return requestJson<T>(fetcher, `${normalizedBaseUrl}${path}`, {
+      headers: { Accept: 'application/json' },
+    })
   }
 
   return {
@@ -102,6 +78,76 @@ export function createPublicApiClient({
 }
 
 export type PublicApiClient = ReturnType<typeof createPublicApiClient>
+
+export function createAuthenticatedApiClient({
+  baseUrl,
+  fetch: fetcher = globalThis.fetch.bind(globalThis),
+}: ClientOptions) {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '')
+
+  return {
+    async getSession(): Promise<AuthSessionResponse> {
+      return requestJson<AuthSessionResponse>(fetcher, `${normalizedBaseUrl}/v1/auth/session`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+    },
+
+    async createInquiry(
+      agentOfferID: string,
+      input: CreateInquiryRequest,
+      csrfToken: string,
+    ): Promise<InquiryResponse> {
+      return requestJson<InquiryResponse>(
+        fetcher,
+        `${normalizedBaseUrl}/v1/agent-offers/${encodeURIComponent(agentOfferID)}/inquiries`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify(input),
+        },
+      )
+    },
+  }
+}
+
+export type AuthenticatedApiClient = ReturnType<typeof createAuthenticatedApiClient>
+
+async function requestJson<T>(fetcher: typeof fetch, url: string, init: RequestInit): Promise<T> {
+  let response: Response
+  try {
+    response = await fetcher(url, init)
+  } catch (cause) {
+    throw new ApiError({
+      kind: 'network',
+      code: 'network_error',
+      message: 'Unable to reach Laivan',
+      cause,
+    })
+  }
+
+  if (!response.ok) {
+    throw await responseError(response)
+  }
+
+  try {
+    // The generated OpenAPI contract supplies the response type; JSON has no runtime type metadata.
+    return (await response.json()) as T
+  } catch (cause) {
+    throw new ApiError({
+      kind: 'response',
+      status: response.status,
+      code: 'invalid_response',
+      message: 'Laivan returned an invalid response',
+      cause,
+    })
+  }
+}
 
 export function normalizeDiscoveryParams(params: DiscoveryParams): DiscoveryParams {
   const categories = [
