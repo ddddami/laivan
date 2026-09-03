@@ -4,6 +4,7 @@ package repo
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestRepositoryDiscover(t *testing.T) {
 
 	// Property D: a unit type with no agent offers yet and valid property media.
 	empty := insertPropertyWithArea(t, ctx, pool, campusID, "Empty Lodge", "Obanla", time.Date(2026, time.April, 30, 12, 0, 0, 0, time.UTC))
-	insertPropertyUnitTypeFull(t, ctx, pool, empty, "single_room", "", 1, false, "shared", "shared", "No offers yet")
+	emptyUnit := insertPropertyUnitTypeFull(t, ctx, pool, empty, "single_room", "", 1, false, "shared", "shared", "No offers yet")
 
 	// Property E: only a paused offer, a video, and paused-offer media.
 	pausedProperty := insertPropertyWithArea(t, ctx, pool, campusID, "Paused Lodge", "Obanla", time.Date(2026, time.April, 29, 12, 0, 0, 0, time.UTC))
@@ -122,6 +123,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if len(results) != 5 {
 		t.Fatalf("available results length = %d, want 5", len(results))
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, aliceSingle, blueRoomParlour, blueSelfCon, quietSingle})
 	for _, result := range results {
 		if result.UnitTypeID == aliceSelfCon &&
 			result.ThumbnailURL != "https://media.example.test/alice-self-contained.jpg" {
@@ -157,6 +159,10 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 7 {
 		t.Fatalf("all total = %d, want 7", total)
 	}
+	if len(results) != total {
+		t.Fatalf("all results length = %d, want total %d", len(results), total)
+	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, aliceSingle, blueRoomParlour, blueSelfCon, quietSingle, emptyUnit, pausedUnit})
 	for _, result := range results {
 		if result.PropertyName == "Other Campus Lodge" {
 			t.Fatal("other campus result leaked into FUTA discovery")
@@ -179,6 +185,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 2 {
 		t.Fatalf("self_contained total = %d, want 2", total)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, blueSelfCon})
 
 	// Filter by multiple categories
 	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Categories: []string{"self_contained", "single_room"}, Filters: baseFilter})
@@ -188,6 +195,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 4 {
 		t.Fatalf("multi-category total = %d, want 4", total)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, aliceSingle, blueSelfCon, quietSingle})
 
 	// Filter by area partial match
 	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Area: "Obanla", Filters: baseFilter})
@@ -197,6 +205,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 2 {
 		t.Fatalf("Obanla total = %d, want 2", total)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, aliceSingle})
 
 	// Search by property name returns each matching accommodation type.
 	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, Search: "alice", Filters: baseFilter})
@@ -267,6 +276,12 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 3 {
 		t.Fatalf("min_price=200000 total = %d, want 3", total)
 	}
+	for _, result := range results {
+		if result.LowestPrice.Naira() < minPrice {
+			t.Fatalf("minimum-price result %q has price %d, below %d", result.UnitTypeID, result.LowestPrice.Naira(), minPrice)
+		}
+	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, blueRoomParlour, blueSelfCon})
 
 	// Filter by max price
 	maxPrice := 200000
@@ -277,6 +292,12 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 2 {
 		t.Fatalf("max_price=200000 total = %d, want 2", total)
 	}
+	for _, result := range results {
+		if result.LowestPrice.Naira() > maxPrice {
+			t.Fatalf("maximum-price result %q has price %d, above %d", result.UnitTypeID, result.LowestPrice.Naira(), maxPrice)
+		}
+	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSingle, quietSingle})
 
 	zeroPrice := 0
 	results, total, err = repository.Discover(ctx, DiscoveryFilter{CampusID: campusID, MaxPrice: &zeroPrice, Filters: baseFilter})
@@ -324,6 +345,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 3 {
 		t.Fatalf("private bathroom total = %d, want 3", total)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{aliceSelfCon, blueRoomParlour, blueSelfCon})
 
 	// Filter by has_parlour
 	hasParlour := true
@@ -334,6 +356,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if total != 1 {
 		t.Fatalf("has_parlour=true total = %d, want 1", total)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{blueRoomParlour})
 
 	// Combined filters
 	maxPrice = 330000
@@ -347,6 +370,7 @@ func TestRepositoryDiscover(t *testing.T) {
 	if results[0].PropertyName != "Blue Roof" {
 		t.Fatalf("property name = %q, want Blue Roof", results[0].PropertyName)
 	}
+	assertDiscoveryUnitTypes(t, results, []domain.ID{blueSelfCon})
 
 	recommended := data.Filters{
 		Page:         1,
@@ -389,6 +413,90 @@ func TestRepositoryDiscover(t *testing.T) {
 		if repeated[i].UnitTypeID != allRecommended[i].UnitTypeID {
 			t.Fatalf("result %d changed from %q to %q across identical requests", i, allRecommended[i].UnitTypeID, repeated[i].UnitTypeID)
 		}
+	}
+}
+
+func TestRepositoryDiscoverPaginationHasStableCompleteMembership(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	agentID := insertAgent(t, ctx, pool, "Pagination Agent")
+	propertyID := insertProperty(t, ctx, pool, campusID, "Pagination Lodge", time.Date(2026, time.May, 1, 12, 0, 0, 0, time.UTC))
+	expected := make([]domain.ID, 0, 5)
+	for range 5 {
+		unitTypeID := insertPropertyUnitTypeFull(t, ctx, pool, propertyID, "self_contained", "", 1, false, "private", "private", "Pagination unit")
+		insertAgentOffer(t, ctx, pool, unitTypeID, agentID, "Pagination offer", 35000000)
+		expected = append(expected, unitTypeID)
+	}
+
+	stableTime := time.Date(2026, time.May, 5, 12, 0, 0, 0, time.UTC)
+	if _, err := pool.Exec(ctx, "UPDATE properties SET created_at = $1, updated_at = $1 WHERE id = $2", stableTime, string(propertyID)); err != nil {
+		t.Fatalf("set property timestamps: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE property_unit_types SET updated_at = $1 WHERE property_id = $2", stableTime, string(propertyID)); err != nil {
+		t.Fatalf("set unit type timestamps: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE agent_offers
+		SET updated_at = $1
+		WHERE property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = $2)
+	`, stableTime, string(propertyID)); err != nil {
+		t.Fatalf("set offer timestamps: %v", err)
+	}
+
+	slices.Sort(expected)
+	repository := NewPropertyRepository(pool)
+	allResults := make([]domain.ID, 0, len(expected))
+	for page := 1; page <= 3; page++ {
+		results, total, err := repository.Discover(ctx, DiscoveryFilter{
+			CampusID: campusID,
+			Filters: data.Filters{
+				Page:         page,
+				PageSize:     2,
+				Sort:         "-created_at",
+				SortSafelist: []string{"created_at", "-created_at"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("discover page %d: %v", page, err)
+		}
+		if total != len(expected) {
+			t.Fatalf("page %d total = %d, want %d", page, total, len(expected))
+		}
+		for _, result := range results {
+			if slices.Contains(allResults, result.UnitTypeID) {
+				t.Fatalf("page %d repeated unit type %q", page, result.UnitTypeID)
+			}
+			allResults = append(allResults, result.UnitTypeID)
+		}
+	}
+
+	if !slices.Equal(allResults, expected) {
+		t.Fatalf("paginated unit types = %v, want %v", allResults, expected)
+	}
+}
+
+func assertDiscoveryUnitTypes(t *testing.T, results []domain.DiscoveryResult, expected []domain.ID) {
+	t.Helper()
+
+	actual := make([]domain.ID, 0, len(results))
+	for _, result := range results {
+		actual = append(actual, result.UnitTypeID)
+	}
+	slices.Sort(actual)
+	want := slices.Clone(expected)
+	slices.Sort(want)
+	if !slices.Equal(actual, want) {
+		t.Fatalf("discovery unit types = %v, want %v", actual, want)
 	}
 }
 
