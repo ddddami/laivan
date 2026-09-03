@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http/httptest"
+	"testing"
 	"time"
 
 	"github.com/ddddami/laivan/internal/domain"
@@ -505,10 +508,18 @@ func testAppWithActiveAgentRepo() *app {
 
 type spyPropertyRepo struct {
 	*stubPropertyRepo
-	createdUnitType domain.PropertyUnitType
-	createdOffer    domain.AgentOffer
-	createdMedia    []domain.Media
-	discoveryFilter repo.DiscoveryFilter
+	createdUnitType        domain.PropertyUnitType
+	createdOffer           domain.AgentOffer
+	createdMedia           []domain.Media
+	discoveryFilter        repo.DiscoveryFilter
+	updatePropertyCalls    int
+	updatePropertyErr      error
+	updateUnitTypeCalls    int
+	updateUnitTypeErr      error
+	updateAgentOfferCalls  int
+	updateAgentOfferErr    error
+	archiveAgentOfferCalls int
+	archiveAgentOfferErr   error
 }
 
 func (s *spyPropertyRepo) Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error) {
@@ -524,6 +535,14 @@ func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (
 func (s *spyPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
 	s.createdMedia = append(s.createdMedia, media...)
 	return s.stubPropertyRepo.CreateMediaBatch(ctx, media)
+}
+
+func (s *spyPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, actorUserID domain.ID) (domain.Property, error) {
+	s.updatePropertyCalls++
+	if s.updatePropertyErr != nil {
+		return domain.Property{}, s.updatePropertyErr
+	}
+	return s.stubPropertyRepo.Update(ctx, id, expectedVersion, patch, actorUserID)
 }
 
 func (s *spyPropertyRepo) ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error) {
@@ -543,6 +562,14 @@ func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType d
 	return s.stubPropertyRepo.CreatePropertyUnitType(ctx, unitType)
 }
 
+func (s *spyPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch, actorUserID domain.ID) (domain.PropertyUnitType, error) {
+	s.updateUnitTypeCalls++
+	if s.updateUnitTypeErr != nil {
+		return domain.PropertyUnitType{}, s.updateUnitTypeErr
+	}
+	return s.stubPropertyRepo.UpdatePropertyUnitType(ctx, id, expectedVersion, patch, actorUserID)
+}
+
 func (s *spyPropertyRepo) ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error) {
 	return s.stubPropertyRepo.ListPropertyUnitTypes(ctx, propertyID)
 }
@@ -552,8 +579,24 @@ func (s *spyPropertyRepo) CreateAgentOffer(ctx context.Context, offer domain.Age
 	return s.stubPropertyRepo.CreateAgentOffer(ctx, offer)
 }
 
+func (s *spyPropertyRepo) UpdateAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, patch domain.AgentOfferPatch, actorUserID domain.ID) (domain.AgentOffer, error) {
+	s.updateAgentOfferCalls++
+	if s.updateAgentOfferErr != nil {
+		return domain.AgentOffer{}, s.updateAgentOfferErr
+	}
+	return s.stubPropertyRepo.UpdateAgentOffer(ctx, id, expectedVersion, patch, actorUserID)
+}
+
 func (s *spyPropertyRepo) ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error) {
 	return s.stubPropertyRepo.ListAgentOffers(ctx, unitTypeID)
+}
+
+func (s *spyPropertyRepo) ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, actorUserID domain.ID) (domain.AgentOffer, error) {
+	s.archiveAgentOfferCalls++
+	if s.archiveAgentOfferErr != nil {
+		return domain.AgentOffer{}, s.archiveAgentOfferErr
+	}
+	return s.stubPropertyRepo.ArchiveAgentOffer(ctx, id, expectedVersion, actorUserID)
 }
 
 type duplicateAgentOfferRepo struct {
@@ -562,6 +605,38 @@ type duplicateAgentOfferRepo struct {
 
 func (s *duplicateAgentOfferRepo) CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error) {
 	return domain.AgentOffer{}, repo.ErrDuplicate
+}
+
+func testAppWithCampusOperatorRepo(propertyRepo PropertyStore) *app {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
+		Roles:             []string{"campus_operator"},
+		CampusOperatorIDs: []domain.ID{"550e8400-e29b-41d4-a716-446655440002"},
+	}})
+	app.propertyRepo = propertyRepo
+	return app
+}
+
+func assertErrorCodeResponse(t *testing.T, rr *httptest.ResponseRecorder, status int, wantCode string) {
+	t.Helper()
+
+	if rr.Code != status {
+		t.Fatalf("status code = %d, want %d", rr.Code, status)
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if body.Error.Code != wantCode {
+		t.Fatalf("code = %q, want %q", body.Error.Code, wantCode)
+	}
 }
 
 func intPointer(value int) *int {

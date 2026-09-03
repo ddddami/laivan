@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -199,35 +198,36 @@ func TestCreateAgentOfferRejectsClientSuppliedAgentID(t *testing.T) {
 }
 
 func TestUpdateAgentOfferRequiresOwnership(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}, updateAgentOfferErr: repo.ErrAgentForbidden}
 	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{
 		Agent: &domain.LinkedAgent{ID: domain.ID("550e8400-e29b-41d4-a716-446655440041"), Status: domain.AgentStatusActive},
 	}})
-	app.propertyRepo = &forbiddenAgentOfferRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
 	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to update this agent offer")
-}
-
-type forbiddenAgentOfferRepo struct {
-	*stubPropertyRepo
-}
-
-func (s *forbiddenAgentOfferRepo) UpdateAgentOffer(context.Context, domain.ID, int, domain.AgentOfferPatch, domain.ID) (domain.AgentOffer, error) {
-	return domain.AgentOffer{}, repo.ErrAgentForbidden
+	assertErrorCodeResponse(t, rr, http.StatusForbidden, "forbidden")
+	if spy.updateAgentOfferCalls != 1 {
+		t.Fatalf("update agent offer calls = %d, want 1", spy.updateAgentOfferCalls)
+	}
 }
 
 func TestUpdateAgentOfferRequiresIfMatch(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
 	rr := httptest.NewRecorder()
 
 	app.routes().ServeHTTP(rr, req)
 
-	assertErrorResponse(t, rr, http.StatusPreconditionRequired, "precondition_required", "If-Match is required")
+	assertErrorCodeResponse(t, rr, http.StatusPreconditionRequired, "precondition_required")
+	if spy.updateAgentOfferCalls != 0 {
+		t.Fatalf("update agent offer calls = %d, want 0", spy.updateAgentOfferCalls)
+	}
 }
 
 func TestUpdateAgentOfferReturnsNewVersionAndETag(t *testing.T) {
@@ -263,7 +263,9 @@ func TestUpdateAgentOfferReturnsNewVersionAndETag(t *testing.T) {
 }
 
 func TestArchiveAgentOfferReturnsArchivedVersionAndETag(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
+	app.propertyRepo = spy
 	req := authenticatedRequest(http.MethodPost, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", "", true)
 	req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
 	rr := httptest.NewRecorder()
@@ -291,6 +293,180 @@ func TestArchiveAgentOfferReturnsArchivedVersionAndETag(t *testing.T) {
 	}
 	if body.AgentOffer.Version != 2 || body.AgentOffer.ArchivedAt == "" {
 		t.Fatalf("archived offer = %#v, want version 2 and archive timestamp", body.AgentOffer)
+	}
+	if spy.archiveAgentOfferCalls != 1 {
+		t.Fatalf("archive agent offer calls = %d, want 1", spy.archiveAgentOfferCalls)
+	}
+}
+
+func TestUpdateAgentOfferRejectsInvalidRequestsWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		body     string
+		ifMatch  string
+		wantCode string
+	}{
+		{name: "malformed id", path: "/v1/agent-offers/not-a-uuid", body: `{"title":"Updated offer"}`, wantCode: "validation_failed"},
+		{name: "invalid body", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", body: `{`, ifMatch: `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`, wantCode: "bad_request"},
+		{name: "missing if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", body: `{"title":"Updated offer"}`, wantCode: "precondition_required"},
+		{name: "malformed if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", body: `{"title":"Updated offer"}`, ifMatch: "not-an-etag", wantCode: "precondition_failed"},
+		{name: "non-matching if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", body: `{"title":"Updated offer"}`, ifMatch: `"agent-offer-550e8400-e29b-41d4-a716-446655440031-1"`, wantCode: "precondition_failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+			app := testAppWithActiveAgentRepo()
+			app.propertyRepo = spy
+			req := authenticatedRequest(http.MethodPatch, tt.path, tt.body, true)
+			if tt.ifMatch != "" {
+				req.Header.Set("If-Match", tt.ifMatch)
+			}
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			wantStatus := http.StatusUnprocessableEntity
+			if tt.wantCode == "bad_request" {
+				wantStatus = http.StatusBadRequest
+			} else if tt.wantCode == "precondition_required" {
+				wantStatus = http.StatusPreconditionRequired
+			} else if tt.wantCode == "precondition_failed" {
+				wantStatus = http.StatusPreconditionFailed
+			}
+			assertErrorCodeResponse(t, rr, wantStatus, tt.wantCode)
+			if spy.updateAgentOfferCalls != 0 {
+				t.Fatalf("update agent offer calls = %d, want 0", spy.updateAgentOfferCalls)
+			}
+		})
+	}
+}
+
+func TestUpdateAgentOfferRequiresAuthenticationWithoutMutation(t *testing.T) {
+	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app := testApp()
+	app.propertyRepo = spy
+	req := httptest.NewRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", nil)
+	rr := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorCodeResponse(t, rr, http.StatusUnauthorized, "unauthenticated")
+	if spy.updateAgentOfferCalls != 0 {
+		t.Fatalf("update agent offer calls = %d, want 0", spy.updateAgentOfferCalls)
+	}
+}
+
+func TestUpdateAgentOfferMapsRepositoryErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		status   int
+		wantCode string
+	}{
+		{name: "not found", err: repo.ErrNotFound, status: http.StatusNotFound, wantCode: "not_found"},
+		{name: "stale update", err: repo.ErrStaleUpdate, status: http.StatusPreconditionFailed, wantCode: "precondition_failed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}, updateAgentOfferErr: tt.err}
+			app := testAppWithActiveAgentRepo()
+			app.propertyRepo = spy
+			req := authenticatedRequest(http.MethodPatch, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030", `{"title":"Updated offer"}`, true)
+			req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			assertErrorCodeResponse(t, rr, tt.status, tt.wantCode)
+			if spy.updateAgentOfferCalls != 1 {
+				t.Fatalf("update agent offer calls = %d, want 1", spy.updateAgentOfferCalls)
+			}
+		})
+	}
+}
+
+func TestArchiveAgentOfferRejectsInvalidRequestsWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		ifMatch  string
+		auth     bool
+		wantCode string
+	}{
+		{name: "malformed id", path: "/v1/agent-offers/not-a-uuid/archive", auth: true, wantCode: "validation_failed"},
+		{name: "missing if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", auth: true, wantCode: "precondition_required"},
+		{name: "malformed if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", ifMatch: "not-an-etag", auth: true, wantCode: "precondition_failed"},
+		{name: "non-matching if-match", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", ifMatch: `"agent-offer-550e8400-e29b-41d4-a716-446655440031-1"`, auth: true, wantCode: "precondition_failed"},
+		{name: "unauthenticated", path: "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", auth: false, wantCode: "unauthenticated"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+			app := testApp()
+			if tt.auth {
+				app = testAppWithActiveAgentRepo()
+			}
+			app.propertyRepo = spy
+			req := httptest.NewRequest(http.MethodPost, tt.path, nil)
+			if tt.auth {
+				req = authenticatedRequest(http.MethodPost, tt.path, "", true)
+			}
+			if tt.ifMatch != "" {
+				req.Header.Set("If-Match", tt.ifMatch)
+			}
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			wantStatus := http.StatusUnprocessableEntity
+			switch tt.wantCode {
+			case "unauthenticated":
+				wantStatus = http.StatusUnauthorized
+			case "precondition_required":
+				wantStatus = http.StatusPreconditionRequired
+			case "precondition_failed":
+				wantStatus = http.StatusPreconditionFailed
+			}
+			assertErrorCodeResponse(t, rr, wantStatus, tt.wantCode)
+			if spy.archiveAgentOfferCalls != 0 {
+				t.Fatalf("archive agent offer calls = %d, want 0", spy.archiveAgentOfferCalls)
+			}
+		})
+	}
+}
+
+func TestArchiveAgentOfferMapsRepositoryErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		status   int
+		wantCode string
+	}{
+		{name: "not found", err: repo.ErrNotFound, status: http.StatusNotFound, wantCode: "not_found"},
+		{name: "stale update", err: repo.ErrStaleUpdate, status: http.StatusPreconditionFailed, wantCode: "precondition_failed"},
+		{name: "agent forbidden", err: repo.ErrAgentForbidden, status: http.StatusForbidden, wantCode: "forbidden"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}, archiveAgentOfferErr: tt.err}
+			app := testAppWithActiveAgentRepo()
+			app.propertyRepo = spy
+			req := authenticatedRequest(http.MethodPost, "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030/archive", "", true)
+			req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			assertErrorCodeResponse(t, rr, tt.status, tt.wantCode)
+			if spy.archiveAgentOfferCalls != 1 {
+				t.Fatalf("archive agent offer calls = %d, want 1", spy.archiveAgentOfferCalls)
+			}
+		})
 	}
 }
 
