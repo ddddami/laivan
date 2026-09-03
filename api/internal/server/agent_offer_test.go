@@ -215,6 +215,41 @@ func TestUpdateAgentOfferRequiresOwnership(t *testing.T) {
 	}
 }
 
+func TestAgentOfferMutationsRejectAuthenticatedNonAgent(t *testing.T) {
+	for _, method := range []string{http.MethodPatch, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			spy := &spyPropertyRepo{
+				stubPropertyRepo:     &stubPropertyRepo{},
+				updateAgentOfferErr:  repo.ErrAgentForbidden,
+				archiveAgentOfferErr: repo.ErrAgentForbidden,
+			}
+			app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{})
+			app.propertyRepo = spy
+
+			path := "/v1/agent-offers/550e8400-e29b-41d4-a716-446655440030"
+			body := ""
+			if method == http.MethodPatch {
+				body = `{"title":"Updated offer"}`
+			} else {
+				path += "/archive"
+			}
+			req := authenticatedRequest(method, path, body, true)
+			req.Header.Set("If-Match", `"agent-offer-550e8400-e29b-41d4-a716-446655440030-1"`)
+			rr := httptest.NewRecorder()
+
+			app.routes().ServeHTTP(rr, req)
+
+			assertErrorCodeResponse(t, rr, http.StatusForbidden, "forbidden")
+			if method == http.MethodPatch && spy.updateAgentOfferCalls != 1 {
+				t.Fatalf("update agent offer calls = %d, want 1", spy.updateAgentOfferCalls)
+			}
+			if method == http.MethodPost && spy.archiveAgentOfferCalls != 1 {
+				t.Fatalf("archive agent offer calls = %d, want 1", spy.archiveAgentOfferCalls)
+			}
+		})
+	}
+}
+
 func TestUpdateAgentOfferRequiresIfMatch(t *testing.T) {
 	spy := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
 	app := testAppWithActiveAgentRepo()
