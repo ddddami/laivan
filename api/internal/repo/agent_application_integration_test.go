@@ -141,6 +141,73 @@ func TestAgentApplicationRepositoryPhoneConflictLeavesApplicationPending(t *test
 	}
 }
 
+func TestAgentApplicationRepositoryConcurrentDuplicateApplications(t *testing.T) {
+	ctx := t.Context()
+	db := openIntegrationDB(t, ctx)
+	t.Cleanup(db.Close)
+	resetAgentApplicationTables(t, ctx, db)
+	t.Cleanup(func() { resetAgentApplicationTables(t, context.Background(), db) })
+
+	campusID := testCampusID(t, ctx, db)
+	applicantID := insertUser(t, ctx, db, "Concurrent Applicant")
+	repository := NewAgentApplicationRepository(db)
+	application := domain.AgentApplication{
+		ApplicantUserID: applicantID,
+		CampusID:        campusID,
+		Name:            "Concurrent Applicant Agent",
+		PhoneNumber:     "+2348087654321",
+	}
+
+	type result struct {
+		application domain.AgentApplication
+		err         error
+	}
+	ready := make(chan struct{}, 2)
+	release := make(chan struct{})
+	results := make(chan result, 2)
+
+	for range 2 {
+		go func() {
+			ready <- struct{}{}
+			<-release
+			created, err := repository.CreateApplication(ctx, application)
+			results <- result{application: created, err: err}
+		}()
+	}
+
+	<-ready
+	<-ready
+	close(release)
+
+	var successes, conflicts int
+	for range 2 {
+		result := <-results
+		switch {
+		case result.err == nil:
+			successes++
+		case errors.Is(result.err, ErrApplicationConflict):
+			conflicts++
+		default:
+			t.Fatalf("concurrent agent application error = %v, want one success and one conflict", result.err)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("concurrent applications = %d successes, %d conflicts; want 1, 1", successes, conflicts)
+	}
+
+	var count int
+	if err := db.QueryRow(ctx, `
+		SELECT count(*)
+		FROM agent_applications
+		WHERE applicant_user_id = $1 AND campus_id = $2
+	`, string(applicantID), string(campusID)).Scan(&count); err != nil {
+		t.Fatalf("count concurrent applications: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("concurrent application rows = %d, want 1", count)
+	}
+}
+
 func TestAgentLifecycleRepositoryIsScopedTransactionalAndRevokesSessions(t *testing.T) {
 	ctx := context.Background()
 	db := openIntegrationDB(t, ctx)

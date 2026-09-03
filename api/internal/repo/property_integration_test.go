@@ -114,6 +114,73 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 	}
 }
 
+func TestPropertyRepositoryConcurrentVersionedUpdates(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	t.Cleanup(func() { truncateProperties(t, context.Background(), pool) })
+
+	campusID := testCampusID(t, ctx, pool)
+	operatorID := insertUser(t, ctx, pool, "Concurrent Property Operator")
+	grantCampusOperator(t, ctx, pool, operatorID, campusID)
+	repository := NewPropertyRepository(pool)
+	property, err := repository.Create(ctx, domain.Property{
+		CampusID: campusID,
+		Name:     "Concurrent Lodge",
+		Location: domain.ApproxLocation{Area: "Obanla"},
+	})
+	if err != nil {
+		t.Fatalf("create property: %v", err)
+	}
+
+	type result struct {
+		property domain.Property
+		err      error
+	}
+	ready := make(chan struct{}, 2)
+	release := make(chan struct{})
+	results := make(chan result, 2)
+
+	for _, name := range []string{"First concurrent update", "Second concurrent update"} {
+		go func(name string) {
+			ready <- struct{}{}
+			<-release
+			updated, err := repository.Update(ctx, property.ID, property.Version, domain.PropertyPatch{Name: &name}, operatorID)
+			results <- result{property: updated, err: err}
+		}(name)
+	}
+
+	<-ready
+	<-ready
+	close(release)
+
+	var successes, stale int
+	for range 2 {
+		result := <-results
+		switch {
+		case result.err == nil:
+			successes++
+		case errors.Is(result.err, ErrStaleUpdate):
+			stale++
+		default:
+			t.Fatalf("concurrent property update error = %v, want one success and one stale update", result.err)
+		}
+	}
+	if successes != 1 || stale != 1 {
+		t.Fatalf("concurrent property updates = %d successes, %d stale updates; want 1, 1", successes, stale)
+	}
+
+	final, err := repository.Get(ctx, property.ID)
+	if err != nil {
+		t.Fatalf("get final property: %v", err)
+	}
+	if final.Version != 2 {
+		t.Fatalf("final property version = %d, want 2", final.Version)
+	}
+}
+
 func TestPropertyRepositoryGetNotFound(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)

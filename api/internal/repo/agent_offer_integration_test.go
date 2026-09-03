@@ -246,6 +246,82 @@ func TestPropertyRepositoryAgentOfferMutationsCheckCurrentAuthorization(t *testi
 	}
 }
 
+func TestPropertyRepositoryConcurrentAgentOfferUpdates(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Concurrent Offer Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+	agentID := insertAgent(t, ctx, pool, "Concurrent Offer Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	actorUserID := agentUserID(t, ctx, pool, agentID)
+	repository := NewPropertyRepository(pool)
+	offer, err := repository.CreateAgentOffer(ctx, domain.AgentOffer{
+		PropertyUnitTypeID: unitTypeID,
+		AgentID:            agentID,
+		Title:              "Original offer",
+		Price:              domain.Money{AmountKobo: 35000000},
+		Status:             domain.AgentOfferStatusAvailable,
+	})
+	if err != nil {
+		t.Fatalf("create agent offer: %v", err)
+	}
+
+	type result struct {
+		offer domain.AgentOffer
+		err   error
+	}
+	ready := make(chan struct{}, 2)
+	release := make(chan struct{})
+	results := make(chan result, 2)
+
+	for _, title := range []string{"First concurrent offer update", "Second concurrent offer update"} {
+		go func(title string) {
+			ready <- struct{}{}
+			<-release
+			updated, err := repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &title}, actorUserID)
+			results <- result{offer: updated, err: err}
+		}(title)
+	}
+
+	<-ready
+	<-ready
+	close(release)
+
+	var successes, stale int
+	for range 2 {
+		result := <-results
+		switch {
+		case result.err == nil:
+			successes++
+		case errors.Is(result.err, ErrStaleUpdate):
+			stale++
+		default:
+			t.Fatalf("concurrent agent offer update error = %v, want one success and one stale update", result.err)
+		}
+	}
+	if successes != 1 || stale != 1 {
+		t.Fatalf("concurrent agent offer updates = %d successes, %d stale updates; want 1, 1", successes, stale)
+	}
+
+	final, err := repository.GetAgentOffer(ctx, offer.ID)
+	if err != nil {
+		t.Fatalf("get final agent offer: %v", err)
+	}
+	if final.Version != 2 {
+		t.Fatalf("final agent offer version = %d, want 2", final.Version)
+	}
+}
+
 func TestPropertyRepositoryCanonicalMutationsCheckCampusAuthorization(t *testing.T) {
 	ctx := context.Background()
 	pool := openIntegrationDB(t, ctx)
