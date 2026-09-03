@@ -27,7 +27,7 @@ func TestServiceCompletesProviderSignInAndManagesSession(t *testing.T) {
 	}}
 	service := newTestService(store, provider)
 
-	_, attemptCookie, err := service.Begin()
+	_, attemptCookie, err := service.Begin("/properties/property-1/unit-types/unit-1")
 	if err != nil {
 		t.Fatalf("Begin returned error: %v", err)
 	}
@@ -47,6 +47,9 @@ func TestServiceCompletesProviderSignInAndManagesSession(t *testing.T) {
 	}
 	if result.SessionToken == "" || result.CSRFToken == "" {
 		t.Fatal("Complete did not return browser tokens")
+	}
+	if result.ReturnTo != "/properties/property-1/unit-types/unit-1" {
+		t.Fatalf("return path = %q, want original path", result.ReturnTo)
 	}
 	if store.createdUserEmail != "person@example.com" || store.createdIdentity != (domain.ExternalIdentity{Provider: "test-provider", Subject: "google-subject"}) {
 		t.Fatalf("stored identity = %q/%#v, want normalized email/provider identity", store.createdUserEmail, store.createdIdentity)
@@ -70,7 +73,7 @@ func TestServiceCompletesProviderSignInAndManagesSession(t *testing.T) {
 
 func TestServiceRejectsMismatchedCallbackState(t *testing.T) {
 	service := newTestService(&fakeStore{}, &fakeProvider{})
-	_, attemptCookie, err := service.Begin()
+	_, attemptCookie, err := service.Begin("/")
 	if err != nil {
 		t.Fatalf("Begin returned error: %v", err)
 	}

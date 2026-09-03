@@ -6,6 +6,14 @@ get:
   description: >-
     Creates a short-lived signed OIDC attempt cookie and redirects the browser
     to Google.
+  parameters:
+    - name: return_to
+      in: query
+      required: false
+      description: Relative in-app path to open after successful sign-in.
+      schema:
+        type: string
+        pattern: '^/[^/].*|^/$'
   responses:
     '302':
       description: Redirect to Google sign-in.

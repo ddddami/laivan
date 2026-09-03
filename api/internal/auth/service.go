@@ -56,6 +56,7 @@ type SessionResult struct {
 	User         domain.User
 	SessionToken string
 	CSRFToken    string
+	ReturnTo     string
 }
 
 type Service struct {
@@ -76,7 +77,7 @@ func NewService(cfg Config, store Store, provider Provider) *Service {
 	}
 }
 
-func (s *Service) Begin() (redirectURL, cookieValue string, err error) {
+func (s *Service) Begin(returnTo string) (redirectURL, cookieValue string, err error) {
 	if s.provider == nil || s.cfg.StateSigningKey == "" {
 		return "", "", ErrAuthUnavailable
 	}
@@ -99,6 +100,7 @@ func (s *Service) Begin() (redirectURL, cookieValue string, err error) {
 		Nonce:     nonce,
 		Verifier:  verifier,
 		ExpiresAt: s.now().Add(s.cfg.StateDuration).Unix(),
+		ReturnTo:  returnTo,
 	}
 	cookieValue, err = s.signAttempt(attempt)
 	if err != nil {
@@ -159,7 +161,7 @@ func (s *Service) Complete(ctx context.Context, code, state, cookieValue string)
 		return SessionResult{}, fmt.Errorf("persist authenticated session: %w", err)
 	}
 
-	return SessionResult{User: user, SessionToken: sessionToken, CSRFToken: csrfToken}, nil
+	return SessionResult{User: user, SessionToken: sessionToken, CSRFToken: csrfToken, ReturnTo: attempt.ReturnTo}, nil
 }
 
 func (s *Service) GetSession(ctx context.Context, sessionToken, csrfCookie string) (SessionResult, error) {
@@ -217,6 +219,7 @@ type authAttempt struct {
 	Nonce     string `json:"nonce"`
 	Verifier  string `json:"verifier"`
 	ExpiresAt int64  `json:"expires_at"`
+	ReturnTo  string `json:"return_to"`
 }
 
 func (s *Service) signAttempt(attempt authAttempt) (string, error) {
