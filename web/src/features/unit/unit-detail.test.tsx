@@ -6,10 +6,11 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import type { PropertyDetail } from '../../api/client'
+import type { AuthenticatedApiClient, PropertyDetail } from '../../api/client'
 import { UnitDetail } from './unit-detail'
 
 const property: PropertyDetail = {
@@ -136,6 +137,19 @@ const property: PropertyDetail = {
   ],
 }
 
+const anonymousWorkflowClient: AuthenticatedApiClient = {
+  getSession: async () => ({
+    authenticated: false,
+    user: null,
+    roles: [],
+    agent: null,
+    csrf_token: null,
+  }),
+  createInquiry: async () => {
+    throw new Error('not used in anonymous unit detail tests')
+  },
+}
+
 describe('UnitDetail', () => {
   it('keeps selected unit facts above only that unit’s competing agent offers', async () => {
     await renderUnitDetail()
@@ -179,35 +193,23 @@ describe('UnitDetail', () => {
     expect(within(pausedOffer).getByText('₦340,000')).toBeInTheDocument()
     expect(within(pausedOffer).getByText('Updated 3 May 2026')).toBeInTheDocument()
     expect(
-      within(pausedOffer).queryByRole('button', { name: 'Explore request options' }),
+      within(pausedOffer).queryByRole('button', { name: 'Ask a question' }),
     ).not.toBeInTheDocument()
-    fireEvent.click(within(pausedOffer).getByRole('button', { name: 'Preview save option' }))
-    expect(screen.getByRole('button', { name: /Save property/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Request an inspection/ })).not.toBeInTheDocument()
+    expect(
+      within(pausedOffer).getByText('This offer is not open for new questions.'),
+    ).toBeInTheDocument()
   })
 
-  it('previews structured workflows without submitting or exposing agent contact', async () => {
+  it('shows sign-in for available offers without presenting unimplemented workflows', async () => {
     await renderUnitDetail()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Explore request options' }))
-
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('Alice Lodge · Premium self-contained')).toBeInTheDocument()
-    expect(screen.getByText('via Ade Martins')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Save property/ })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /Request an inspection/ }))
-
     expect(
-      screen.getByText(
-        'Inspection requests will collect a preferred time and preserve their workflow status.',
-      ),
+      await screen.findByRole('link', { name: 'Sign in to ask a question' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/Nothing in this preview is submitted or saved/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /WhatsApp/i })).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Request an inspection|reservation interest|Save property/i),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -216,7 +218,9 @@ async function renderUnitDetail(unit = property.unit_types[0]!) {
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
-    component: () => <UnitDetail property={property} unit={unit} />,
+    component: () => (
+      <UnitDetail property={property} unit={unit} workflowClient={anonymousWorkflowClient} />
+    ),
   })
   const propertyRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -229,5 +233,10 @@ async function renderUnitDetail(unit = property.unit_types[0]!) {
   })
 
   await router.load()
-  return render(<RouterProvider router={router} />)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
 }
