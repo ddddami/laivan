@@ -25,54 +25,45 @@ mise run app                                # start API and web together
 ```
 
 The API listens on `:4000` and the Vite development server listens on `:3000`.
-The `app` task starts infrastructure and applies database migrations before
-starting both development servers.
 
-### Preview on a phone
+### Work Across Devices
 
-Connect the phone and development machine to the same local network. After the
-one-time setup above, run the mobile app task:
+Use one HTTPS address for Laivan in a desktop browser and on a mobile device. It
+makes Google sign-in work on mobile and keeps every device on the same development
+surface. The Vite proxy stays in place: requests to `/v1` and `/__imgproxy` are
+forwarded to the local API and image proxy.
 
-```sh
-mise run app:mobile
-```
+Set this up once:
 
-Open the network URL printed by Vite, such as `http://192.168.0.101:3000`, on the
-phone. The mobile task exposes Vite on the local network and routes image delivery
-through the development proxy. Keep `VITE_API_BASE_URL` empty or unset for this
-workflow so the browser uses the relative `/v1` proxy instead of trying to reach
-`localhost` on the phone. This is an HTTP development preview; installing the PWA
-and testing offline behaviour still require a secure context.
-
-Google sign-in needs one extra step during phone testing. Google cannot redirect to
-`localhost` or reliably accept an HTTP LAN address for a web OAuth callback. Keep the
-Vite proxy; expose Vite itself through an HTTPS tunnel so the page and `/v1` API use
-the same public origin:
-
-```sh
-ngrok http 3000
-```
-
-Set the generated HTTPS origin in the local environment before restarting the API:
+1. Authenticate the installed ngrok CLI with your ngrok account.
+2. In the ngrok dashboard, open **Domains** and copy the account's free Dev Domain.
+3. Add the following values to your local environment, replacing `<ngrok-host>`:
 
 ```text
-LAIVAN_ALLOWED_ORIGINS=https://<ngrok-host>
 LAIVAN_WEB_ORIGIN=https://<ngrok-host>
-LAIVAN_GOOGLE_REDIRECT_URL=https://<ngrok-host>/v1/auth/google/callback
-VITE_API_BASE_URL=
+LAIVAN_ALLOWED_ORIGINS=${LAIVAN_WEB_ORIGIN}
+LAIVAN_GOOGLE_REDIRECT_URL=${LAIVAN_WEB_ORIGIN}/v1/auth/google/callback
 ```
 
-Add the exact `LAIVAN_GOOGLE_REDIRECT_URL` to the Google OAuth client's authorized
-redirect URIs. Open the generated ngrok URL on the phone, not the LAN URL. A free
-ngrok URL can change between runs, so update the Google client and restart the API
-when it changes; a reserved tunnel hostname avoids that repetition.
+4. Add `https://<ngrok-host>/v1/auth/google/callback` to the authorized redirect
+   URIs for the Google OAuth client.
+
+Every day, run:
+
+```sh
+mise run app
+```
+
+Open the HTTPS ngrok address in a desktop browser and on a mobile device. Do not use
+the localhost or LAN addresses for normal development: they cannot complete the
+Google OAuth callback on mobile. The ngrok command runs with the app and prints the
+address when it starts.
 
 ### Common commands
 
 | Command | Description |
 |---|---|
-| `mise run app` | Run the full app on this computer |
-| `mise run app:mobile` | Run the full app for phone preview |
+| `mise run app` | Run Laivan across devices |
 | `mise run api` | Run only the API with hot reload |
 | `mise run web` | Run only the web app with Vite |
 | `mise run test` | Run fast backend and frontend tests |

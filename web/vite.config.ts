@@ -6,6 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   server: {
+    allowedHosts: allowedHosts(),
     proxy: {
       '/v1': {
         target: 'http://localhost:4000',
@@ -60,3 +61,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
   },
 })
+
+function allowedHosts() {
+  const webOrigin = process.env.LAIVAN_WEB_ORIGIN
+  return webOrigin ? [new URL(webOrigin).hostname] : []
+}
