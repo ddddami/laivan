@@ -44,6 +44,29 @@ workflow so the browser uses the relative `/v1` proxy instead of trying to reach
 `localhost` on the phone. This is an HTTP development preview; installing the PWA
 and testing offline behaviour still require a secure context.
 
+Google sign-in needs one extra step during phone testing. Google cannot redirect to
+`localhost` or reliably accept an HTTP LAN address for a web OAuth callback. Keep the
+Vite proxy; expose Vite itself through an HTTPS tunnel so the page and `/v1` API use
+the same public origin:
+
+```sh
+ngrok http 3000
+```
+
+Set the generated HTTPS origin in the local environment before restarting the API:
+
+```text
+LAIVAN_ALLOWED_ORIGINS=https://<ngrok-host>
+LAIVAN_WEB_ORIGIN=https://<ngrok-host>
+LAIVAN_GOOGLE_REDIRECT_URL=https://<ngrok-host>/v1/auth/google/callback
+VITE_API_BASE_URL=
+```
+
+Add the exact `LAIVAN_GOOGLE_REDIRECT_URL` to the Google OAuth client's authorized
+redirect URIs. Open the generated ngrok URL on the phone, not the LAN URL. A free
+ngrok URL can change between runs, so update the Google client and restart the API
+when it changes; a reserved tunnel hostname avoids that repetition.
+
 ### Common commands
 
 | Command | Description |
