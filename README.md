@@ -52,7 +52,8 @@ behaviour still require a secure context.
 | `mise run api:test` | Run API tests |
 | `mise run api:lint` | Lint API code |
 | `mise run api:check` | Format, tidy, lint, and test API |
-| `mise run api:verify` | Non-mutating checks (CI) |
+| `mise run api:verify` | Non-integration API checks |
+| `mise run verify` | Complete local CI verification |
 | `mise run web:dev` | Web dev server |
 | `mise run web:dev:mobile` | Web dev server exposed to the local network |
 | `mise run web:test` | Run web tests |
