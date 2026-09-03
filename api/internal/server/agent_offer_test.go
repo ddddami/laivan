@@ -363,11 +363,12 @@ func TestUpdateAgentOfferRejectsInvalidRequestsWithoutMutation(t *testing.T) {
 			app.routes().ServeHTTP(rr, req)
 
 			wantStatus := http.StatusUnprocessableEntity
-			if tt.wantCode == "bad_request" {
+			switch tt.wantCode {
+			case "bad_request":
 				wantStatus = http.StatusBadRequest
-			} else if tt.wantCode == "precondition_required" {
+			case "precondition_required":
 				wantStatus = http.StatusPreconditionRequired
-			} else if tt.wantCode == "precondition_failed" {
+			case "precondition_failed":
 				wantStatus = http.StatusPreconditionFailed
 			}
 			assertErrorCodeResponse(t, rr, wantStatus, tt.wantCode)
