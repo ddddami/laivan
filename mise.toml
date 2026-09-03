@@ -238,17 +238,17 @@ mise run "web:check"
 '''
 
 [tasks.app]
-description = "Run the full Laivan app on this computer"
+description = "Run Laivan across devices"
 run = '''
+: "${LAIVAN_WEB_ORIGIN:?LAIVAN_WEB_ORIGIN is required}" &&
 mise run infra:up &&
 mise run db:up &&
-mise run api ::: web
+mise run api:dev:mobile ::: web:dev:mobile ::: ngrok:dev
 '''
 
-[tasks."app:mobile"]
-description = "Run the full Laivan app for phone preview"
+[tasks."ngrok:dev"]
+description = "Expose Vite through the configured HTTPS development origin"
 run = '''
-mise run infra:up &&
-mise run db:up &&
-mise run api:dev:mobile ::: web:dev:mobile
+: "${LAIVAN_WEB_ORIGIN:?LAIVAN_WEB_ORIGIN is required}" &&
+ngrok http 3000 --url "$LAIVAN_WEB_ORIGIN"
 '''
