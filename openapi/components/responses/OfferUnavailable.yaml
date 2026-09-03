@@ -1,0 +1,5 @@
+description: The offer is not accepting new questions.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/ErrorResponse.yaml

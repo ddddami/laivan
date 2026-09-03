@@ -1,0 +1,12 @@
+type: object
+required:
+  - channel
+  - url
+properties:
+  channel:
+    type: string
+    enum:
+      - whatsapp
+  url:
+    type: string
+    format: uri

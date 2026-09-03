@@ -1,0 +1,9 @@
+type: object
+required:
+  - inquiry
+  - handoff
+properties:
+  inquiry:
+    $ref: ./Inquiry.yaml
+  handoff:
+    $ref: ./InquiryHandoff.yaml

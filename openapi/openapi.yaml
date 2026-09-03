@@ -42,6 +42,8 @@ tags:
     description: Signed-in agent applications and campus operator review.
   - name: Agent Lifecycle
     description: Campus-scoped operator suspension and reinstatement of agent profiles.
+  - name: Inquiries
+    description: Student questions recorded against specific agent offers.
 paths:
   /healthz:
     $ref: paths/healthz.yaml
@@ -83,6 +85,8 @@ paths:
     $ref: paths/v1_agent-offers_{id}.yaml
   /v1/agent-offers/{id}/archive:
     $ref: paths/v1_agent-offers_{id}_archive.yaml
+  /v1/agent-offers/{id}/inquiries:
+    $ref: paths/v1_agent-offers_{id}_inquiries.yaml
   /v1/media:
     $ref: paths/v1_media.yaml
 components:
@@ -122,6 +126,8 @@ components:
       $ref: components/responses/Forbidden.yaml
     Conflict:
       $ref: components/responses/Conflict.yaml
+    OfferUnavailable:
+      $ref: components/responses/OfferUnavailable.yaml
   schemas:
     AuthUser:
       $ref: components/schemas/AuthUser.yaml
@@ -205,6 +211,14 @@ components:
       $ref: components/schemas/AgentOfferResponse.yaml
     AgentOffersResponse:
       $ref: components/schemas/AgentOffersResponse.yaml
+    CreateInquiryRequest:
+      $ref: components/schemas/CreateInquiryRequest.yaml
+    Inquiry:
+      $ref: components/schemas/Inquiry.yaml
+    InquiryHandoff:
+      $ref: components/schemas/InquiryHandoff.yaml
+    InquiryResponse:
+      $ref: components/schemas/InquiryResponse.yaml
     Error:
       $ref: components/schemas/Error.yaml
     ValidationError:
