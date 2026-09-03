@@ -22,6 +22,7 @@ type app struct {
 	mediaURLs       MediaURLBuilder
 	auth            *auth.Service
 	applications    AgentApplicationStore
+	inquiries       InquiryStore
 	oidcRateLimiter *rateLimiter
 }
 
@@ -39,6 +40,10 @@ type AgentApplicationStore interface {
 	DeclineApplication(ctx context.Context, applicationID, operatorID domain.ID, operatorNote string) (domain.AgentApplication, error)
 	SuspendAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)
 	ReinstateAgent(ctx context.Context, agentID, operatorID domain.ID, operatorNote string) (domain.LinkedAgent, error)
+}
+
+type InquiryStore interface {
+	Submit(ctx context.Context, studentUserID, agentOfferID, submissionID domain.ID, message string) (domain.Inquiry, domain.InquiryHandoff, bool, error)
 }
 
 // NOTE: This repository boundary is intentionally consolidated for now.
@@ -68,7 +73,7 @@ type PropertyStore interface {
 	ArchiveAgentOffer(ctx context.Context, id domain.ID, expectedVersion int, actorUserID domain.ID) (domain.AgentOffer, error)
 }
 
-func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo PropertyStore, mediaUploader storage.ObjectStore, mediaURLs MediaURLBuilder, authService *auth.Service, applications AgentApplicationStore, inquiries InquiryStore) *http.Server {
 	app := &app{
 		cfg:             cfg,
 		logger:          logger,
@@ -78,6 +83,7 @@ func New(cfg config.Config, logger *slog.Logger, version string, propertyRepo Pr
 		mediaURLs:       mediaURLs,
 		auth:            authService,
 		applications:    applications,
+		inquiries:       inquiries,
 		oidcRateLimiter: newRateLimiter(cfg.Auth.OIDCRateLimitRequests, cfg.Auth.OIDCRateLimitWindow),
 	}
 

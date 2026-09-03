@@ -35,6 +35,8 @@ tags:
     description: Signed-in agent applications and campus operator review.
   - name: Agent Lifecycle
     description: Campus-scoped operator suspension and reinstatement of agent profiles.
+  - name: Inquiries
+    description: Student questions recorded against specific agent offers.
 paths:
   /healthz:
     get:
@@ -1219,6 +1221,57 @@ paths:
           $ref: '#/components/responses/PreconditionRequired'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /v1/agent-offers/{id}/inquiries:
+    post:
+      operationId: createAgentOfferInquiry
+      tags:
+        - Inquiries
+      summary: Ask a question about an agent offer.
+      description: Records an authenticated student's question against one available agent offer before returning an explicit WhatsApp handoff link.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent offer ID.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInquiryRequest'
+      responses:
+        '200':
+          description: The original inquiry was returned for an idempotent replay.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryResponse'
+        '201':
+          description: The inquiry was recorded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OfferUnavailable'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /v1/media:
     post:
       operationId: uploadMedia
@@ -1415,6 +1468,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: The requested state transition conflicts with the current resource state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OfferUnavailable:
+      description: The offer is not accepting new questions.
       content:
         application/json:
           schema:
@@ -2350,6 +2409,68 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AgentOffer'
+    CreateInquiryRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+        - submission_id
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        submission_id:
+          type: string
+          format: uuid
+    Inquiry:
+      type: object
+      required:
+        - id
+        - agent_offer_id
+        - message
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_offer_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - closed
+        created_at:
+          type: string
+          format: date-time
+    InquiryHandoff:
+      type: object
+      required:
+        - channel
+        - url
+      properties:
+        channel:
+          type: string
+          enum:
+            - whatsapp
+        url:
+          type: string
+          format: uri
+    InquiryResponse:
+      type: object
+      required:
+        - inquiry
+        - handoff
+      properties:
+        inquiry:
+          $ref: '#/components/schemas/Inquiry'
+        handoff:
+          $ref: '#/components/schemas/InquiryHandoff'
     Error:
       type: object
       required:

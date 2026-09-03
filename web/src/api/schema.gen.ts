@@ -411,6 +411,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/agent-offers/{id}/inquiries": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Ask a question about an agent offer.
+         * @description Records an authenticated student's question against one available agent offer before returning an explicit WhatsApp handoff link.
+         */
+        readonly post: operations["createAgentOfferInquiry"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/media": {
         readonly parameters: {
             readonly query?: never;
@@ -801,6 +821,32 @@ export interface components {
         readonly AgentOffersResponse: {
             readonly agent_offers: readonly components["schemas"]["AgentOffer"][];
         };
+        readonly CreateInquiryRequest: {
+            readonly message: string;
+            /** Format: uuid */
+            readonly submission_id: string;
+        };
+        readonly Inquiry: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly agent_offer_id: string;
+            readonly message: string;
+            /** @enum {string} */
+            readonly status: "open" | "closed";
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        readonly InquiryHandoff: {
+            /** @enum {string} */
+            readonly channel: "whatsapp";
+            /** Format: uri */
+            readonly url: string;
+        };
+        readonly InquiryResponse: {
+            readonly inquiry: components["schemas"]["Inquiry"];
+            readonly handoff: components["schemas"]["InquiryHandoff"];
+        };
         readonly Error: {
             /**
              * @example bad_request
@@ -952,6 +998,15 @@ export interface components {
         };
         /** @description The requested state transition conflicts with the current resource state. */
         readonly Conflict: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The offer is not accepting new questions. */
+        readonly OfferUnavailable: {
             headers: {
                 readonly [name: string]: unknown;
             };
@@ -1816,6 +1871,52 @@ export interface operations {
             readonly 412: components["responses"]["PreconditionFailed"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly createAgentOfferInquiry: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                /** @description Agent offer ID. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CreateInquiryRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description The original inquiry was returned for an idempotent replay. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InquiryResponse"];
+                };
+            };
+            /** @description The inquiry was recorded successfully. */
+            readonly 201: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["InquiryResponse"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 409: components["responses"]["OfferUnavailable"];
+            readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];
         };
     };

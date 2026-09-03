@@ -1,0 +1,52 @@
+post:
+  operationId: createAgentOfferInquiry
+  tags:
+    - Inquiries
+  summary: Ask a question about an agent offer.
+  description: >-
+    Records an authenticated student's question against one available agent offer
+    before returning an explicit WhatsApp handoff link.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: Agent offer ID.
+      schema:
+        type: string
+        format: uuid
+    - $ref: ../components/parameters/CSRFToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreateInquiryRequest.yaml
+  responses:
+    '200':
+      description: The original inquiry was returned for an idempotent replay.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/InquiryResponse.yaml
+    '201':
+      description: The inquiry was recorded successfully.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/InquiryResponse.yaml
+    '400':
+      $ref: ../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '409':
+      $ref: ../components/responses/OfferUnavailable.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml
