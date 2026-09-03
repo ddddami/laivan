@@ -246,6 +246,129 @@ func TestPropertyRepositoryAgentOfferMutationsCheckCurrentAuthorization(t *testi
 	}
 }
 
+func TestPropertyRepositoryAgentOfferMutationPermissionMatrix(t *testing.T) {
+	cases := []struct {
+		name      string
+		actorKind string
+		wantError bool
+	}{
+		{name: "active owner", actorKind: "owner"},
+		{name: "active non-owner in same campus", actorKind: "non-owner", wantError: true},
+		{name: "owner removed from campus", actorKind: "removed-owner", wantError: true},
+		{name: "suspended owner", actorKind: "suspended-owner", wantError: true},
+		{name: "correct-campus operator", actorKind: "operator"},
+		{name: "wrong-campus operator", actorKind: "wrong-operator", wantError: true},
+		{name: "global admin", actorKind: "admin"},
+	}
+
+	for _, operation := range []string{"update", "archive"} {
+		for _, testCase := range cases {
+			t.Run(operation+"/"+testCase.name, func(t *testing.T) {
+				ctx := t.Context()
+				pool := openIntegrationDB(t, ctx)
+				t.Cleanup(pool.Close)
+
+				truncateProperties(t, ctx, pool)
+				truncateAgents(t, ctx, pool)
+				t.Cleanup(func() {
+					truncateProperties(t, context.Background(), pool)
+					truncateAgents(t, context.Background(), pool)
+				})
+
+				campusID := testCampusID(t, ctx, pool)
+				otherCampusID := createTestCampus(t, ctx, pool, "offer-permission-matrix-other-campus")
+				propertyID := insertProperty(t, ctx, pool, campusID, "Permission Matrix Lodge", time.Now().UTC())
+				unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Self-contained")
+				ownerAgentID := insertAgent(t, ctx, pool, "Permission Matrix Owner")
+				associateAgentWithCampus(t, ctx, pool, ownerAgentID, campusID)
+				ownerUserID := agentUserID(t, ctx, pool, ownerAgentID)
+				nonOwnerAgentID := insertAgent(t, ctx, pool, "Permission Matrix Non-owner")
+				associateAgentWithCampus(t, ctx, pool, nonOwnerAgentID, campusID)
+				nonOwnerUserID := agentUserID(t, ctx, pool, nonOwnerAgentID)
+				operatorUserID := insertUser(t, ctx, pool, "Permission Matrix Operator")
+				grantCampusOperator(t, ctx, pool, operatorUserID, campusID)
+				wrongOperatorUserID := insertUser(t, ctx, pool, "Permission Matrix Wrong Operator")
+				grantCampusOperator(t, ctx, pool, wrongOperatorUserID, otherCampusID)
+				adminUserID := insertUser(t, ctx, pool, "Permission Matrix Admin")
+				grantGlobalAdmin(t, ctx, pool, adminUserID)
+
+				offer, err := NewPropertyRepository(pool).CreateAgentOffer(ctx, domain.AgentOffer{
+					PropertyUnitTypeID: unitTypeID,
+					AgentID:            ownerAgentID,
+					Title:              "Original matrix offer",
+					Price:              domain.Money{AmountKobo: 35000000},
+					Status:             domain.AgentOfferStatusAvailable,
+				})
+				if err != nil {
+					t.Fatalf("create agent offer: %v", err)
+				}
+
+				actorUserID := ownerUserID
+				switch testCase.actorKind {
+				case "non-owner":
+					actorUserID = nonOwnerUserID
+				case "removed-owner":
+					if _, err := pool.Exec(ctx, "DELETE FROM agent_campuses WHERE agent_id = $1 AND campus_id = $2", string(ownerAgentID), string(campusID)); err != nil {
+						t.Fatalf("remove owner campus: %v", err)
+					}
+				case "suspended-owner":
+					if _, err := pool.Exec(ctx, "UPDATE agents SET status = 'suspended' WHERE id = $1", string(ownerAgentID)); err != nil {
+						t.Fatalf("suspend owner agent: %v", err)
+					}
+				case "operator":
+					actorUserID = operatorUserID
+				case "wrong-operator":
+					actorUserID = wrongOperatorUserID
+				case "admin":
+					actorUserID = adminUserID
+				}
+
+				repository := NewPropertyRepository(pool)
+				before, err := repository.GetAgentOffer(ctx, offer.ID)
+				if err != nil {
+					t.Fatalf("get offer before %s: %v", operation, err)
+				}
+
+				var mutationErr error
+				var mutated domain.AgentOffer
+				if operation == "update" {
+					newTitle := "Updated matrix offer"
+					mutated, mutationErr = repository.UpdateAgentOffer(ctx, offer.ID, offer.Version, domain.AgentOfferPatch{Title: &newTitle}, actorUserID)
+				} else {
+					mutated, mutationErr = repository.ArchiveAgentOffer(ctx, offer.ID, offer.Version, actorUserID)
+				}
+
+				if testCase.wantError {
+					if !errors.Is(mutationErr, ErrAgentForbidden) {
+						t.Fatalf("%s error = %v, want %v", operation, mutationErr, ErrAgentForbidden)
+					}
+					after, err := repository.GetAgentOffer(ctx, offer.ID)
+					if err != nil {
+						t.Fatalf("get denied offer: %v", err)
+					}
+					if after.ID != before.ID || after.Title != before.Title || after.Version != before.Version || after.Status != before.Status || after.ArchivedAt != nil {
+						t.Fatalf("denied %s changed offer from %#v to %#v", operation, before, after)
+					}
+					return
+				}
+
+				if mutationErr != nil {
+					t.Fatalf("%s error = %v, want success", operation, mutationErr)
+				}
+				if mutated.Version != before.Version+1 {
+					t.Fatalf("mutated %s version = %d, want %d", operation, mutated.Version, before.Version+1)
+				}
+				if operation == "update" && mutated.Title != "Updated matrix offer" {
+					t.Fatalf("updated title = %q, want Updated matrix offer", mutated.Title)
+				}
+				if operation == "archive" && (mutated.Status != domain.AgentOfferStatusUnavailable || mutated.ArchivedAt == nil) {
+					t.Fatalf("archived offer = %#v, want unavailable status and archive timestamp", mutated)
+				}
+			})
+		}
+	}
+}
+
 func TestPropertyRepositoryConcurrentAgentOfferUpdates(t *testing.T) {
 	ctx := t.Context()
 	pool := openIntegrationDB(t, ctx)
