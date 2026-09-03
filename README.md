@@ -15,8 +15,8 @@ Requires [mise](https://mise.jdx.dev) for toolchain management.
 curl https://mise.run | sh
 eval "$(~/.local/bin/mise activate zsh)"   # add to ~/.zshrc
 cd laivan
-mise install                                # installs Go, Node, pnpm, dev tools
 mise trust                                  # trust this mise.toml on first use
+mise install                                # installs Go, Node, pnpm, dev tools
 cp .env.example .env                        # configure environment
 mise run infra:up                           # start postgres, minio, imgproxy
 mise run db:up                              # run database migrations
