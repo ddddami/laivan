@@ -44,7 +44,7 @@ func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
 	return &PropertyRepository{queries: generateddb.New(database), db: database}
 }
 
-func (r *PropertyRepository) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+func (r *PropertyRepository) Create(ctx context.Context, property domain.Property, actorUserID domain.ID) (domain.Property, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -52,13 +52,18 @@ func (r *PropertyRepository) Create(ctx context.Context, property domain.Propert
 	if err != nil {
 		return domain.Property{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.Property{}, err
+	}
 
 	row, err := r.queries.CreateProperty(ctx, generateddb.CreatePropertyParams{
-		CampusID:    campusUUID,
-		Name:        property.Name,
-		Area:        property.Location.Area,
-		Landmark:    textParam(property.Location.Landmark),
-		Description: textParam(property.Description),
+		CampusID:        campusUUID,
+		Name:            property.Name,
+		Area:            property.Location.Area,
+		Landmark:        textParam(property.Location.Landmark),
+		Description:     textParam(property.Description),
+		CreatedByUserID: actorUserUUID,
 	})
 	if err != nil {
 		return domain.Property{}, fmt.Errorf("create property: %w", err)
@@ -548,7 +553,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 	return summaries, int(totalCount), nil
 }
 
-func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType, actorUserID domain.ID) (domain.PropertyUnitType, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
@@ -556,17 +561,22 @@ func (r *PropertyRepository) CreatePropertyUnitType(ctx context.Context, unitTyp
 	if err != nil {
 		return domain.PropertyUnitType{}, err
 	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
 
 	row, err := r.queries.CreatePropertyUnitType(ctx, generateddb.CreatePropertyUnitTypeParams{
-		PropertyID:   propertyUUID,
-		Category:     string(unitType.Category),
-		Name:         unitType.Name,
-		Description:  textParam(unitType.Description),
-		Notes:        textParam(unitType.Notes),
-		BedroomCount: intParam(unitType.Structure.BedroomCount),
-		HasParlour:   boolParam(unitType.Structure.HasParlour),
-		BathroomType: textParam(unitType.Structure.BathroomType),
-		KitchenType:  textParam(unitType.Structure.KitchenType),
+		PropertyID:      propertyUUID,
+		Category:        string(unitType.Category),
+		Name:            unitType.Name,
+		Description:     textParam(unitType.Description),
+		Notes:           textParam(unitType.Notes),
+		BedroomCount:    intParam(unitType.Structure.BedroomCount),
+		HasParlour:      boolParam(unitType.Structure.HasParlour),
+		BathroomType:    textParam(unitType.Structure.BathroomType),
+		KitchenType:     textParam(unitType.Structure.KitchenType),
+		CreatedByUserID: actorUserUUID,
 	})
 	if err != nil {
 		if isForeignKeyViolation(err) {

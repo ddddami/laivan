@@ -84,7 +84,7 @@ func (app *app) createPropertyUnitType(w http.ResponseWriter, r *http.Request) {
 			BathroomType: input.BathroomType,
 			KitchenType:  input.KitchenType,
 		},
-	})
+	}, p.User.ID)
 	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			app.notFoundResponse(w, r)

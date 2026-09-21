@@ -37,7 +37,7 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 			BathroomType: "private",
 			KitchenType:  "private",
 		},
-	})
+	}, actorUserID)
 	if err != nil {
 		t.Fatalf("create property unit type: %v", err)
 	}
@@ -77,6 +77,13 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	}
 	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
 		t.Fatal("created property unit type timestamps must be set")
+	}
+	var storedActorID string
+	if err := pool.QueryRow(ctx, `SELECT created_by_user_id::text FROM property_unit_types WHERE id = $1`, string(created.ID)).Scan(&storedActorID); err != nil {
+		t.Fatalf("read property unit type provenance: %v", err)
+	}
+	if storedActorID != string(actorUserID) {
+		t.Fatalf("property unit type provenance = %q, want %q", storedActorID, actorUserID)
 	}
 
 	listed, err := repository.ListPropertyUnitTypes(ctx, propertyID)
@@ -135,7 +142,7 @@ func TestPropertyRepositoryPropertyUnitTypesPropertyNotFound(t *testing.T) {
 		PropertyID: missingPropertyID,
 		Category:   domain.UnitCategorySelfContained,
 		Name:       "Self-contained",
-	})
+	}, domain.ID("550e8400-e29b-41d4-a716-446655440000"))
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("create error = %v, want %v", err, ErrNotFound)
 	}

@@ -113,31 +113,33 @@ type Medium struct {
 }
 
 type Property struct {
-	ID          pgtype.UUID
-	CampusID    pgtype.UUID
-	Name        string
-	Area        string
-	Landmark    pgtype.Text
-	Description pgtype.Text
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	Version     int
+	ID              pgtype.UUID
+	CampusID        pgtype.UUID
+	Name            string
+	Area            string
+	Landmark        pgtype.Text
+	Description     pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int
+	CreatedByUserID pgtype.UUID
 }
 
 type PropertyUnitType struct {
-	ID           pgtype.UUID
-	PropertyID   pgtype.UUID
-	Name         string
-	Description  pgtype.Text
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Category     string
-	BedroomCount pgtype.Int4
-	HasParlour   pgtype.Bool
-	BathroomType pgtype.Text
-	KitchenType  pgtype.Text
-	Notes        pgtype.Text
-	Version      int
+	ID              pgtype.UUID
+	PropertyID      pgtype.UUID
+	Name            string
+	Description     pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Category        string
+	BedroomCount    pgtype.Int4
+	HasParlour      pgtype.Bool
+	BathroomType    pgtype.Text
+	KitchenType     pgtype.Text
+	Notes           pgtype.Text
+	Version         int
+	CreatedByUserID pgtype.UUID
 }
 
 type Session struct {

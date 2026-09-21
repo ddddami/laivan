@@ -125,17 +125,18 @@ func (q *Queries) CreateAuthorizedAgentOffer(ctx context.Context, arg CreateAuth
 }
 
 const createProperty = `-- name: CreateProperty :one
-INSERT INTO properties (campus_id, name, area, landmark, description)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version
+INSERT INTO properties (campus_id, name, area, landmark, description, created_by_user_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id
 `
 
 type CreatePropertyParams struct {
-	CampusID    pgtype.UUID
-	Name        string
-	Area        string
-	Landmark    pgtype.Text
-	Description pgtype.Text
+	CampusID        pgtype.UUID
+	Name            string
+	Area            string
+	Landmark        pgtype.Text
+	Description     pgtype.Text
+	CreatedByUserID pgtype.UUID
 }
 
 func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) (Property, error) {
@@ -145,6 +146,7 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 		arg.Area,
 		arg.Landmark,
 		arg.Description,
+		arg.CreatedByUserID,
 	)
 	var i Property
 	err := row.Scan(
@@ -157,26 +159,28 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
 
 const createPropertyUnitType = `-- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, created_by_user_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 `
 
 type CreatePropertyUnitTypeParams struct {
-	PropertyID   pgtype.UUID
-	Category     string
-	Name         string
-	Description  pgtype.Text
-	Notes        pgtype.Text
-	BedroomCount pgtype.Int4
-	HasParlour   pgtype.Bool
-	BathroomType pgtype.Text
-	KitchenType  pgtype.Text
+	PropertyID      pgtype.UUID
+	Category        string
+	Name            string
+	Description     pgtype.Text
+	Notes           pgtype.Text
+	BedroomCount    pgtype.Int4
+	HasParlour      pgtype.Bool
+	BathroomType    pgtype.Text
+	KitchenType     pgtype.Text
+	CreatedByUserID pgtype.UUID
 }
 
 func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreatePropertyUnitTypeParams) (PropertyUnitType, error) {
@@ -190,6 +194,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		arg.HasParlour,
 		arg.BathroomType,
 		arg.KitchenType,
+		arg.CreatedByUserID,
 	)
 	var i PropertyUnitType
 	err := row.Scan(
@@ -206,6 +211,7 @@ func (q *Queries) CreatePropertyUnitType(ctx context.Context, arg CreateProperty
 		&i.KitchenType,
 		&i.Notes,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
@@ -318,7 +324,7 @@ func (q *Queries) GetAgentOfferMutationStatus(ctx context.Context, arg GetAgentO
 }
 
 const getProperty = `-- name: GetProperty :one
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id
 FROM properties
 WHERE id = $1
 `
@@ -336,6 +342,7 @@ func (q *Queries) GetProperty(ctx context.Context, id pgtype.UUID) (Property, er
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
@@ -378,7 +385,7 @@ func (q *Queries) GetPropertyMutationStatus(ctx context.Context, arg GetProperty
 }
 
 const getPropertyUnitType = `-- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 FROM property_unit_types
 WHERE id = $1
 `
@@ -400,6 +407,7 @@ func (q *Queries) GetPropertyUnitType(ctx context.Context, id pgtype.UUID) (Prop
 		&i.KitchenType,
 		&i.Notes,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
@@ -642,7 +650,7 @@ func (q *Queries) ListPropertiesWithSummary(ctx context.Context, arg ListPropert
 }
 
 const listPropertyUnitTypesByProperty = `-- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC
@@ -671,6 +679,7 @@ func (q *Queries) ListPropertyUnitTypesByProperty(ctx context.Context, propertyI
 			&i.KitchenType,
 			&i.Notes,
 			&i.Version,
+			&i.CreatedByUserID,
 		); err != nil {
 			return nil, err
 		}
@@ -786,7 +795,7 @@ WHERE p.id = $5
         AND co.campus_id = p.campus_id
     )
   )
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id
 `
 
 type UpdatePropertyParams struct {
@@ -820,6 +829,7 @@ func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
@@ -853,7 +863,7 @@ WHERE put_target.id = $9
         AND co.user_id = $11
     )
   )
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 `
 
 type UpdatePropertyUnitTypeParams struct {
@@ -899,6 +909,7 @@ func (q *Queries) UpdatePropertyUnitType(ctx context.Context, arg UpdateProperty
 		&i.KitchenType,
 		&i.Notes,
 		&i.Version,
+		&i.CreatedByUserID,
 	)
 	return i, err
 }
