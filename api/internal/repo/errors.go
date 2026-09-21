@@ -18,4 +18,7 @@ var (
 	ErrAgentLifecycleConflict = errors.New("agent lifecycle transition conflicts with the current status")
 	ErrOfferUnavailable       = errors.New("agent offer is unavailable for inquiries")
 	ErrOwnOffer               = errors.New("agent cannot inquire about their own offer")
+	ErrInvalidRole            = errors.New("invalid role")
+	ErrRoleActorRequired      = errors.New("a global admin actor is required")
+	ErrRoleForbidden          = errors.New("role actor is not a global admin")
 )
