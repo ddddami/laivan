@@ -114,6 +114,13 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 	if updated.Version != 2 {
 		t.Fatalf("updated version = %d, want 2", updated.Version)
 	}
+	var auditCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'property_corrected' AND resource_id = $1`, string(created.ID)).Scan(&auditCount); err != nil {
+		t.Fatalf("count property correction audit events: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("property correction audit count = %d, want 1", auditCount)
+	}
 
 	lostUpdateName := "Lost update"
 	_, err = repository.Update(ctx, created.ID, created.Version, domain.PropertyPatch{Name: &lostUpdateName}, actorUserID)

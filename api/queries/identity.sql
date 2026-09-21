@@ -62,8 +62,9 @@ WHERE token_hash = $1
   AND revoked_at IS NULL
   AND expires_at > now();
 
--- name: RevokeSession :exec
+-- name: RevokeSession :one
 UPDATE sessions
 SET revoked_at = now()
 WHERE token_hash = $1
-  AND revoked_at IS NULL;
+  AND revoked_at IS NULL
+RETURNING id, user_id;

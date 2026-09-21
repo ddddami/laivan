@@ -679,15 +679,31 @@ func (q *Queries) ReinstateSuspendedAgentApplications(ctx context.Context, agent
 	return err
 }
 
-const revokeUserSessions = `-- name: RevokeUserSessions :exec
+const revokeUserSessions = `-- name: RevokeUserSessions :many
 UPDATE sessions
 SET revoked_at = now()
 WHERE sessions.user_id = $1 AND revoked_at IS NULL
+RETURNING id
 `
 
-func (q *Queries) RevokeUserSessions(ctx context.Context, userID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, revokeUserSessions, userID)
-	return err
+func (q *Queries) RevokeUserSessions(ctx context.Context, userID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, revokeUserSessions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const suspendActiveAgentApplications = `-- name: SuspendActiveAgentApplications :exec

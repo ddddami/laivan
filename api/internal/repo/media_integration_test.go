@@ -179,6 +179,13 @@ func TestPropertyRepositorySoftRemovesMedia(t *testing.T) {
 	if removedBy != string(actorUserID) || storedObjectKey != "media/property/removal.jpg" || storedUploader != string(agentID) || !removed {
 		t.Fatalf("removed media state = removed_by=%q object_key=%q uploader=%q removed=%t", removedBy, storedObjectKey, storedUploader, removed)
 	}
+	var auditCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'media_removed' AND resource_id = $1`, string(created.ID)).Scan(&auditCount); err != nil {
+		t.Fatalf("count media removal audit events: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("media removal audit count = %d, want 1", auditCount)
+	}
 }
 
 func TestPropertyRepositoryCreateMediaRejectsInvalidOptionalUUID(t *testing.T) {

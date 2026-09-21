@@ -181,16 +181,24 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 	return i, err
 }
 
-const revokeSession = `-- name: RevokeSession :exec
+const revokeSession = `-- name: RevokeSession :one
 UPDATE sessions
 SET revoked_at = now()
 WHERE token_hash = $1
   AND revoked_at IS NULL
+RETURNING id, user_id
 `
 
-func (q *Queries) RevokeSession(ctx context.Context, tokenHash []byte) error {
-	_, err := q.db.Exec(ctx, revokeSession, tokenHash)
-	return err
+type RevokeSessionRow struct {
+	ID     pgtype.UUID
+	UserID pgtype.UUID
+}
+
+func (q *Queries) RevokeSession(ctx context.Context, tokenHash []byte) (RevokeSessionRow, error) {
+	row := q.db.QueryRow(ctx, revokeSession, tokenHash)
+	var i RevokeSessionRow
+	err := row.Scan(&i.ID, &i.UserID)
+	return i, err
 }
 
 const updateSessionCSRFToken = `-- name: UpdateSessionCSRFToken :exec

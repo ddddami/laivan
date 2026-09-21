@@ -123,6 +123,13 @@ func TestPropertyRepositoryCreateAndListPropertyUnitTypes(t *testing.T) {
 	if updated.Description != updatedDescription || updated.Version != 2 {
 		t.Fatalf("updated unit type = %#v, want corrected description at version 2", updated)
 	}
+	var auditCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'property_unit_type_corrected' AND resource_id = $1`, string(created.ID)).Scan(&auditCount); err != nil {
+		t.Fatalf("count property unit type correction audit events: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("property unit type correction audit count = %d, want 1", auditCount)
+	}
 
 	_, err = repository.UpdatePropertyUnitType(ctx, created.ID, created.Version, domain.PropertyUnitTypePatch{Description: &updatedDescription}, actorUserID)
 	if !errors.Is(err, ErrStaleUpdate) {

@@ -209,7 +209,8 @@ UPDATE agent_applications
 SET status = 'active', updated_at = now()
 WHERE agent_id = $1 AND status = 'suspended';
 
--- name: RevokeUserSessions :exec
+-- name: RevokeUserSessions :many
 UPDATE sessions
 SET revoked_at = now()
-WHERE sessions.user_id = $1 AND revoked_at IS NULL;
+WHERE sessions.user_id = $1 AND revoked_at IS NULL
+RETURNING id;

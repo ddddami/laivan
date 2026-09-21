@@ -240,11 +240,31 @@ func (r *PropertyRepository) RemoveMedia(ctx context.Context, mediaID, actorUser
 		return err
 	}
 
-	if _, err := r.queries.RemoveMedia(ctx, generateddb.RemoveMediaParams{ID: mediaUUID, RemovedByUserID: actorUserUUID}); err != nil {
+	tx, err := r.begin(ctx, "remove media")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	queries := r.queries.WithTx(tx)
+
+	row, err := queries.RemoveMedia(ctx, generateddb.RemoveMediaParams{ID: mediaUUID, RemovedByUserID: actorUserUUID})
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		return fmt.Errorf("remove media: %w", err)
+	}
+	if err := queries.CreateAuditEvent(ctx, generateddb.CreateAuditEventParams{
+		ActorUserID:  actorUserUUID,
+		Action:       "media_removed",
+		ResourceType: "media",
+		ResourceID:   row,
+		Metadata:     []byte(`{}`),
+	}); err != nil {
+		return fmt.Errorf("write media removal audit event: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit media removal: %w", err)
 	}
 
 	return nil
