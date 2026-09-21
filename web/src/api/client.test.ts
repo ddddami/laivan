@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError, createPublicApiClient, type PropertyDetail } from './client'
+import {
+  ApiError,
+  createAuthenticatedApiClient,
+  createPublicApiClient,
+  type PropertyDetail,
+} from './client'
 
 describe('public API client', () => {
   it('resolves a campus by its public slug', async () => {
@@ -226,6 +231,79 @@ describe('public API client', () => {
     expect(fetcher).toHaveBeenCalledWith(
       `https://api.laivan.test/v1/properties/${property.id}`,
       expect.any(Object),
+    )
+  })
+})
+
+describe('authenticated API client', () => {
+  it('includes the browser session when loading session state', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => {
+      return new Response(
+        JSON.stringify({
+          authenticated: false,
+          user: null,
+          roles: [],
+          agent: null,
+          csrf_token: null,
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      )
+    })
+    const client = createAuthenticatedApiClient({
+      baseUrl: 'https://api.laivan.test',
+      fetch: fetcher,
+    })
+
+    await client.getSession()
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.laivan.test/v1/auth/session',
+      expect.objectContaining({ credentials: 'include' }),
+    )
+  })
+
+  it('sends CSRF and credentials for inquiry mutations', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => {
+      return new Response(
+        JSON.stringify({
+          inquiry: {
+            id: '550e8400-e29b-41d4-a716-446655440060',
+            agent_offer_id: '550e8400-e29b-41d4-a716-446655440010',
+            message: 'Is the kitchen private?',
+            status: 'open',
+            created_at: '2026-05-01T10:00:00Z',
+          },
+          handoff: {
+            channel: 'whatsapp',
+            url: 'https://wa.me/2348000000000',
+          },
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      )
+    })
+    const client = createAuthenticatedApiClient({
+      baseUrl: 'https://api.laivan.test',
+      fetch: fetcher,
+    })
+    const input = {
+      message: 'Is the kitchen private?',
+      submission_id: '550e8400-e29b-41d4-a716-446655440061',
+    }
+
+    await client.createInquiry('550e8400-e29b-41d4-a716-446655440010', input, 'csrf-token')
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.laivan.test/v1/agent-offers/550e8400-e29b-41d4-a716-446655440010/inquiries',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'csrf-token',
+        },
+        body: JSON.stringify(input),
+      }),
     )
   })
 })
