@@ -110,6 +110,8 @@ type Medium struct {
 	ObjectKey          pgtype.Text
 	ContentType        pgtype.Text
 	SizeBytes          pgtype.Int8
+	RemovedAt          pgtype.Timestamptz
+	RemovedByUserID    pgtype.UUID
 }
 
 type Property struct {

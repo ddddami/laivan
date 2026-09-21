@@ -20,6 +20,7 @@ WITH opportunities AS (
       SELECT m.url
       FROM media m
       WHERE m.kind = 'image'
+        AND m.removed_at IS NULL
         AND (
           m.property_id = p.id
           OR m.property_unit_type_id = put.id
@@ -38,6 +39,7 @@ WITH opportunities AS (
         END::text
         FROM media m
         WHERE m.kind = 'image'
+          AND m.removed_at IS NULL
           AND (
             m.property_id = p.id
             OR m.property_unit_type_id = put.id

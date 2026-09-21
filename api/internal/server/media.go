@@ -17,6 +17,7 @@ import (
 	"github.com/ddddami/laivan/internal/repo"
 	"github.com/ddddami/laivan/internal/storage"
 	"github.com/ddddami/laivan/internal/validator"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -152,6 +153,47 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *app) deleteMedia(w http.ResponseWriter, r *http.Request) {
+	mediaID := chi.URLParam(r, "id")
+	v := validator.New()
+	v.Check(validator.NotBlank(mediaID), "id", "ID is required")
+	v.Check(validator.ValidUUID(mediaID), "id", "ID must be a valid UUID")
+	if !v.Valid() {
+		app.validationFailedResponse(w, r, v.FieldErrors)
+		return
+	}
+
+	p, ok := principalFromContext(r.Context())
+	if !ok {
+		app.errorResponse(w, r, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
+		return
+	}
+	target, err := app.propertyRepo.GetMediaForRemoval(r.Context(), domain.ID(mediaID))
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("get media for removal: %w", err))
+		return
+	}
+	if !canRemoveMedia(p.Access, target) {
+		app.errorResponse(w, r, http.StatusForbidden, "forbidden", "You are not authorized to remove this media")
+		return
+	}
+
+	if err := app.propertyRepo.RemoveMedia(r.Context(), domain.ID(mediaID), p.User.ID); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			app.notFoundResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, fmt.Errorf("remove media: %w", err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func canUploadMedia(access domain.EffectiveAccess, target repo.MediaTarget) bool {
 	if access.GlobalAdmin || containsID(access.CampusOperatorIDs, target.CampusID) {
 		return true
@@ -160,6 +202,16 @@ func canUploadMedia(access domain.EffectiveAccess, target repo.MediaTarget) bool
 		return false
 	}
 	return target.AgentID == "" || target.AgentID == access.Agent.ID
+}
+
+func canRemoveMedia(access domain.EffectiveAccess, target repo.MediaRemovalTarget) bool {
+	if access.GlobalAdmin || containsID(access.CampusOperatorIDs, target.CampusID) {
+		return true
+	}
+	if target.TargetType != "agent_offer" || access.Agent == nil || access.Agent.Status != domain.AgentStatusActive {
+		return false
+	}
+	return access.Agent.ID == target.AgentID && containsID(access.AgentCampusIDs, target.CampusID)
 }
 
 type mediaUploadTarget struct {

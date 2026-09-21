@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type MediaRemovalTarget struct {
+	MediaID            domain.ID
+	ObjectKey          string
+	PropertyID         domain.ID
+	PropertyUnitTypeID domain.ID
+	AgentOfferID       domain.ID
+	TargetType         string
+	CampusID           domain.ID
+	AgentID            domain.ID
+}
+
 func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
@@ -187,6 +198,58 @@ func (r *PropertyRepository) ListMediaByAgentOffer(ctx context.Context, agentOff
 	return media, nil
 }
 
+func (r *PropertyRepository) GetMediaForRemoval(ctx context.Context, mediaID domain.ID) (MediaRemovalTarget, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	mediaUUID, err := uuidParam(mediaID)
+	if err != nil {
+		return MediaRemovalTarget{}, err
+	}
+
+	row, err := r.queries.GetMediaForRemoval(ctx, mediaUUID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return MediaRemovalTarget{}, ErrNotFound
+	}
+	if err != nil {
+		return MediaRemovalTarget{}, fmt.Errorf("get media for removal: %w", err)
+	}
+
+	return MediaRemovalTarget{
+		MediaID:            domain.ID(uuidString(row.ID)),
+		ObjectKey:          textString(row.ObjectKey),
+		PropertyID:         domain.ID(uuidString(row.PropertyID)),
+		PropertyUnitTypeID: domain.ID(uuidString(row.PropertyUnitTypeID)),
+		AgentOfferID:       domain.ID(uuidString(row.AgentOfferID)),
+		TargetType:         row.TargetType,
+		CampusID:           domain.ID(uuidString(row.CampusID)),
+		AgentID:            domain.ID(uuidString(row.AgentID)),
+	}, nil
+}
+
+func (r *PropertyRepository) RemoveMedia(ctx context.Context, mediaID, actorUserID domain.ID) error {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	mediaUUID, err := uuidParam(mediaID)
+	if err != nil {
+		return err
+	}
+	actorUserUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := r.queries.RemoveMedia(ctx, generateddb.RemoveMediaParams{ID: mediaUUID, RemovedByUserID: actorUserUUID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("remove media: %w", err)
+	}
+
+	return nil
+}
+
 func optionalUUIDParam(id domain.ID) (pgtype.UUID, error) {
 	if id == "" {
 		return pgtype.UUID{}, nil
@@ -209,30 +272,30 @@ func int64String(value pgtype.Int8) int64 {
 }
 
 func mediaFromCreateRow(row generateddb.CreateMediaRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
 func mediaFromPropertyRow(row generateddb.ListMediaByPropertyRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
 func mediaFromPropertyUnitTypeRow(row generateddb.ListMediaByPropertyUnitTypeRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
 func mediaFromPropertyUnitTypeIDsRow(row generateddb.ListMediaByPropertyUnitTypeIDsRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
 func mediaFromAgentOfferRow(row generateddb.ListMediaByAgentOfferRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
 func mediaFromAgentOfferIDsRow(row generateddb.ListMediaByAgentOfferIDsRow) domain.Media {
-	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt)
+	return mediaFromFields(row.ID, row.PropertyID, row.PropertyUnitTypeID, row.AgentOfferID, row.UploadedByAgentID, row.Url, row.ObjectKey, row.Kind, row.Caption, row.ContentType, row.SizeBytes, row.CreatedAt, row.RemovedAt, row.RemovedByUserID)
 }
 
-func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedByAgentID pgtype.UUID, url string, objectKey pgtype.Text, kind string, caption pgtype.Text, contentType pgtype.Text, sizeBytes pgtype.Int8, createdAt pgtype.Timestamptz) domain.Media {
+func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedByAgentID pgtype.UUID, url string, objectKey pgtype.Text, kind string, caption pgtype.Text, contentType pgtype.Text, sizeBytes pgtype.Int8, createdAt, removedAt pgtype.Timestamptz, removedByUserID pgtype.UUID) domain.Media {
 	return domain.Media{
 		ID:                 domain.ID(uuidString(id)),
 		PropertyID:         domain.ID(uuidString(propertyID)),
@@ -246,5 +309,7 @@ func mediaFromFields(id, propertyID, propertyUnitTypeID, agentOfferID, uploadedB
 		ContentType:        textString(contentType),
 		SizeBytes:          int64String(sizeBytes),
 		CreatedAt:          createdAt.Time,
+		RemovedAt:          timestamptzPointer(removedAt),
+		RemovedByUserID:    domain.ID(uuidString(removedByUserID)),
 	}
 }

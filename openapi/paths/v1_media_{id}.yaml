@@ -1,0 +1,33 @@
+delete:
+  operationId: removeMedia
+  tags:
+    - Media
+  summary: Remove marketplace media without deleting its record.
+  description: >-
+    Marks active media as removed from public marketplace responses. The media
+    row, original uploader provenance, and object metadata are retained for audit.
+    Canonical property and unit media require a scoped campus operator or global
+    admin. Offer media may also be removed by the offer owner.
+  security:
+    - sessionAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - $ref: ../components/parameters/CSRFToken.yaml
+  responses:
+    '204':
+      description: Media was removed from active marketplace responses.
+    '401':
+      $ref: ../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../components/responses/NotFound.yaml
+    '422':
+      $ref: ../components/responses/ValidationFailed.yaml
+    '500':
+      $ref: ../components/responses/InternalServerError.yaml

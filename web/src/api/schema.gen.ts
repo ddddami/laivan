@@ -256,6 +256,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/v1/media/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Remove marketplace media without deleting its record.
+         * @description Marks active media as removed from public marketplace responses. The media row, original uploader provenance, and object metadata are retained for audit. Canonical property and unit media require a scoped campus operator or global admin. Offer media may also be removed by the offer owner.
+         */
+        readonly delete: operations["removeMedia"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/v1/properties": {
         readonly parameters: {
             readonly query?: never;
@@ -1479,6 +1499,34 @@ export interface operations {
                     readonly "application/json": components["schemas"]["DiscoveryResponse"];
                 };
             };
+            readonly 422: components["responses"]["ValidationFailed"];
+            readonly 500: components["responses"]["InternalServerError"];
+        };
+    };
+    readonly removeMedia: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description CSRF token returned by the authenticated session endpoint. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path: {
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Media was removed from active marketplace responses. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 401: components["responses"]["Unauthenticated"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
             readonly 422: components["responses"]["ValidationFailed"];
             readonly 500: components["responses"]["InternalServerError"];
         };

@@ -306,6 +306,25 @@ func (s *stubPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOffer
 	return nil, nil
 }
 
+func (s *stubPropertyRepo) GetMediaForRemoval(ctx context.Context, mediaID domain.ID) (repo.MediaRemovalTarget, error) {
+	if mediaID != "550e8400-e29b-41d4-a716-446655440050" {
+		return repo.MediaRemovalTarget{}, repo.ErrNotFound
+	}
+	return repo.MediaRemovalTarget{
+		MediaID:    mediaID,
+		ObjectKey:  "media/property/alice.jpg",
+		TargetType: "property",
+		CampusID:   domain.ID("550e8400-e29b-41d4-a716-446655440002"),
+	}, nil
+}
+
+func (s *stubPropertyRepo) RemoveMedia(ctx context.Context, mediaID, actorUserID domain.ID) error {
+	if mediaID != "550e8400-e29b-41d4-a716-446655440050" {
+		return repo.ErrNotFound
+	}
+	return nil
+}
+
 func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType, _ domain.ID) (domain.PropertyUnitType, error) {
 	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return domain.PropertyUnitType{}, repo.ErrNotFound

@@ -40,6 +40,44 @@ func TestUploadMediaRequiresAuthentication(t *testing.T) {
 	assertErrorResponse(t, rr, http.StatusUnauthorized, "unauthenticated", "Authentication is required")
 }
 
+func TestDeleteMediaRequiresValidIDBeforeRepositoryAccess(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{})
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app.propertyRepo = repository
+
+	req := authenticatedRequest(http.MethodDelete, "/v1/media/not-a-uuid", "", true)
+	rr := httptest.NewRecorder()
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestDeleteMediaAllowsGlobalAdminAndReturnsNoContent(t *testing.T) {
+	app := authenticatedTestApp(domain.ID("550e8400-e29b-41d4-a716-446655440001"), &fakeAgentApplicationStore{access: domain.EffectiveAccess{GlobalAdmin: true}})
+	repository := &spyPropertyRepo{stubPropertyRepo: &stubPropertyRepo{}}
+	app.propertyRepo = repository
+
+	req := authenticatedRequest(http.MethodDelete, "/v1/media/550e8400-e29b-41d4-a716-446655440050", "", true)
+	rr := httptest.NewRecorder()
+	app.routes().ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status code = %d, want %d", rr.Code, http.StatusNoContent)
+	}
+}
+
+func TestDeleteMediaRejectsAgentRemovingCanonicalMedia(t *testing.T) {
+	app := testAppWithActiveAgentRepo()
+
+	req := authenticatedRequest(http.MethodDelete, "/v1/media/550e8400-e29b-41d4-a716-446655440050", "", true)
+	rr := httptest.NewRecorder()
+	app.routes().ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusForbidden, "forbidden", "You are not authorized to remove this media")
+}
+
 func (s *stubUploader) Upload(ctx context.Context, input storage.UploadInput) (string, error) {
 	if s.failUploadAt == len(s.inputs)+1 {
 		return "", errors.New("storage unavailable")

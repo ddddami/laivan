@@ -117,6 +117,7 @@ func (app *app) routes() http.Handler {
 
 	r.Get("/v1/discovery", app.discover)
 	r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/v1/media", app.uploadMedia)
+	r.With(app.requireAuthenticatedUser, app.requireCSRF).Delete("/v1/media/{id}", app.deleteMedia)
 	r.With(app.requireAuthenticatedUser, app.requireCSRF).Post("/v1/agent-offers/{id}/inquiries", app.createInquiry)
 
 	return r

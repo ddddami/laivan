@@ -22,4 +22,6 @@ type Media struct {
 	ContentType        string
 	SizeBytes          int64
 	CreatedAt          time.Time
+	RemovedAt          *time.Time
+	RemovedByUserID    ID
 }
