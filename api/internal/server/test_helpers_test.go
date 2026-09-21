@@ -27,7 +27,7 @@ func (s *stubPropertyRepo) GetCampusBySlug(ctx context.Context, slug string) (do
 	}, nil
 }
 
-func (s *stubPropertyRepo) Create(ctx context.Context, property domain.Property) (domain.Property, error) {
+func (s *stubPropertyRepo) Create(ctx context.Context, property domain.Property, _ domain.ID) (domain.Property, error) {
 	property.ID = domain.ID("550e8400-e29b-41d4-a716-446655440001")
 	property.Version = 1
 	property.CreatedAt = time.Now()
@@ -306,7 +306,7 @@ func (s *stubPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOffer
 	return nil, nil
 }
 
-func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+func (s *stubPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType, _ domain.ID) (domain.PropertyUnitType, error) {
 	if string(unitType.PropertyID) != "550e8400-e29b-41d4-a716-446655440000" {
 		return domain.PropertyUnitType{}, repo.ErrNotFound
 	}
@@ -557,9 +557,9 @@ func (s *spyPropertyRepo) ListMediaByAgentOffer(ctx context.Context, agentOfferI
 	return s.stubPropertyRepo.ListMediaByAgentOffer(ctx, agentOfferID)
 }
 
-func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error) {
+func (s *spyPropertyRepo) CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType, actorUserID domain.ID) (domain.PropertyUnitType, error) {
 	s.createdUnitType = unitType
-	return s.stubPropertyRepo.CreatePropertyUnitType(ctx, unitType)
+	return s.stubPropertyRepo.CreatePropertyUnitType(ctx, unitType, actorUserID)
 }
 
 func (s *spyPropertyRepo) UpdatePropertyUnitType(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyUnitTypePatch, actorUserID domain.ID) (domain.PropertyUnitType, error) {

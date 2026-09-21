@@ -129,7 +129,7 @@ func (app *app) createProperty(w http.ResponseWriter, r *http.Request) {
 		Description: input.Description,
 	}
 
-	created, err := app.propertyRepo.Create(r.Context(), property)
+	created, err := app.propertyRepo.Create(r.Context(), property, p.User.ID)
 	if err != nil {
 		app.serverErrorResponse(w, r, fmt.Errorf("create property: %w", err))
 		return

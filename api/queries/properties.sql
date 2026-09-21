@@ -1,15 +1,15 @@
 -- name: CreateProperty :one
-INSERT INTO properties (campus_id, name, area, landmark, description)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version;
+INSERT INTO properties (campus_id, name, area, landmark, description, created_by_user_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id;
 
 -- name: GetProperty :one
-SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version
+SELECT id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id
 FROM properties
 WHERE id = $1;
 
 -- name: GetPropertyUnitType :one
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 FROM property_unit_types
 WHERE id = $1;
 
@@ -42,7 +42,7 @@ WHERE put_target.id = sqlc.arg('id')
         AND co.user_id = sqlc.arg('actor_user_id')
     )
   )
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version;
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id;
 
 -- name: UpdateProperty :one
 UPDATE properties AS p
@@ -67,15 +67,15 @@ WHERE p.id = sqlc.arg('id')
         AND co.campus_id = p.campus_id
     )
   )
-RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version;
+RETURNING id, campus_id, name, area, landmark, description, created_at, updated_at, version, created_by_user_id;
 
 -- name: CreatePropertyUnitType :one
-INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version;
+INSERT INTO property_unit_types (property_id, category, name, description, notes, bedroom_count, has_parlour, bathroom_type, kitchen_type, created_by_user_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id;
 
 -- name: ListPropertyUnitTypesByProperty :many
-SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version
+SELECT id, property_id, name, description, created_at, updated_at, category, bedroom_count, has_parlour, bathroom_type, kitchen_type, notes, version, created_by_user_id
 FROM property_unit_types
 WHERE property_id = $1
 ORDER BY created_at ASC, id ASC;

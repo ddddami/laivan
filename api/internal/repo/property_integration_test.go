@@ -21,6 +21,7 @@ func TestPropertyRepositoryCreateAndGet(t *testing.T) {
 	t.Cleanup(func() { truncateProperties(t, ctx, pool) })
 
 	campusID := testCampusID(t, ctx, pool)
+	actorUserID := insertUser(t, ctx, pool, "Property Contributor")
 	repository := NewPropertyRepository(pool)
 
 	created, err := repository.Create(ctx, domain.Property{
@@ -31,7 +32,7 @@ func TestPropertyRepositoryCreateAndGet(t *testing.T) {
 			Landmark: "Near South Gate",
 		},
 		Description: "Gated lodge with multiple room categories near campus.",
-	})
+	}, actorUserID)
 	if err != nil {
 		t.Fatalf("create property: %v", err)
 	}
@@ -56,6 +57,13 @@ func TestPropertyRepositoryCreateAndGet(t *testing.T) {
 	}
 	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
 		t.Fatal("created property timestamps must be set")
+	}
+	var storedActorID string
+	if err := pool.QueryRow(ctx, `SELECT created_by_user_id::text FROM properties WHERE id = $1`, string(created.ID)).Scan(&storedActorID); err != nil {
+		t.Fatalf("read property provenance: %v", err)
+	}
+	if storedActorID != string(actorUserID) {
+		t.Fatalf("property provenance = %q, want %q", storedActorID, actorUserID)
 	}
 
 	fetched, err := repository.Get(ctx, created.ID)
@@ -83,7 +91,7 @@ func TestPropertyRepositoryUpdateIsVersionChecked(t *testing.T) {
 		CampusID: campusID,
 		Name:     "Original Lodge",
 		Location: domain.ApproxLocation{Area: "Obanla", Landmark: "South Gate"},
-	})
+	}, actorUserID)
 	if err != nil {
 		t.Fatalf("create property: %v", err)
 	}
@@ -130,7 +138,7 @@ func TestPropertyRepositoryConcurrentVersionedUpdates(t *testing.T) {
 		CampusID: campusID,
 		Name:     "Concurrent Lodge",
 		Location: domain.ApproxLocation{Area: "Obanla"},
-	})
+	}, operatorID)
 	if err != nil {
 		t.Fatalf("create property: %v", err)
 	}

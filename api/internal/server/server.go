@@ -51,7 +51,7 @@ type InquiryStore interface {
 // (see gh issue:  #8 repository/interface split).
 type PropertyStore interface {
 	GetCampusBySlug(ctx context.Context, slug string) (domain.Campus, error)
-	Create(ctx context.Context, property domain.Property) (domain.Property, error)
+	Create(ctx context.Context, property domain.Property, actorUserID domain.ID) (domain.Property, error)
 	Get(ctx context.Context, id domain.ID) (domain.Property, error)
 	Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, actorUserID domain.ID) (domain.Property, error)
 	GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error)
@@ -64,7 +64,7 @@ type PropertyStore interface {
 	ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error)
 	ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error)
 	GetMediaTarget(ctx context.Context, targetType string, id domain.ID) (repo.MediaTarget, error)
-	CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType) (domain.PropertyUnitType, error)
+	CreatePropertyUnitType(ctx context.Context, unitType domain.PropertyUnitType, actorUserID domain.ID) (domain.PropertyUnitType, error)
 	ListPropertyUnitTypes(ctx context.Context, propertyID domain.ID) ([]domain.PropertyUnitType, error)
 	CreateAgentOffer(ctx context.Context, offer domain.AgentOffer) (domain.AgentOffer, error)
 	ListAgentOffers(ctx context.Context, unitTypeID domain.ID) ([]domain.AgentOffer, error)
