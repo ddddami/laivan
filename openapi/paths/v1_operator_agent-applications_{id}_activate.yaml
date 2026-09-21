@@ -4,8 +4,8 @@ post:
     - Agent Applications
   summary: Activate a pending agent application.
   description: >-
-    Creates a new active agent unless an explicitly selected legacy agent ID is
-    supplied. Phone numbers are never used for automatic linking.
+    Creates a new active agent linked to the applicant. Phone numbers are never
+    used to claim an existing agent or perform automatic linking.
   security:
     - sessionAuth: []
   parameters:

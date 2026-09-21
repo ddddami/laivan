@@ -147,7 +147,7 @@ export interface paths {
         readonly put?: never;
         /**
          * Activate a pending agent application.
-         * @description Creates a new active agent unless an explicitly selected legacy agent ID is supplied. Phone numbers are never used for automatic linking.
+         * @description Creates a new active agent linked to the applicant. Phone numbers are never used to claim an existing agent or perform automatic linking.
          */
         readonly post: operations["activateAgentApplication"];
         readonly delete?: never;
