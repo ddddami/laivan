@@ -75,6 +75,13 @@ func TestIdentityRepositorySessionLifecycle(t *testing.T) {
 	if created.ID == "" || !created.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("created session = %#v, want generated session with expiry", created)
 	}
+	var signInAuditCount int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'user_signed_in' AND resource_id = $1`, string(created.ID)).Scan(&signInAuditCount); err != nil {
+		t.Fatalf("count sign-in audit events: %v", err)
+	}
+	if signInAuditCount != 1 {
+		t.Fatalf("sign-in audit count = %d, want 1", signInAuditCount)
+	}
 
 	fetched, found, err := repository.GetSession(ctx, tokenHash)
 	if err != nil {
@@ -90,6 +97,13 @@ func TestIdentityRepositorySessionLifecycle(t *testing.T) {
 	}
 	if err := repository.RevokeSession(ctx, tokenHash); err != nil {
 		t.Fatalf("revoke session: %v", err)
+	}
+	var logoutAuditCount int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE action = 'session_revoked' AND resource_id = $1`, string(created.ID)).Scan(&logoutAuditCount); err != nil {
+		t.Fatalf("count logout audit events: %v", err)
+	}
+	if logoutAuditCount != 1 {
+		t.Fatalf("logout audit count = %d, want 1", logoutAuditCount)
 	}
 
 	_, found, err = repository.GetSession(ctx, tokenHash)

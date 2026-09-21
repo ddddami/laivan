@@ -81,8 +81,20 @@ func (r *AgentApplicationRepository) changeAgentStatus(ctx context.Context, agen
 			return domain.LinkedAgent{}, fmt.Errorf("suspend agent applications: %w", err)
 		}
 		if agent.UserID.Valid {
-			if err := queries.RevokeUserSessions(ctx, agent.UserID); err != nil {
+			revokedSessions, err := queries.RevokeUserSessions(ctx, agent.UserID)
+			if err != nil {
 				return domain.LinkedAgent{}, fmt.Errorf("revoke suspended agent sessions: %w", err)
+			}
+			for _, sessionID := range revokedSessions {
+				if err := queries.CreateAuditEvent(ctx, generateddb.CreateAuditEventParams{
+					ActorUserID:  operatorUUID,
+					Action:       "session_revoked_by_agent_suspension",
+					ResourceType: "session",
+					ResourceID:   sessionID,
+					Metadata:     []byte(`{"reason":"agent_suspended"}`),
+				}); err != nil {
+					return domain.LinkedAgent{}, fmt.Errorf("write session revocation audit event: %w", err)
+				}
 			}
 		}
 	} else {

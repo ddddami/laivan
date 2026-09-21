@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -42,6 +43,20 @@ type MediaTarget struct {
 
 func NewPropertyRepository(database generateddb.DBTX) *PropertyRepository {
 	return &PropertyRepository{queries: generateddb.New(database), db: database}
+}
+
+func (r *PropertyRepository) begin(ctx context.Context, operation string) (pgx.Tx, error) {
+	beginner, ok := r.db.(interface {
+		Begin(context.Context) (pgx.Tx, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("%s database does not support transactions", operation)
+	}
+	tx, err := beginner.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin %s transaction: %w", operation, err)
+	}
+	return tx, nil
 }
 
 func (r *PropertyRepository) Create(ctx context.Context, property domain.Property, actorUserID domain.ID) (domain.Property, error) {
@@ -106,7 +121,22 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 		return domain.Property{}, err
 	}
 
-	row, err := r.queries.UpdateProperty(ctx, generateddb.UpdatePropertyParams{
+	tx, err := r.begin(ctx, "update property")
+	if err != nil {
+		return domain.Property{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	queries := r.queries.WithTx(tx)
+
+	before, err := queries.GetProperty(ctx, propertyUUID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Property{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.Property{}, fmt.Errorf("load property before update: %w", err)
+	}
+
+	row, err := queries.UpdateProperty(ctx, generateddb.UpdatePropertyParams{
 		ID:              propertyUUID,
 		ExpectedVersion: expectedVersion,
 		ActorUserID:     actorUserUUID,
@@ -117,7 +147,7 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			current, getErr := r.queries.GetPropertyMutationStatus(ctx, generateddb.GetPropertyMutationStatusParams{
+			current, getErr := queries.GetPropertyMutationStatus(ctx, generateddb.GetPropertyMutationStatusParams{
 				ID:          propertyUUID,
 				ActorUserID: actorUserUUID,
 			})
@@ -139,7 +169,32 @@ func (r *PropertyRepository) Update(ctx context.Context, id domain.ID, expectedV
 		return domain.Property{}, fmt.Errorf("update property: %w", err)
 	}
 
-	return propertyFromRow(row), nil
+	updated := propertyFromRow(row)
+	metadata, err := json.Marshal(map[string]any{
+		"before": map[string]any{
+			"name": before.Name, "area": before.Area, "landmark": textString(before.Landmark), "description": textString(before.Description),
+		},
+		"after": map[string]any{
+			"name": updated.Name, "area": updated.Location.Area, "landmark": updated.Location.Landmark, "description": updated.Description,
+		},
+	})
+	if err != nil {
+		return domain.Property{}, fmt.Errorf("encode property audit metadata: %w", err)
+	}
+	if err := queries.CreateAuditEvent(ctx, generateddb.CreateAuditEventParams{
+		ActorUserID:  actorUserUUID,
+		Action:       "property_corrected",
+		ResourceType: "property",
+		ResourceID:   propertyUUID,
+		Metadata:     metadata,
+	}); err != nil {
+		return domain.Property{}, fmt.Errorf("write property audit event: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Property{}, fmt.Errorf("commit property update: %w", err)
+	}
+
+	return updated, nil
 }
 
 func (r *PropertyRepository) GetPropertyUnitType(ctx context.Context, id domain.ID) (domain.PropertyUnitType, error) {
@@ -175,7 +230,22 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 		return domain.PropertyUnitType{}, err
 	}
 
-	row, err := r.queries.UpdatePropertyUnitType(ctx, generateddb.UpdatePropertyUnitTypeParams{
+	tx, err := r.begin(ctx, "update property unit type")
+	if err != nil {
+		return domain.PropertyUnitType{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	queries := r.queries.WithTx(tx)
+
+	before, err := queries.GetPropertyUnitType(ctx, unitTypeUUID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.PropertyUnitType{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.PropertyUnitType{}, fmt.Errorf("load property unit type before update: %w", err)
+	}
+
+	row, err := queries.UpdatePropertyUnitType(ctx, generateddb.UpdatePropertyUnitTypeParams{
 		ID:              unitTypeUUID,
 		ExpectedVersion: expectedVersion,
 		ActorUserID:     actorUserUUID,
@@ -190,7 +260,7 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			current, getErr := r.queries.GetPropertyUnitTypeMutationStatus(ctx, generateddb.GetPropertyUnitTypeMutationStatusParams{
+			current, getErr := queries.GetPropertyUnitTypeMutationStatus(ctx, generateddb.GetPropertyUnitTypeMutationStatusParams{
 				ID:          unitTypeUUID,
 				ActorUserID: actorUserUUID,
 			})
@@ -211,7 +281,32 @@ func (r *PropertyRepository) UpdatePropertyUnitType(ctx context.Context, id doma
 		return domain.PropertyUnitType{}, fmt.Errorf("update property unit type: %w", err)
 	}
 
-	return propertyUnitTypeFromRow(row), nil
+	updated := propertyUnitTypeFromRow(row)
+	metadata, err := json.Marshal(map[string]any{
+		"before": map[string]any{
+			"category": before.Category, "name": before.Name, "description": textString(before.Description), "notes": textString(before.Notes),
+		},
+		"after": map[string]any{
+			"category": updated.Category, "name": updated.Name, "description": updated.Description, "notes": updated.Notes,
+		},
+	})
+	if err != nil {
+		return domain.PropertyUnitType{}, fmt.Errorf("encode property unit type audit metadata: %w", err)
+	}
+	if err := queries.CreateAuditEvent(ctx, generateddb.CreateAuditEventParams{
+		ActorUserID:  actorUserUUID,
+		Action:       "property_unit_type_corrected",
+		ResourceType: "property_unit_type",
+		ResourceID:   unitTypeUUID,
+		Metadata:     metadata,
+	}); err != nil {
+		return domain.PropertyUnitType{}, fmt.Errorf("write property unit type audit event: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.PropertyUnitType{}, fmt.Errorf("commit property unit type update: %w", err)
+	}
+
+	return updated, nil
 }
 
 func (r *PropertyRepository) GetAgentOffer(ctx context.Context, id domain.ID) (domain.AgentOffer, error) {
