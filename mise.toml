@@ -89,15 +89,6 @@ description = "Run golangci-lint on API code"
 dir = "api"
 run = "golangci-lint run --timeout=5m --config=../.golangci.yml"
 
-[tasks."api:check"]
-description = "Run API formatting, module tidy, lint, and tests"
-run = '''
-mise run "api:fmt" &&
-mise run "api:tidy" &&
-mise run "api:lint" &&
-mise run "api:test"
-'''
-
 [tasks."api:verify"]
 description = "Run non-integration API checks"
 run = '''
@@ -141,8 +132,8 @@ description = "Roll back the latest local database migration"
 run = ''': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir api/migrations postgres "$LAIVAN_DB_URL" down'''
 
 [tasks."db:reset"]
-description = "Roll local database all the way down then up"
-run = ''': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir api/migrations postgres "$LAIVAN_DB_URL" reset'''
+description = "Reset the local database to the latest migration"
+run = ''': "${LAIVAN_DB_URL:?LAIVAN_DB_URL is required}" && goose -dir api/migrations postgres "$LAIVAN_DB_URL" reset && goose -dir api/migrations postgres "$LAIVAN_DB_URL" up'''
 
 [tasks."db:seed:dev"]
 description = "Seed local database with deterministic dev marketplace data"
@@ -237,10 +228,38 @@ mise run "contract:check" &&
 mise run "web:check"
 '''
 
-[tasks.app]
-description = "Run Laivan across devices"
+[tasks.dev]
+description = "Run Laivan locally"
+run = '''
+export LAIVAN_WEB_ORIGIN="http://localhost:3000"
+export LAIVAN_ALLOWED_ORIGINS="$LAIVAN_WEB_ORIGIN"
+export LAIVAN_GOOGLE_REDIRECT_URL="$LAIVAN_WEB_ORIGIN/v1/auth/google/callback"
+export LAIVAN_SECURE_COOKIES=false
+mise run infra:up &&
+mise run db:up &&
+mise run api:dev ::: web:dev
+'''
+
+[tasks."dev:preview"]
+description = "Run Laivan for fast desktop and mobile preview over the local network"
+run = '''
+export LAIVAN_SECURE_COOKIES=false
+mise run infra:up &&
+mise run db:up &&
+mise run api:dev:mobile ::: web:dev:mobile
+'''
+
+[tasks."dev:shared"]
+description = "Run Laivan through the shared HTTPS origin for desktop and mobile"
 run = '''
 : "${LAIVAN_WEB_ORIGIN:?LAIVAN_WEB_ORIGIN is required}" &&
+if [ "${LAIVAN_GOOGLE_AUTH_ENABLED:-false}" != "true" ]; then
+  printf '%s\n' "LAIVAN_GOOGLE_AUTH_ENABLED=true is required for shared development" >&2
+  exit 1
+fi
+export LAIVAN_ALLOWED_ORIGINS="$LAIVAN_WEB_ORIGIN"
+export LAIVAN_GOOGLE_REDIRECT_URL="$LAIVAN_WEB_ORIGIN/v1/auth/google/callback"
+export LAIVAN_SECURE_COOKIES=true
 mise run infra:up &&
 mise run db:up &&
 mise run api:dev:mobile ::: web:dev:mobile ::: ngrok:dev
