@@ -43,6 +43,8 @@ func main() {
 	switch cmd {
 	case "grant-role":
 		runGrantRole(ctx, pool, os.Args[2:])
+	case "revoke-role":
+		runRevokeRole(ctx, pool, os.Args[2:])
 	case "list-applications":
 		runListApplications(ctx, pool, os.Args[2:])
 	case "approve-agent":
@@ -60,6 +62,7 @@ func printUsage() {
 	fmt.Println("Usage: admin <command> [flags]")
 	fmt.Println("\nCommands:")
 	fmt.Println("  grant-role         Grant a user the global_admin or campus_operator role")
+	fmt.Println("  revoke-role        Revoke a user's global_admin or campus_operator role")
 	fmt.Println("  list-applications  List pending agent applications")
 	fmt.Println("  approve-agent      Approve a pending agent application")
 	fmt.Println("  suspend-agent      Suspend an active agent")
