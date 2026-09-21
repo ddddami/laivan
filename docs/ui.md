@@ -76,7 +76,7 @@ search must preserve the current filters.
 
 Public location is approximate: area and landmark only. Do not expose exact coordinates, directions, phone numbers, or direct contact details.
 
-Use factual status language such as “2 available offers.” Do not claim verification, guaranteed availability, confirmed reservations, recommended agents, response times, ratings, inspections, or trust signals without contract-backed evidence. Workflow previews must say that nothing is submitted or saved.
+Use factual status language such as “2 available offers.” Do not claim verification, guaranteed availability, confirmed reservations, recommended agents, response times, ratings, inspections, or trust signals without contract-backed evidence. Implemented inquiries must say that the question was recorded before offering an optional WhatsApp handoff. Unimplemented workflows must not appear as functioning actions.
 
 ## Responsive composition
 

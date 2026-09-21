@@ -431,7 +431,7 @@ Google sign-in does not automatically claim an agent. Agent applications and ope
 
 An `AgentApplication` records a signed-in user's request to participate as an agent for one campus. The submitted name and normalized Nigerian phone number are application data until an operator decides the application. A user may have one pending application per campus.
 
-Activation creates a new active agent linked to the applicant. Phone-number matches are review signals only; they never claim an existing agent automatically. The former explicit legacy-link path was intentionally removed because the remaining unlinked agents were dummy seed data rather than valid application identities.
+Activation creates a new active agent linked to the applicant. Phone-number matches are review signals only; they never claim an existing agent automatically. The former explicit legacy-link path was intentionally removed because the remaining unlinked agents were dummy seed data rather than valid application identities. The strict-identity migration removes those confirmed dummy records and their dependent data rather than preserving identities that cannot be attributed to a user.
 
 Applications move through `pending`, `active`, `declined`, or `suspended` lifecycle states. Activation and decline are audited with the operator as actor and are committed transactionally with the application transition.
 
@@ -444,6 +444,18 @@ Effective access is derived from explicit global-admin roles, campus-operator as
 Campus operators may suspend or reinstate agents only when `agent_campuses` places the target in one of their assigned campuses. Global admins may act across campuses. Suspension is a transactional lifecycle change: the agent becomes `suspended`, linked active applications become `suspended`, all non-revoked sessions for the linked user are revoked, and an audit event records the actor, transition, and note. Reinstatement restores linked suspended applications and writes an audit event, but never creates a session automatically.
 
 Invalid lifecycle transitions are conflicts rather than idempotent successes. Creating an agent offer requires an authenticated active agent and derives the agent from the linked user; the target unit type must also belong to a campus associated with that agent. Property, unit-type, and media write ownership rules remain later slices. Public records and their visibility remain controlled by their own lifecycle status.
+
+## Canonical Contribution Provenance
+
+Canonical properties and accommodation types are shared marketplace records, not agent-owned listings. A successful contribution records the authenticated user who created it when available. Historical records may have null provenance because the original actor was not retained; the system must not invent one. Provenance supports operator review and audit and is not exposed in public marketplace responses.
+
+## Media Removal
+
+Marketplace media removal is non-destructive. A removed media row retains its original uploader and object metadata, records the user who removed it and the removal time, and is excluded from active public responses. Upload provenance does not grant an agent permission to remove canonical media.
+
+## Audit Events
+
+An audit event records a security-sensitive state change with its actor, action, target, timestamp, and bounded structured metadata. State changes and their audit events commit in the same database transaction. Audit metadata must never contain tokens, authorization codes, session cookies, secrets, or raw phone numbers.
 
 ## User Roles
 
