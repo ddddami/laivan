@@ -498,7 +498,7 @@ func (r *PropertyRepository) ListWithSummary(ctx context.Context, filter Propert
 		    COALESCE((SELECT COUNT(*) FROM property_unit_types WHERE property_id = p.id), 0)::integer AS unit_type_count,
 		    COALESCE((SELECT COUNT(*) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL), 0)::integer AS available_offer_count,
 		    ((SELECT MIN(ao.price_kobo) FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.status = 'available' AND ao.archived_at IS NULL))::integer AS lowest_price_kobo,
-		    (SELECT m.url FROM media m WHERE m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.archived_at IS NULL) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
+		    (SELECT m.url FROM media m WHERE m.removed_at IS NULL AND (m.property_id = p.id OR m.property_unit_type_id IN (SELECT id FROM property_unit_types WHERE property_id = p.id) OR m.agent_offer_id IN (SELECT ao.id FROM agent_offers ao JOIN property_unit_types put ON ao.property_unit_type_id = put.id WHERE put.property_id = p.id AND ao.archived_at IS NULL)) ORDER BY m.created_at ASC, m.id ASC LIMIT 1) AS thumbnail_url
 		  FROM properties p
 		  WHERE %s
 		) sub

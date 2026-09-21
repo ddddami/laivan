@@ -71,6 +71,8 @@ paths:
     $ref: paths/v1_campuses_{slug}.yaml
   /v1/discovery:
     $ref: paths/v1_discovery.yaml
+  /v1/media/{id}:
+    $ref: paths/v1_media_{id}.yaml
   /v1/properties:
     $ref: paths/v1_properties.yaml
   /v1/properties/{id}:

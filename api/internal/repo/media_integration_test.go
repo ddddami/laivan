@@ -19,8 +19,8 @@ func TestPropertyRepositoryCreateMediaBatchRollsBackOnFailure(t *testing.T) {
 	truncateProperties(t, ctx, pool)
 	truncateAgents(t, ctx, pool)
 	t.Cleanup(func() {
-		truncateProperties(t, ctx, pool)
-		truncateAgents(t, ctx, pool)
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
 	})
 
 	campusID := testCampusID(t, ctx, pool)
@@ -111,6 +111,73 @@ func TestPropertyRepositoryCreateAndListMedia(t *testing.T) {
 	}
 	if items[0].URL != "https://media.example.test/alice/front.jpg" {
 		t.Fatalf("media URL = %q, want original URL", items[0].URL)
+	}
+}
+
+func TestPropertyRepositorySoftRemovesMedia(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Removal Lodge", time.Now().UTC())
+	agentID := insertAgent(t, ctx, pool, "Uploader Agent")
+	actorUserID := insertUser(t, ctx, pool, "Media Operator")
+	repository := NewPropertyRepository(pool)
+
+	created, err := repository.CreateMedia(ctx, domain.Media{
+		PropertyID:        propertyID,
+		UploadedByAgentID: agentID,
+		URL:               "https://media.example.test/removal.jpg",
+		ObjectKey:         "media/property/removal.jpg",
+		Kind:              domain.MediaKindImage,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+
+	target, err := repository.GetMediaForRemoval(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get media removal target: %v", err)
+	}
+	if target.TargetType != "property" || target.CampusID != campusID || target.PropertyID != propertyID {
+		t.Fatalf("removal target = %#v", target)
+	}
+
+	if err := repository.RemoveMedia(ctx, created.ID, actorUserID); err != nil {
+		t.Fatalf("remove media: %v", err)
+	}
+	if _, err := repository.GetMediaForRemoval(ctx, created.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("removed target error = %v, want %v", err, ErrNotFound)
+	}
+	if err := repository.RemoveMedia(ctx, created.ID, actorUserID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("repeated removal error = %v, want %v", err, ErrNotFound)
+	}
+
+	items, err := repository.ListMediaByProperty(ctx, propertyID)
+	if err != nil {
+		t.Fatalf("list active media: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("active media after removal = %#v, want none", items)
+	}
+
+	var removedBy, storedObjectKey, storedUploader string
+	var removed bool
+	if err := pool.QueryRow(ctx, `
+		SELECT removed_by_user_id::text, object_key, uploaded_by_agent_id::text, removed_at IS NOT NULL
+		FROM media WHERE id = $1`, string(created.ID)).Scan(&removedBy, &storedObjectKey, &storedUploader, &removed); err != nil {
+		t.Fatalf("read removed media: %v", err)
+	}
+	if removedBy != string(actorUserID) || storedObjectKey != "media/property/removal.jpg" || storedUploader != string(agentID) || !removed {
+		t.Fatalf("removed media state = removed_by=%q object_key=%q uploader=%q removed=%t", removedBy, storedObjectKey, storedUploader, removed)
 	}
 }
 
