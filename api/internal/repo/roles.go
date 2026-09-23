@@ -58,7 +58,14 @@ func (r *RoleRepository) Grant(ctx context.Context, email, role string, campusID
 		return RoleChange{}, err
 	}
 	if !actorUUID.Valid {
-		if role != "global_admin" || !firstGlobalAdmin(ctx, tx) {
+		if role != "global_admin" {
+			return RoleChange{}, ErrRoleActorRequired
+		}
+		first, err := firstGlobalAdmin(ctx, tx)
+		if err != nil {
+			return RoleChange{}, err
+		}
+		if !first {
 			return RoleChange{}, ErrRoleActorRequired
 		}
 	} else if !isGlobalAdmin(ctx, tx, actorUUID) {
@@ -183,12 +190,15 @@ func optionalRoleActorID(id domain.ID) (pgtype.UUID, error) {
 	return uuidParam(id)
 }
 
-func firstGlobalAdmin(ctx context.Context, tx pgx.Tx) bool {
+func firstGlobalAdmin(ctx context.Context, tx pgx.Tx) (bool, error) {
+	if _, err := tx.Exec(ctx, `LOCK TABLE global_admin_roles IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+		return false, fmt.Errorf("lock global admin bootstrap: %w", err)
+	}
 	var count int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM global_admin_roles`).Scan(&count); err != nil {
-		return false
+		return false, fmt.Errorf("count global admin roles: %w", err)
 	}
-	return count == 0
+	return count == 0, nil
 }
 
 func isGlobalAdmin(ctx context.Context, tx pgx.Tx, userID pgtype.UUID) bool {

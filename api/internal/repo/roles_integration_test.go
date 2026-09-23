@@ -5,6 +5,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -80,6 +81,59 @@ func TestRoleRepositoryGrantRevokeLifecycle(t *testing.T) {
 	}
 	if roleAuditCount != 1 || sessionAuditCount != 1 {
 		t.Fatalf("role audits = %d and session audits = %d, want 1 and 1", roleAuditCount, sessionAuditCount)
+	}
+}
+
+func TestRoleRepositoryConcurrentBootstrapGrantsOnlyOneAdmin(t *testing.T) {
+	ctx := t.Context()
+	db := openIntegrationDB(t, ctx)
+	t.Cleanup(db.Close)
+	if _, err := db.Exec(ctx, `TRUNCATE sessions, audit_events, campus_operators, global_admin_roles, agents, users CASCADE`); err != nil {
+		t.Fatalf("truncate role tables: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := db.Exec(context.Background(), `TRUNCATE sessions, audit_events, campus_operators, global_admin_roles, agents, users CASCADE`); err != nil {
+			t.Errorf("cleanup role tables: %v", err)
+		}
+	})
+
+	insertRoleUser(t, ctx, db, "first.bootstrap@example.com", "First Bootstrap")
+	insertRoleUser(t, ctx, db, "second.bootstrap@example.com", "Second Bootstrap")
+	repository := NewRoleRepository(db)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var group sync.WaitGroup
+	for _, email := range []string{"first.bootstrap@example.com", "second.bootstrap@example.com"} {
+		group.Go(func() {
+			<-start
+			_, err := repository.Grant(ctx, email, "global_admin", "", "")
+			results <- err
+		})
+	}
+	close(start)
+	group.Wait()
+	close(results)
+
+	var granted, actorRequired int
+	for err := range results {
+		switch {
+		case err == nil:
+			granted++
+		case errors.Is(err, ErrRoleActorRequired):
+			actorRequired++
+		default:
+			t.Fatalf("unexpected bootstrap result: %v", err)
+		}
+	}
+	if granted != 1 || actorRequired != 1 {
+		t.Fatalf("bootstrap outcomes = %d granted, %d denied; want one of each", granted, actorRequired)
+	}
+	var adminCount int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM global_admin_roles`).Scan(&adminCount); err != nil {
+		t.Fatalf("count global admins: %v", err)
+	}
+	if adminCount != 1 {
+		t.Fatalf("global admin count = %d, want 1", adminCount)
 	}
 }
 
