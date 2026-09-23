@@ -57,8 +57,36 @@ LEFT JOIN properties offer_property ON offer_property.id = offer_unit.property_i
 WHERE m.id = $1 AND m.removed_at IS NULL;
 
 -- name: RemoveMedia :one
-UPDATE media
+WITH target AS (
+    SELECT m.id,
+           COALESCE(property_target.campus_id, unit_property.campus_id, offer_property.campus_id) AS campus_id,
+           offer_target.agent_id
+    FROM media m
+    LEFT JOIN properties property_target ON property_target.id = m.property_id
+    LEFT JOIN property_unit_types unit_target ON unit_target.id = m.property_unit_type_id
+    LEFT JOIN properties unit_property ON unit_property.id = unit_target.property_id
+    LEFT JOIN agent_offers offer_target ON offer_target.id = m.agent_offer_id
+    LEFT JOIN property_unit_types offer_unit ON offer_unit.id = offer_target.property_unit_type_id
+    LEFT JOIN properties offer_property ON offer_property.id = offer_unit.property_id
+    WHERE m.id = $1 AND m.removed_at IS NULL
+)
+UPDATE media AS m
 SET removed_at = now(),
     removed_by_user_id = $2
-WHERE id = $1 AND removed_at IS NULL
-RETURNING id;
+FROM target
+WHERE m.id = target.id
+  AND m.removed_at IS NULL
+  AND (
+      EXISTS (SELECT 1 FROM global_admin_roles WHERE user_id = $2)
+      OR EXISTS (SELECT 1 FROM campus_operators WHERE user_id = $2 AND campus_id = target.campus_id)
+      OR EXISTS (
+          SELECT 1
+          FROM agents a
+          JOIN agent_campuses ac ON ac.agent_id = a.id
+          WHERE a.id = target.agent_id
+            AND a.user_id = $2
+            AND a.status = 'active'
+            AND ac.campus_id = target.campus_id
+      )
+  )
+RETURNING m.id;

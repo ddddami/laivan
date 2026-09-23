@@ -130,6 +130,9 @@ func TestPropertyRepositorySoftRemovesMedia(t *testing.T) {
 	propertyID := insertProperty(t, ctx, pool, campusID, "Removal Lodge", time.Now().UTC())
 	agentID := insertAgent(t, ctx, pool, "Uploader Agent")
 	actorUserID := insertUser(t, ctx, pool, "Media Operator")
+	if _, err := pool.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(actorUserID), string(campusID)); err != nil {
+		t.Fatalf("grant media operator role: %v", err)
+	}
 	repository := NewPropertyRepository(pool)
 
 	created, err := repository.CreateMedia(ctx, domain.Media{
@@ -185,6 +188,67 @@ func TestPropertyRepositorySoftRemovesMedia(t *testing.T) {
 	}
 	if auditCount != 1 {
 		t.Fatalf("media removal audit count = %d, want 1", auditCount)
+	}
+}
+
+func TestPropertyRepositoryRemoveMediaRechecksPrivileges(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Scoped Removal Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Single room")
+	agentID := insertAgent(t, ctx, pool, "Scoped Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	agentUserID := agentUserID(t, ctx, pool, agentID)
+	offerID := insertAgentOffer(t, ctx, pool, unitTypeID, agentID, "Available room", 25000000)
+	operatorID := insertUser(t, ctx, pool, "Scoped Operator")
+	if _, err := pool.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(operatorID), string(campusID)); err != nil {
+		t.Fatalf("grant campus operator role: %v", err)
+	}
+
+	repository := NewPropertyRepository(pool)
+	propertyMedia, err := repository.CreateMedia(ctx, domain.Media{PropertyID: propertyID, URL: "https://media.example.test/scoped-property.jpg", Kind: domain.MediaKindImage})
+	if err != nil {
+		t.Fatalf("create property media: %v", err)
+	}
+	offerMedia, err := repository.CreateMedia(ctx, domain.Media{AgentOfferID: offerID, URL: "https://media.example.test/scoped-offer.jpg", Kind: domain.MediaKindImage})
+	if err != nil {
+		t.Fatalf("create offer media: %v", err)
+	}
+
+	if _, err := repository.GetMediaForRemoval(ctx, propertyMedia.ID); err != nil {
+		t.Fatalf("load property media before role removal: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM campus_operators WHERE user_id = $1 AND campus_id = $2`, string(operatorID), string(campusID)); err != nil {
+		t.Fatalf("revoke campus operator role: %v", err)
+	}
+	if err := repository.RemoveMedia(ctx, propertyMedia.ID, operatorID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("remove property media after role revocation error = %v, want %v", err, ErrNotFound)
+	}
+
+	if _, err := repository.GetMediaForRemoval(ctx, offerMedia.ID); err != nil {
+		t.Fatalf("load offer media before suspension: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE agents SET status = 'suspended' WHERE id = $1`, string(agentID)); err != nil {
+		t.Fatalf("suspend agent: %v", err)
+	}
+	if err := repository.RemoveMedia(ctx, offerMedia.ID, agentUserID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("remove offer media after agent suspension error = %v, want %v", err, ErrNotFound)
+	}
+
+	for _, mediaID := range []domain.ID{propertyMedia.ID, offerMedia.ID} {
+		if _, err := repository.GetMediaForRemoval(ctx, mediaID); err != nil {
+			t.Fatalf("media %s was removed without current permission: %v", mediaID, err)
+		}
 	}
 }
 
