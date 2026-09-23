@@ -70,7 +70,7 @@ repo/
 
 **Initial decision:** Start with React + Vite + TanStack Router + TanStack Query + installable PWA support without introducing SSR infrastructure immediately.
 
-**Why:** Laivan is primarily interaction-heavy, workflow-heavy, dashboard-heavy, mobile-first, authenticated. Most critical flows are client-side operational flows: inquiries, inspections, reservation intents, uploads, dashboard activity, listing management. Behaves more like an operational platform than a content website.
+**Why:** The first web product combines public discovery with an offer-specific inquiry flow, while protected agent and operator operations grow only as the marketplace needs them. A client-rendered PWA keeps the initial mobile experience and delivery model simple. Future inspections, reservations, or management screens do not drive this decision today.
 
 The first web product should feel like a strong mobile app experience on iOS and Android while still being excellent on desktop web. Most early users are phone-first and many will not have practical desktop access, so mobile is the starting point for prioritization, interaction design, and performance. Desktop must still be deliberately designed, not treated as stretched mobile UI. The PWA path keeps iteration fast and avoids App Store and Play Store review cycles before product validation.
 
@@ -94,35 +94,23 @@ Introducing SSR too early increases deployment complexity, caching complexity, h
 
 ---
 
-# Planned Frontend Evolution
+# Potential Frontend Evolution
 
-**Expected path:**
+The current frontend is a React and Vite SPA with installable PWA support.
+There is no scheduled framework migration.
 
-**Phase 1:** React + Vite + TanStack Router SPA + mobile-first installable PWA
-
-**Phase 2:** Migrate to TanStack Start when SEO becomes important, public discovery matters significantly, listing indexing becomes growth-critical
-
-**Phase 3:** Use selective rendering strategies (SSG, SSR, ISR-like caching) only where useful
+Consider TanStack Start or selective server rendering only when public listing
+indexing or another measured distribution need justifies the added operational
+complexity. This is separate from the Identity, Ownership, and Protected Writes
+product phase.
 
 ---
 
 # Rendering Philosophy
 
-Most of the application should remain client-side even after migrating to TanStack Start.
-
-Example future structure:
-
-```
-/dashboard              -> client-heavy SPA
-/agent                  -> SPA
-/messages               -> SPA
-/                        -> prerendered
-/accommodation/futa     -> SSG
-/area/south-gate        -> SSG
-/listing/alice-lodge    -> SSR or cached rendering
-```
-
-This matches the actual shape of the product.
+If rendering changes, choose it per public route based on indexing and
+performance evidence. Keep authenticated workflows straightforward and do not
+commit to a future route hierarchy before those product surfaces exist.
 
 ---
 

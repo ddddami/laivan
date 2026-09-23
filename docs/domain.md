@@ -43,6 +43,13 @@ Property
 
 This structure allows the platform to represent the market more realistically.
 
+The current persisted spine is `Property -> PropertyUnitType -> AgentOffer`.
+Media attaches at one of those three layers, and a recorded inquiry targets one
+offer. Signals, inspection requests, and reservation intents describe possible
+domain evolution; their presence in this model does not mean those workflows
+are implemented. `User` is the application identity. A student is a market
+participant, not a separate user table or an exclusive account role.
+
 ---
 
 # Core Entities
@@ -457,7 +464,11 @@ Marketplace media removal is non-destructive. A removed media row retains its or
 
 An audit event records a security-sensitive state change with its actor, action, target, timestamp, and bounded structured metadata. State changes and their audit events commit in the same database transaction. Audit metadata must never contain tokens, authorization codes, session cookies, secrets, or raw phone numbers.
 
-## User Roles
+## Market Participation
+
+These are ways a user may participate, not exclusive account types or a list
+of implemented features. A user can seek accommodation and also have agent or
+privileged access. The activities below include future product possibilities.
 
 ## Student
 

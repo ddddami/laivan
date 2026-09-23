@@ -7,6 +7,9 @@
 
 Laivan, a coordination, trust, and workflow layer for the fragmented FUTA housing market.
 
+See [current state and priorities](docs/roadmap.md) for the shipped product
+boundary, remaining acceptance work, and the next marketplace steps.
+
 ## Setup
 
 Requires [mise](https://mise.jdx.dev) for toolchain management.
