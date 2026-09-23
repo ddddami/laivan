@@ -11,6 +11,105 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createAuthorizedMedia = `-- name: CreateAuthorizedMedia :one
+WITH target AS (
+    SELECT COALESCE(property_target.campus_id, unit_property.campus_id, offer_property.campus_id) AS campus_id,
+           offer_target.agent_id AS offer_agent_id
+    FROM (SELECT 1) AS anchor
+    LEFT JOIN properties property_target ON property_target.id = $1
+    LEFT JOIN property_unit_types unit_target ON unit_target.id = $2
+    LEFT JOIN properties unit_property ON unit_property.id = unit_target.property_id
+    LEFT JOIN agent_offers offer_target ON offer_target.id = $3
+    LEFT JOIN property_unit_types offer_unit ON offer_unit.id = offer_target.property_unit_type_id
+    LEFT JOIN properties offer_property ON offer_property.id = offer_unit.property_id
+)
+INSERT INTO media (property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes)
+SELECT $1, $2, $3,
+       $4, $5, $6, $7,
+       $8, $9, $10
+FROM target
+WHERE target.campus_id IS NOT NULL
+  AND (
+      EXISTS (SELECT 1 FROM global_admin_roles gar WHERE gar.user_id = $11)
+      OR EXISTS (SELECT 1 FROM campus_operators co WHERE co.user_id = $11 AND co.campus_id = target.campus_id)
+      OR EXISTS (
+          SELECT 1
+          FROM agents a
+          JOIN agent_campuses ac ON ac.agent_id = a.id
+          WHERE a.user_id = $11
+            AND a.status = 'active'
+            AND ac.campus_id = target.campus_id
+            AND (target.offer_agent_id IS NULL OR target.offer_agent_id = a.id)
+      )
+  )
+RETURNING id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at, removed_at, removed_by_user_id
+`
+
+type CreateAuthorizedMediaParams struct {
+	PropertyID         pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentOfferID       pgtype.UUID
+	UploadedByAgentID  pgtype.UUID
+	Url                string
+	ObjectKey          pgtype.Text
+	Kind               string
+	Caption            pgtype.Text
+	ContentType        pgtype.Text
+	SizeBytes          pgtype.Int8
+	ActorUserID        pgtype.UUID
+}
+
+type CreateAuthorizedMediaRow struct {
+	ID                 pgtype.UUID
+	PropertyID         pgtype.UUID
+	PropertyUnitTypeID pgtype.UUID
+	AgentOfferID       pgtype.UUID
+	UploadedByAgentID  pgtype.UUID
+	Url                string
+	ObjectKey          pgtype.Text
+	Kind               string
+	Caption            pgtype.Text
+	ContentType        pgtype.Text
+	SizeBytes          pgtype.Int8
+	CreatedAt          pgtype.Timestamptz
+	RemovedAt          pgtype.Timestamptz
+	RemovedByUserID    pgtype.UUID
+}
+
+func (q *Queries) CreateAuthorizedMedia(ctx context.Context, arg CreateAuthorizedMediaParams) (CreateAuthorizedMediaRow, error) {
+	row := q.db.QueryRow(ctx, createAuthorizedMedia,
+		arg.PropertyID,
+		arg.PropertyUnitTypeID,
+		arg.AgentOfferID,
+		arg.UploadedByAgentID,
+		arg.Url,
+		arg.ObjectKey,
+		arg.Kind,
+		arg.Caption,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.ActorUserID,
+	)
+	var i CreateAuthorizedMediaRow
+	err := row.Scan(
+		&i.ID,
+		&i.PropertyID,
+		&i.PropertyUnitTypeID,
+		&i.AgentOfferID,
+		&i.UploadedByAgentID,
+		&i.Url,
+		&i.ObjectKey,
+		&i.Kind,
+		&i.Caption,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+		&i.RemovedAt,
+		&i.RemovedByUserID,
+	)
+	return i, err
+}
+
 const createMedia = `-- name: CreateMedia :one
 INSERT INTO media (property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

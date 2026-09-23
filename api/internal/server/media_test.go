@@ -242,6 +242,9 @@ func TestUploadMediaCreatesAllMediaRecordsInRequestOrder(t *testing.T) {
 	if len(repository.createdMedia) != 2 {
 		t.Fatalf("created media = %d, want 2", len(repository.createdMedia))
 	}
+	if repository.mediaActorUserID != domain.ID("550e8400-e29b-41d4-a716-446655440001") {
+		t.Fatalf("media actor = %q, want authenticated user", repository.mediaActorUserID)
+	}
 
 	var decoded struct {
 		Media []struct {
@@ -637,6 +640,6 @@ func (s *fkViolationRepo) CreateMedia(ctx context.Context, media domain.Media) (
 	return domain.Media{}, repo.ErrForeignKeyViolation
 }
 
-func (s *fkViolationRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+func (s *fkViolationRepo) CreateMediaBatch(ctx context.Context, media []domain.Media, actorUserID domain.ID) ([]domain.Media, error) {
 	return nil, repo.ErrForeignKeyViolation
 }

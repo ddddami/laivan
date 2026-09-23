@@ -3,6 +3,39 @@ INSERT INTO media (property_id, property_unit_type_id, agent_offer_id, uploaded_
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at, removed_at, removed_by_user_id;
 
+-- name: CreateAuthorizedMedia :one
+WITH target AS (
+    SELECT COALESCE(property_target.campus_id, unit_property.campus_id, offer_property.campus_id) AS campus_id,
+           offer_target.agent_id AS offer_agent_id
+    FROM (SELECT 1) AS anchor
+    LEFT JOIN properties property_target ON property_target.id = sqlc.arg(property_id)
+    LEFT JOIN property_unit_types unit_target ON unit_target.id = sqlc.arg(property_unit_type_id)
+    LEFT JOIN properties unit_property ON unit_property.id = unit_target.property_id
+    LEFT JOIN agent_offers offer_target ON offer_target.id = sqlc.arg(agent_offer_id)
+    LEFT JOIN property_unit_types offer_unit ON offer_unit.id = offer_target.property_unit_type_id
+    LEFT JOIN properties offer_property ON offer_property.id = offer_unit.property_id
+)
+INSERT INTO media (property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes)
+SELECT sqlc.arg(property_id), sqlc.arg(property_unit_type_id), sqlc.arg(agent_offer_id),
+       sqlc.arg(uploaded_by_agent_id), sqlc.arg(url), sqlc.arg(object_key), sqlc.arg(kind),
+       sqlc.arg(caption), sqlc.arg(content_type), sqlc.arg(size_bytes)
+FROM target
+WHERE target.campus_id IS NOT NULL
+  AND (
+      EXISTS (SELECT 1 FROM global_admin_roles gar WHERE gar.user_id = sqlc.arg(actor_user_id))
+      OR EXISTS (SELECT 1 FROM campus_operators co WHERE co.user_id = sqlc.arg(actor_user_id) AND co.campus_id = target.campus_id)
+      OR EXISTS (
+          SELECT 1
+          FROM agents a
+          JOIN agent_campuses ac ON ac.agent_id = a.id
+          WHERE a.user_id = sqlc.arg(actor_user_id)
+            AND a.status = 'active'
+            AND ac.campus_id = target.campus_id
+            AND (target.offer_agent_id IS NULL OR target.offer_agent_id = a.id)
+      )
+  )
+RETURNING id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at, removed_at, removed_by_user_id;
+
 -- name: ListMediaByProperty :many
 SELECT id, property_id, property_unit_type_id, agent_offer_id, uploaded_by_agent_id, url, object_key, kind, caption, content_type, size_bytes, created_at, removed_at, removed_by_user_id
 FROM media
