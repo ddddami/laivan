@@ -181,5 +181,6 @@ function inquiryErrorMessage(error: unknown) {
     return 'This offer is no longer accepting questions. Refresh and choose another offer.'
   if (error.code === 'unauthenticated')
     return 'Your session has ended. Sign in again to send this question.'
+  if (error.status === 403) return 'You cannot ask a question about your own offer.'
   return 'We could not send your question. Check your connection and try again.'
 }

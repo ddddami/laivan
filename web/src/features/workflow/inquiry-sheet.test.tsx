@@ -170,6 +170,30 @@ describe('InquirySheet', () => {
       queryKey: ['public', 'property', property.id],
     })
   })
+
+  it('explains when the user asks about their own offer', async () => {
+    const createInquiry = vi.fn<AuthenticatedApiClient['createInquiry']>(async () => {
+      throw new ApiError({
+        kind: 'response',
+        code: 'forbidden',
+        status: 403,
+        message: 'You cannot ask a question about your own offer',
+      })
+    })
+    renderSheet(fakeWorkflowClient(createInquiry))
+
+    fireEvent.change(screen.getByRole('textbox', { name: /what would you like to ask/i }), {
+      target: { value: 'Is this available?' },
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /record question/i })).toBeEnabled(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /record question/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /cannot ask a question about your own offer/i,
+    )
+  })
 })
 
 function renderSheet(
