@@ -273,7 +273,7 @@ func (s *stubPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) 
 	return media, nil
 }
 
-func (s *stubPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+func (s *stubPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media, actorUserID domain.ID) ([]domain.Media, error) {
 	created := make([]domain.Media, 0, len(media))
 	for _, item := range media {
 		item, err := s.CreateMedia(ctx, item)
@@ -530,6 +530,7 @@ type spyPropertyRepo struct {
 	createdUnitType        domain.PropertyUnitType
 	createdOffer           domain.AgentOffer
 	createdMedia           []domain.Media
+	mediaActorUserID       domain.ID
 	discoveryFilter        repo.DiscoveryFilter
 	updatePropertyCalls    int
 	updatePropertyErr      error
@@ -551,9 +552,10 @@ func (s *spyPropertyRepo) CreateMedia(ctx context.Context, media domain.Media) (
 	return s.stubPropertyRepo.CreateMedia(ctx, media)
 }
 
-func (s *spyPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+func (s *spyPropertyRepo) CreateMediaBatch(ctx context.Context, media []domain.Media, actorUserID domain.ID) ([]domain.Media, error) {
 	s.createdMedia = append(s.createdMedia, media...)
-	return s.stubPropertyRepo.CreateMediaBatch(ctx, media)
+	s.mediaActorUserID = actorUserID
+	return s.stubPropertyRepo.CreateMediaBatch(ctx, media, actorUserID)
 }
 
 func (s *spyPropertyRepo) Update(ctx context.Context, id domain.ID, expectedVersion int, patch domain.PropertyPatch, actorUserID domain.ID) (domain.Property, error) {

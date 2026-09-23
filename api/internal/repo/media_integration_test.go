@@ -26,6 +26,10 @@ func TestPropertyRepositoryCreateMediaBatchRollsBackOnFailure(t *testing.T) {
 	campusID := testCampusID(t, ctx, pool)
 	propertyID := insertProperty(t, ctx, pool, campusID, "Atomic Lodge", time.Now().UTC())
 	agentID := insertAgent(t, ctx, pool, "Atomic Agent")
+	actorUserID := insertUser(t, ctx, pool, "Atomic Operator")
+	if _, err := pool.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(actorUserID), string(campusID)); err != nil {
+		t.Fatalf("grant atomic operator role: %v", err)
+	}
 	repository := NewPropertyRepository(pool)
 
 	_, err := repository.CreateMediaBatch(ctx, []domain.Media{
@@ -41,7 +45,7 @@ func TestPropertyRepositoryCreateMediaBatchRollsBackOnFailure(t *testing.T) {
 			URL:               "https://media.example.test/second.jpg",
 			Kind:              domain.MediaKind("invalid"),
 		},
-	})
+	}, actorUserID)
 	if err == nil {
 		t.Fatal("CreateMediaBatch error = nil, want constraint error")
 	}
@@ -52,6 +56,62 @@ func TestPropertyRepositoryCreateMediaBatchRollsBackOnFailure(t *testing.T) {
 	}
 	if len(media) != 0 {
 		t.Fatalf("media after failed batch = %#v, want no records", media)
+	}
+}
+
+func TestPropertyRepositoryCreateMediaBatchRechecksPrivileges(t *testing.T) {
+	ctx := t.Context()
+	pool := openIntegrationDB(t, ctx)
+	t.Cleanup(pool.Close)
+
+	truncateProperties(t, ctx, pool)
+	truncateAgents(t, ctx, pool)
+	t.Cleanup(func() {
+		truncateProperties(t, context.Background(), pool)
+		truncateAgents(t, context.Background(), pool)
+	})
+
+	campusID := testCampusID(t, ctx, pool)
+	propertyID := insertProperty(t, ctx, pool, campusID, "Upload Scope Lodge", time.Now().UTC())
+	unitTypeID := insertPropertyUnitType(t, ctx, pool, propertyID, "Single room")
+	agentID := insertAgent(t, ctx, pool, "Upload Scope Agent")
+	associateAgentWithCampus(t, ctx, pool, agentID, campusID)
+	agentUserID := agentUserID(t, ctx, pool, agentID)
+	offerID := insertAgentOffer(t, ctx, pool, unitTypeID, agentID, "Available room", 25000000)
+	operatorID := insertUser(t, ctx, pool, "Upload Scope Operator")
+	if _, err := pool.Exec(ctx, `INSERT INTO campus_operators (user_id, campus_id) VALUES ($1, $2)`, string(operatorID), string(campusID)); err != nil {
+		t.Fatalf("grant upload operator role: %v", err)
+	}
+
+	repository := NewPropertyRepository(pool)
+	if _, err := repository.GetMediaTarget(ctx, "property", propertyID); err != nil {
+		t.Fatalf("load property media target: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM campus_operators WHERE user_id = $1 AND campus_id = $2`, string(operatorID), string(campusID)); err != nil {
+		t.Fatalf("revoke upload operator role: %v", err)
+	}
+	_, err := repository.CreateMediaBatch(ctx, []domain.Media{{PropertyID: propertyID, URL: "https://media.example.test/revoked-upload.jpg", Kind: domain.MediaKindImage}}, operatorID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("upload after role revocation error = %v, want %v", err, ErrNotFound)
+	}
+
+	if _, err := repository.GetMediaTarget(ctx, "agent_offer", offerID); err != nil {
+		t.Fatalf("load offer media target: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE agents SET status = 'suspended' WHERE id = $1`, string(agentID)); err != nil {
+		t.Fatalf("suspend uploading agent: %v", err)
+	}
+	_, err = repository.CreateMediaBatch(ctx, []domain.Media{{AgentOfferID: offerID, URL: "https://media.example.test/suspended-upload.jpg", Kind: domain.MediaKindImage}}, agentUserID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("upload after agent suspension error = %v, want %v", err, ErrNotFound)
+	}
+
+	var count int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM media WHERE property_id = $1 OR agent_offer_id = $2`, string(propertyID), string(offerID)).Scan(&count); err != nil {
+		t.Fatalf("count denied media uploads: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("persisted media count = %d, want 0", count)
 	}
 }
 

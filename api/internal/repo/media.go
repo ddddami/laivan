@@ -39,9 +39,13 @@ func (r *PropertyRepository) CreateMedia(ctx context.Context, media domain.Media
 	return mediaFromCreateRow(row), nil
 }
 
-func (r *PropertyRepository) CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error) {
+func (r *PropertyRepository) CreateMediaBatch(ctx context.Context, media []domain.Media, actorUserID domain.ID) ([]domain.Media, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
+	actorUUID, err := uuidParam(actorUserID)
+	if err != nil {
+		return nil, err
+	}
 
 	params := make([]generateddb.CreateMediaParams, 0, len(media))
 	for _, item := range media {
@@ -68,11 +72,26 @@ func (r *PropertyRepository) CreateMediaBatch(ctx context.Context, media []domai
 	queries := r.queries.WithTx(tx)
 	created := make([]domain.Media, 0, len(params))
 	for _, param := range params {
-		row, err := queries.CreateMedia(ctx, param)
+		row, err := queries.CreateAuthorizedMedia(ctx, generateddb.CreateAuthorizedMediaParams{
+			PropertyID:         param.PropertyID,
+			PropertyUnitTypeID: param.PropertyUnitTypeID,
+			AgentOfferID:       param.AgentOfferID,
+			UploadedByAgentID:  param.UploadedByAgentID,
+			Url:                param.Url,
+			ObjectKey:          param.ObjectKey,
+			Kind:               param.Kind,
+			Caption:            param.Caption,
+			ContentType:        param.ContentType,
+			SizeBytes:          param.SizeBytes,
+			ActorUserID:        actorUUID,
+		})
 		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
 			return nil, createMediaError(err)
 		}
-		created = append(created, mediaFromCreateRow(row))
+		created = append(created, mediaFromCreateRow(generateddb.CreateMediaRow(row)))
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -59,7 +59,7 @@ type PropertyStore interface {
 	GetWithDetails(ctx context.Context, id domain.ID) (domain.PropertyDetail, error)
 	ListWithSummary(ctx context.Context, filter repo.PropertyListFilter) ([]domain.PropertySummary, int, error)
 	Discover(ctx context.Context, filter repo.DiscoveryFilter) ([]domain.DiscoveryResult, int, error)
-	CreateMediaBatch(ctx context.Context, media []domain.Media) ([]domain.Media, error)
+	CreateMediaBatch(ctx context.Context, media []domain.Media, actorUserID domain.ID) ([]domain.Media, error)
 	ListMediaByProperty(ctx context.Context, propertyID domain.ID) ([]domain.Media, error)
 	ListMediaByPropertyUnitType(ctx context.Context, propertyUnitTypeID domain.ID) ([]domain.Media, error)
 	ListMediaByAgentOffer(ctx context.Context, agentOfferID domain.ID) ([]domain.Media, error)

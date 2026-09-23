@@ -130,7 +130,7 @@ func (app *app) uploadMedia(w http.ResponseWriter, r *http.Request) {
 		created = append(created, media)
 	}
 
-	persisted, err := app.propertyRepo.CreateMediaBatch(r.Context(), created)
+	persisted, err := app.propertyRepo.CreateMediaBatch(r.Context(), created, p.User.ID)
 	if err != nil {
 		app.cleanupMediaObjects(r.Context(), created, err)
 		if errors.Is(err, repo.ErrForeignKeyViolation) {
